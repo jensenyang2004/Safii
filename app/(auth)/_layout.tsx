@@ -1,12 +1,33 @@
-import { Redirect, Stack } from 'expo-router'
-import { useAuth } from '@clerk/clerk-expo'
+import { useAuth } from "@/context/AuthProvider";
+import { Redirect, Stack } from "expo-router";
+import { StatusBar } from "expo-status-bar";
+import React from "react";
 
-export default function AuthRoutesLayout() {
-  const { isSignedIn } = useAuth()
+const AuthLayout = () => {
 
-  if (isSignedIn) {
-    return <Redirect href={'/'} />
-  }
+    const { user, loading } = useAuth()
+    if( !loading && user ) return <Redirect href='/(tabs)/home'/>
+    return (
+    <>
+        <Stack>
+            <Stack.Screen
+                name="sign-in"
+                options={{
+                    headerShown: false,
+                }}
+            />
+            <Stack.Screen
+                name="sign-up"
+                options={{
+                    headerShown: false,
+                }}
+            />
+        </Stack>
 
-  return <Stack />
+        {/* <Loader isLoading={loading} /> */}
+        <StatusBar backgroundColor="#161622" style="light" />
+    </>
+  ); 
 }
+
+export default AuthLayout

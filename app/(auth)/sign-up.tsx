@@ -1,100 +1,152 @@
-import * as React from 'react'
-import { Text, TextInput, Button, View } from 'react-native'
-import { useSignUp } from '@clerk/clerk-expo'
-import { useRouter } from 'expo-router'
+import { Text, StyleSheet, View, TextInput, TouchableOpacity, SafeAreaView, ActivityIndicator } from 'react-native'
+import React, { useState } from 'react'
+import { createUserWithEmailAndPassword } from 'firebase/auth'
+import { auth, db } from '@/libs/firebase'
+import { doc, setDoc } from 'firebase/firestore'
 
-export default function SignUpScreen() {
-  const { isLoaded, signUp, setActive } = useSignUp()
-  const router = useRouter()
+const SignUp = () => {
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [username, setUsername] = useState('');
 
-  const [emailAddress, setEmailAddress] = React.useState('')
-  const [password, setPassword] = React.useState('')
-  const [pendingVerification, setPendingVerification] = React.useState(false)
-  const [code, setCode] = React.useState('')
-
-  // Handle submission of sign-up form
-  const onSignUpPress = async () => {
-    if (!isLoaded) return
-
-    // Start sign-up process using email and password provided
-    try {
-      await signUp.create({
-        emailAddress,
-        password,
-      })
-
-      // Send user an email with verification code
-      await signUp.prepareEmailAddressVerification({ strategy: 'email_code' })
-
-      // Set 'pendingVerification' to true to display second form
-      // and capture OTP code
-      setPendingVerification(true)
-    } catch (err) {
-      // See https://clerk.com/docs/custom-flows/error-handling
-      // for more info on error handling
-      console.error(JSON.stringify(err, null, 2))
+  const handleSignUp = async() => {
+    if (password !== confirmPassword) {
+      alert('Passwords do not match!')
+      return
     }
-  }
-
-  // Handle submission of verification form
-  const onVerifyPress = async () => {
-    if (!isLoaded) return
-
+    setLoading(true)
     try {
-      // Use the code the user provided to attempt verification
-      const signUpAttempt = await signUp.attemptEmailAddressVerification({
-        code,
-      })
-
-      // If verification was completed, set the session to active
-      // and redirect the user
-      if (signUpAttempt.status === 'complete') {
-        await setActive({ session: signUpAttempt.createdSessionId })
-        router.replace('/')
-      } else {
-        // If the status is not complete, check why. User may need to
-        // complete further steps.
-        console.error(JSON.stringify(signUpAttempt, null, 2))
-      }
-    } catch (err) {
-      // See https://clerk.com/docs/custom-flows/error-handling
-      // for more info on error handling
-      console.error(JSON.stringify(err, null, 2))
+      const res = await createUserWithEmailAndPassword(auth, email, password)
+      await setDoc(doc(db, "users", res.user.uid), {
+        username: username,
+        email: email,
+        id: res.user.uid,
+      });
+    }catch (err) {
+      console.log(err)
+    }finally {
+      setLoading(false)
     }
+  
   }
 
-  if (pendingVerification) {
-    return (
-      <>
-        <Text>Verify your email</Text>
-        <TextInput
-          value={code}
-          placeholder="Enter your verification code"
-          onChangeText={(code) => setCode(code)}
-        />
-        <Button title="Verify" onPress={onVerifyPress} />
-      </>
-    )
-  }
 
   return (
-    <View>
-      <>
-        <Text>Sign up</Text>
+    <SafeAreaView style={styles.container}>
+      <View style={styles.formContainer}>
+        <Text style={styles.title}>Create Account</Text>
+        
         <TextInput
+          style={styles.input}
+          placeholder="Email"
+          value={email}
+          onChangeText={setEmail}
+          keyboardType="email-address"
           autoCapitalize="none"
-          value={emailAddress}
-          placeholder="Enter email"
-          onChangeText={(email) => setEmailAddress(email)}
         />
+
         <TextInput
-          value={password}
-          placeholder="Enter password"
-          secureTextEntry={true}
-          onChangeText={(password) => setPassword(password)}
+          style={styles.input}
+          placeholder="Username"
+          value={username}
+          onChangeText={setUsername}
+          keyboardType="email-address"
+          autoCapitalize="none"
         />
-        <Button title="Continue" onPress={onSignUpPress} />
-      </>
-    </View>
+
+        <TextInput
+          style={styles.input}
+          placeholder="Password"
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+        />
+
+        <TextInput
+          style={styles.input}
+          placeholder="Confirm Password"
+          value={confirmPassword}
+          onChangeText={setConfirmPassword}
+          secureTextEntry
+        />
+
+        <TouchableOpacity
+          style={styles.button}
+          onPress={handleSignUp}
+          disabled={loading} // Disable the button while loading
+        >
+          {loading ? (
+            <ActivityIndicator color="white" /> // Show loading indicator
+          ) : (
+            <Text style={styles.buttonText}>Sign Up</Text>
+          )}
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.googleButton}
+          onPress={() => console.log('Sign up with Google')} // Replace with Google sign-up logic
+          disabled={loading} // Disable the button while loading
+        >
+          {loading ? (
+            <ActivityIndicator color="white" /> // Show loading indicator
+          ) : (
+            <Text style={styles.buttonText}>Sign Up with Google</Text>
+          )}
+        </TouchableOpacity>
+
+      </View>
+    </SafeAreaView>
   )
 }
+
+export default SignUp
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  formContainer: {
+    flex: 1,
+    padding: 20,
+    justifyContent: 'center',
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 30,
+    textAlign: 'center',
+  },
+  input: {
+    height: 50,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    paddingHorizontal: 15,
+    marginBottom: 15,
+    fontSize: 16,
+  },
+  button: {
+    backgroundColor: '#007AFF',
+    height: 50,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  googleButton: {
+    backgroundColor: '#DB4437',
+    height: 50,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 20,
+  },
+})

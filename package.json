@@ -18,6 +18,7 @@
     "@clerk/clerk-expo": "^2.7.6",
     "@clerk/types": "^4.45.1",
     "@expo/vector-icons": "^14.0.2",
+    "@react-native-async-storage/async-storage": "^2.1.1",
     "@react-native-firebase/app": "^21.8.0",
     "@react-native-firebase/auth": "^21.8.0",
     "@react-native-firebase/firestore": "^21.8.0",
@@ -33,6 +34,7 @@
     "expo-haptics": "~14.0.1",
     "expo-linking": "~7.0.5",
     "expo-local-authentication": "^15.0.2",
+    "expo-location": "~18.0.6",
     "expo-router": "~4.0.17",
     "expo-secure-store": "~14.0.1",
     "expo-splash-screen": "~0.29.21",
@@ -50,8 +52,7 @@
     "react-native-safe-area-context": "4.12.0",
     "react-native-screens": "~4.4.0",
     "react-native-web": "~0.19.13",
-    "react-native-webview": "13.12.5",
-    "expo-location": "~18.0.6"
+    "react-native-webview": "13.12.5"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
