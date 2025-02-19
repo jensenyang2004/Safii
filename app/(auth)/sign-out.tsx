@@ -3,31 +3,24 @@ import { signInWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc, Timestamp } from 'firebase/firestore';
 import React, { useState } from 'react';
 import { View, Text, TextInput, Button, StyleSheet, Alert } from 'react-native';
-import { useAuth } from "@/context/AuthProvider";
+import { signOut } from "firebase/auth";
+import { Stack, useRouter, useSegments } from "expo-router";
 
-const SignInScreen = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const { loading } = useAuth()
+const SignOutScreen = () => {
+  const router = useRouter();
+
   const submit = async () => {
     try {
-      console.log("signing in")
-        await signInWithEmailAndPassword(auth, email, password)
-        .then((userCredential) => {
-          // Signed in
-          const user = userCredential.user;
-          user.getIdToken().then(async (idToken) => {
-            await setDoc(doc(db, "tokens", user.uid), {
-              uid: user.uid,
-              idToken: idToken,
-              createdAt: Timestamp.now(),
-            });
-          });
-          // console.log(loading)
-          // console.log(user)
-        });
-        console.log("sign in successfully")
+      console.log("signing out")
+      await signOut(auth)
+      .then(() => {
+        // Sign-out successful.
+        console.log("sign out successfully")
         
+      }).catch((error) => {
+        // An error happened.
+      });
+      
     }catch(err) {
         console.log(err)
     }finally {
@@ -37,23 +30,21 @@ const SignInScreen = () => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Sign In</Text>
+      <Text style={styles.title}>Sign Out</Text>
       <TextInput
         style={styles.input}
         placeholder="Email"
-        value={email}
-        onChangeText={setEmail}
+        
         keyboardType="email-address"
         autoCapitalize="none"
       />
       <TextInput
         style={styles.input}
         placeholder="Password"
-        value={password}
-        onChangeText={setPassword}
+        
         secureTextEntry
       />
-      <Button title="Sign In" onPress={submit} />
+      <Button title="Sign Out" onPress={submit} />
     </View>
   );
 };
@@ -80,4 +71,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default SignInScreen;
+export default SignOutScreen;
