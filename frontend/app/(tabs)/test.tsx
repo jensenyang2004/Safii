@@ -1,6 +1,6 @@
-import { StyleSheet, Text, View, TouchableOpacity } from 'react-native'
+import { StyleSheet, Text, View, TouchableOpacity, Switch } from 'react-native'
 import React, { useEffect, useState } from 'react'
-import { addDoc, collection, doc, setDoc } from 'firebase/firestore'
+import { addDoc, collection, doc, setDoc, query, where, getDocs, updateDoc } from 'firebase/firestore'
 
 import * as Location from 'expo-location'
 import { db } from '@/libs/firebase'
@@ -19,6 +19,7 @@ const Test = () => {
                 sender: user?.id,
                 receiver: user?.contact,
                 location: location,
+                status: "on"
             });
         }catch(err){
             console.log(err)
@@ -26,6 +27,25 @@ const Test = () => {
             console.log("Emergency location shared successfully")
             console.log(location)
         }
+    }
+
+    const handleEmergencyDismiss = async () => {
+      console.log(user);
+      try {
+        const emergencyLocationRef = collection(db, "emergency_location");
+        const q = query(emergencyLocationRef, where("sender", "==", user?.id));
+        
+        const querySnapshot = await getDocs(q);
+        querySnapshot.forEach(async (document) => {
+          await updateDoc(doc(db, "emergency_location", document.id), {
+            status: "off"
+          });
+        });
+      } catch (error) {
+        console.error("Error updating emergency status:", error);
+      } finally {
+        console.log("Emergency status updated successfully");
+      }
     }
 
     const defaultLocation={
@@ -40,14 +60,11 @@ const Test = () => {
       let {status} = await Location.requestForegroundPermissionsAsync()
 
       if (status == 'granted') {
-
-        console.log('Permission successful!')
-
+        // console.log('Permission successful!')
       } else {
 
-        console.log('Permission not granted')
+        // console.log('Permission not granted')
       }
-
       let location = await Location.getCurrentPositionAsync()
       
       setLocation({
@@ -60,17 +77,33 @@ const Test = () => {
     })();
   }, []);
 
+  const [isEnabled, setIsEnabled] = useState(false);
+  const toggleSwitch = () => {
+    setIsEnabled(previousState => !previousState);
+    if (!isEnabled) {
+      handleEmergencyPress();
+    }else{
+      // TODO: Stop sharing location
+      handleEmergencyDismiss();
+    }
+  };
+
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Emergency Contact</Text>
-      <TouchableOpacity 
-        style={styles.emergencyButton}
-        onPress={handleEmergencyPress}
-      >
-        <Text style={styles.buttonText}>
-          Send Your Location to Emergency Contact
+      <Text style={styles.title}>In Danger Mode</Text>
+      <View style={styles.switchContainer}>
+        <Switch
+          trackColor={{ false: '#767577', true: '#FF3B30' }}
+          thumbColor={isEnabled ? '#f4f3f4' : '#f4f3f4'}
+          ios_backgroundColor="#3e3e3e"
+          onValueChange={toggleSwitch}
+          value={isEnabled}
+          style={{ transform: [{ scaleX: 2 }, { scaleY: 2 }] }}
+        />
+        <Text style={styles.switchText}>
+          {isEnabled ? 'Emergency Mode ON' : 'Emergency Mode OFF'}
         </Text>
-      </TouchableOpacity>
+      </View>
     </View>
   )
 }
@@ -100,5 +133,16 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  switchContainer: {
+    alignItems: 'center',
+    marginTop: 20,
+    padding: 20,
+  },
+  switchText: {
+    marginTop: 30,
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#FF3B30'
   }
 })
