@@ -27,6 +27,11 @@ export default function TabLayout() {
         tabBarLabel: 'Settings',
         tabBarIcon: ({color})=><MaterialIcons name="settings-applications" size={24} color={color} />
       }}/>
+      <Tabs.Screen name='test' 
+      options={{
+        tabBarLabel: 'Test',
+        tabBarIcon: ({color})=><MaterialIcons name="settings-applications" size={24} color={color} />
+      }}/>
       {/* <Tabs.Screen name='map' 
       options={{
         tabBarLabel: 'MAAP',

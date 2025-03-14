@@ -1,21 +1,11 @@
 {
-  "cli": {
-    "version": ">= 15.0.10",
-    "appVersionSource": "remote"
-  },
   "build": {
-    "development": {
+    "development-simulator": {
       "developmentClient": true,
-      "distribution": "internal"
-    },
-    "preview": {
-      "distribution": "internal"
-    },
-    "production": {
-      "autoIncrement": true
+      "distribution": "internal",
+      "ios": {
+        "simulator": true
+      }
     }
-  },
-  "submit": {
-    "production": {}
   }
 }

@@ -1,27 +1,3 @@
-// import React from 'react';
-// import MapView from 'react-native-maps';
-// import { StyleSheet, View } from 'react-native';
-
-// export default function App() {
-//   return (
-//     <View style={styles.container}>
-//       <MapView style={styles.map} />
-//     </View>
-//   );
-// }
-
-// const styles = StyleSheet.create({
-//   container: {
-//     flex: 1,
-//   },
-//   map: {
-//     width: '100%',
-//     height: '100%',
-//   },
-// });
-
-
-
 import { View, Text, StyleSheet, Platform, Alert, TouchableOpacity, Button } from 'react-native'
 import React, { useEffect, useState } from 'react'
 
@@ -65,8 +41,6 @@ export default function App() {
       }
 
       let location = await Location.getCurrentPositionAsync()
-      // console.log(location)
-      // setLocation(location)
       
       setLocation({
         latitude: location.coords.latitude,
@@ -75,7 +49,6 @@ export default function App() {
         longitudeDelta: 0.01,
       })
       console.log(location)
-      // setLocation(location)
 
     })();
   }, []);
