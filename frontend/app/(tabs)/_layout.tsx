@@ -32,11 +32,11 @@ export default function TabLayout() {
         tabBarLabel: 'Test',
         tabBarIcon: ({color})=><MaterialIcons name="settings-applications" size={24} color={color} />
       }}/>
-      {/* <Tabs.Screen name='map' 
+      <Tabs.Screen name='map_tracking' 
       options={{
-        tabBarLabel: 'MAAP',
-        tabBarIcon: ({color})=><MaterialIcons name="settings-applications" size={24} color={color} />
-      }}/> */}
+        tabBarLabel: 'Map Tracking',
+        tabBarIcon: ({color})=><FontAwesome5 name="map-marked-alt" size={24} color={color} />
+      }}/>
 
     </Tabs>
   )
