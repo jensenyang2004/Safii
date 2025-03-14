@@ -23,6 +23,7 @@ const Test = () => {
         }catch(err){
             console.log(err)
         }finally{
+            console.log("Emergency location shared successfully")
             console.log(location)
         }
     }

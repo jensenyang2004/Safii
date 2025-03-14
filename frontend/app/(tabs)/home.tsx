@@ -1,12 +1,23 @@
-import { View, Text, StyleSheet, Platform } from 'react-native';
+import { View, Text, StyleSheet, Platform, Pressable, Alert } from 'react-native';
 
 import { useEffect } from 'react';
 import { router, useNavigation, useRootNavigationState } from 'expo-router';
 import { useAuth } from '@/context/AuthProvider';
 
 export default function HomeScreen() {
-  const { user, loading } = useAuth()
+  const { user, loading, signOut } = useAuth()
   const rootNavigationState = useRootNavigationState();
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      Alert.alert("Signed out successfully!");
+      router.replace('/(auth)/sign-in') // replace with the desired route
+    } catch (error) {
+      console.error("Error signing out: ", error);
+      // Alert.alert("Error signing out: ", error.message);
+    }
+  };
 
   useEffect(() => {
     if(!user){
@@ -20,7 +31,20 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Home Page</Text>
+      <Text style={styles.title}>{user?.username}</Text>
+      <Pressable 
+        onPress={handleSignOut} 
+        style={({ pressed }) => [
+          {
+            backgroundColor: pressed ? 'gray' : '#1e90ff', 
+            padding: 10, 
+            borderRadius: 5
+
+          }
+        ]}
+      >
+        <Text style={{ color: 'white', textAlign: 'center' }}>Sign Out</Text>
+      </Pressable>
     </View>
   );
 }

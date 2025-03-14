@@ -4,15 +4,32 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 
 // 1. Create the context
-const AuthContext = createContext({
+const AuthContext = createContext<{
+  user: any | null;
+  loading: boolean;
+  signOut: () => Promise<void>;
+  fetchUserInfo: (uid: string) => Promise<void>;
+}>({
   user: null,
   loading: true, // Initial loading state
+  signOut: async () => {}, // Default no-op function
+  fetchUserInfo: async () => {}, // Default no-op function
 });
 
 // 2. Create the provider component
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  const signOut = async () => {
+    try {
+      await auth.signOut();
+      console.log('Signed out successfully!');
+      console.log(user);
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  }
 
   const fetchUserInfo = async (uid) => {
     if (!uid) {
@@ -49,7 +66,7 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading }}>
+    <AuthContext.Provider value={{ user, loading, signOut, fetchUserInfo }}>
       {children}
     </AuthContext.Provider>
   );

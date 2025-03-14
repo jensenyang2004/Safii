@@ -11,7 +11,7 @@ const SearchUsersScreen = () => {
     const [results, setResults] = useState([]);
     const [loading, setLoading] = useState(false);
 
-    const { user } = useAuth();
+    const { user, fetchUserInfo } = useAuth();
 
     const handleSearch = async () => {
         if (!searchQuery.trim()) return;
@@ -39,6 +39,7 @@ const SearchUsersScreen = () => {
           await updateDoc(usersRef, {
               contact: id,
           });
+          fetchUserInfo(user?.id);
           console.log("Contact updated successfully");
         } catch (error) {
             console.error("Error updating contact:", error);

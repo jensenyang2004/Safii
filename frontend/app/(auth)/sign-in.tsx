@@ -1,4 +1,5 @@
 import { auth, db } from '@/libs/firebase';
+import { router } from 'expo-router';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc, Timestamp } from 'firebase/firestore';
 import React, { useState } from 'react';
@@ -52,6 +53,7 @@ const SignInScreen = () => {
         secureTextEntry
       />
       <Button title="Sign In" onPress={submit} />
+      <Button title="Sign Up" onPress={() => {router.replace('/(auth)/sign-up')}} />
     </View>
   );
 };
