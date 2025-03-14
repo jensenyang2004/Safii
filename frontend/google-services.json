@@ -1,0 +1,55 @@
+{
+  "project_info": {
+    "project_number": "500399645906",
+    "firebase_url": "https://safii-90f1d-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "safii-90f1d",
+    "storage_bucket": "safii-90f1d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:500399645906:android:0e49a7ef623a7c4c7db90b",
+        "android_client_info": {
+          "package_name": "com.nightbasemorning.firebase"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "500399645906-uinu7hinoui18jf88k2ro44c9b38d8nd.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.nightbasemorning.firebase",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
+          "client_id": "500399645906-7tgv3282ovan18d80l6ep56fpr0a136d.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCMnYqEmg9tBRn7GjZvkNb6COwmMQCMGxA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "500399645906-3st7s8gpivcj37mtmlgajofq4r3dvqb1.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "500399645906-ospmrpb6kos0l4aroa5h1bvn29u7s86d.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.nightbase.firebase"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
