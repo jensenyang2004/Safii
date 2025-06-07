@@ -13,7 +13,14 @@
       "bundleIdentifier": "com.nightbase.firebase",
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "UIBackgroundModes": [
+          "location",
+          "fetch"
+        ],
+        "NSLocationWhenInUseUsageDescription": "This app needs access to location when open to track your location in emergencies.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "This app needs access to location when in background for emergency tracking.",
+        "NSLocationAlwaysUsageDescription": "This app needs access to location when in background for emergency tracking."
       }
     },
     "android": {
@@ -34,11 +41,16 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
+      
       "expo-router",
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Allow MyApp to access your location"
+          "locationAlwaysAndWhenInUsePermission": "Allow $(PRODUCT_NAME) to use your location for emergency tracking.",
+          "locationAlwaysPermission": "Allow $(PRODUCT_NAME) to use your location in the background for emergency tracking.",
+          "locationWhenInUsePermission": "Allow $(PRODUCT_NAME) to use your location.",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true
         }
       ],
       [
@@ -56,6 +68,16 @@
           "ios": {
             "useFrameworks": "static"
           }
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow $(PRODUCT_NAME) to use your location for emergency tracking.",
+          "locationAlwaysPermission": "Allow $(PRODUCT_NAME) to use your location in the background for emergency tracking.",
+          "locationWhenInUsePermission": "Allow $(PRODUCT_NAME) to use your location.",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true
         }
       ],
       "expo-build-properties",
