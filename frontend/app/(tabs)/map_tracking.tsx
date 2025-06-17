@@ -9,7 +9,7 @@ import { collection, doc, limit, onSnapshot, query, setDoc, where } from "fireba
 import { db } from '@/libs/firebase'
 import { useAuth } from '@/context/AuthProvider'
 import { Circle } from 'react-native-maps';
-import Icon from 'react-native-vector-icons/FontAwesome';
+// import Icon from 'react-native-vector-icons/FontAwesome';
 
 
 
