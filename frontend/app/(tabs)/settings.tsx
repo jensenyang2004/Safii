@@ -5,6 +5,7 @@ import {
 import { collection, query, where, getDocs, updateDoc, doc } from "firebase/firestore";
 import { db } from "@/libs/firebase";
 import { useAuth } from "@/context/AuthProvider";
+import '@/global.css';
 
 const SearchUsersScreen = () => {
 
@@ -13,8 +14,10 @@ const SearchUsersScreen = () => {
         username: string;
         // Add other user properties if needed
     }
+
+
     const [searchQuery, setSearchQuery] = useState("");
-    const [results, setResults] = useState([]);
+    const [results, setResults] = useState<User[]>([]);
     const [loading, setLoading] = useState(false);
 
     const { user, fetchUserInfo } = useAuth();
@@ -30,7 +33,15 @@ const SearchUsersScreen = () => {
             const q = query(usersRef, where("username", ">=", searchQuery), where("username", "<=", searchQuery + "\uf8ff"));
             const querySnapshot = await getDocs(q);
             
-            const users = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            const users = querySnapshot.docs
+                .map(doc => {
+                    const data = doc.data();
+                    return {
+                        id: doc.id,
+                        username: data.username ?? "",
+                        // Add other user properties if needed
+                    };
+                });
             setResults(users);
         } catch (error) {
             console.error("Error searching users:", error);
@@ -99,6 +110,7 @@ const SearchUsersScreen = () => {
                     }
                 />
             </KeyboardAvoidingView>
+            <Text className="text-4xl">Hello nativewind</Text>
         </SafeAreaView>
     );
 };
