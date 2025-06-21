@@ -9,8 +9,6 @@ const SignInScreen = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
-
-
   const submit = async () => {
     try {
       console.log("signing in")
@@ -26,6 +24,7 @@ const SignInScreen = () => {
             });
           });
         });
+        router.replace('/(tabs)/home');
         console.log("sign in successfully")
     }catch(err) {
         console.log(err)
