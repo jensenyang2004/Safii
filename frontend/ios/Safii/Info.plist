@@ -43,6 +43,12 @@
           <string>exp+safii</string>
         </array>
       </dict>
+      <dict>
+        <key>CFBundleURLSchemes</key>
+        <array>
+          <string>com.googleusercontent.apps.92946340200-iop971tjmqg230luanhfs83hkul5dude</string>
+        </array>
+      </dict>
     </array>
     <key>CFBundleVersion</key>
     <string>1</string>

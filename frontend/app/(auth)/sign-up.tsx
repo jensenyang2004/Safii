@@ -1,8 +1,11 @@
-import { Text, StyleSheet, View, TextInput, TouchableOpacity, SafeAreaView, ActivityIndicator } from 'react-native'
+import { Text, StyleSheet, View, TextInput, TouchableOpacity, SafeAreaView, ActivityIndicator, Alert } from 'react-native'
 import React, { useState } from 'react'
 import { createUserWithEmailAndPassword } from 'firebase/auth'
 import { auth, db } from '@/libs/firebase'
 import { doc, setDoc } from 'firebase/firestore'
+import { router } from 'expo-router'
+import { AntDesign } from '@expo/vector-icons'
+import { Stack } from 'expo-router';
 
 const SignUp = () => {
   const [email, setEmail] = useState('')
@@ -11,7 +14,7 @@ const SignUp = () => {
   const [loading, setLoading] = useState(false)
   const [username, setUsername] = useState('');
 
-  const handleSignUp = async() => {
+  const handleSignUp = async () => {
     if (password !== confirmPassword) {
       alert('Passwords do not match!')
       return
@@ -24,80 +27,106 @@ const SignUp = () => {
         email: email,
         id: res.user.uid,
       });
-    }catch (err) {
+    } catch (err) {
       console.log(err)
-    }finally {
+      Alert.alert('Error', err.message || 'An error occurred during sign up')
+    } finally {
       setLoading(false)
     }
-  
   }
 
-
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.formContainer}>
-        <Text style={styles.title}>Create Account</Text>
-        
-        <TextInput
-          style={styles.input}
-          placeholder="Email"
-          value={email}
-          onChangeText={setEmail}
-          keyboardType="email-address"
-          autoCapitalize="none"
-        />
+    <>
+      {/* <Stack.Screen
+        options={{
+          animation: 'slide_from_left',
+          presentation: 'modal',
+        }}
+      /> */}
+      <Stack.Screen
+        options={{
+          animation: 'slide_from_right',
+          presentation: 'card',
+        }}
+      />
 
-        <TextInput
-          style={styles.input}
-          placeholder="Username"
-          value={username}
-          onChangeText={setUsername}
-          keyboardType="email-address"
-          autoCapitalize="none"
-        />
-
-        <TextInput
-          style={styles.input}
-          placeholder="Password"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-        />
-
-        <TextInput
-          style={styles.input}
-          placeholder="Confirm Password"
-          value={confirmPassword}
-          onChangeText={setConfirmPassword}
-          secureTextEntry
-        />
-
+      <SafeAreaView style={styles.container}>
         <TouchableOpacity
-          style={styles.button}
-          onPress={handleSignUp}
-          disabled={loading} // Disable the button while loading
+          style={styles.backButton}
+          onPress={() => {
+            router.replace({
+              pathname: '/(auth)/sign-in',
+            });
+          }}
+        // onPress={() => router.replace('/(auth)/sign-in')}
         >
-          {loading ? (
-            <ActivityIndicator color="white" /> // Show loading indicator
-          ) : (
-            <Text style={styles.buttonText}>Sign Up</Text>
-          )}
+          <AntDesign name="arrowleft" size={24} color="black" />
         </TouchableOpacity>
+        <View style={styles.formContainer}>
+          <Text style={styles.title}>Create Account</Text>
 
-        <TouchableOpacity
-          style={styles.googleButton}
-          onPress={() => console.log('Sign up with Google')} // Replace with Google sign-up logic
-          disabled={loading} // Disable the button while loading
-        >
-          {loading ? (
-            <ActivityIndicator color="white" /> // Show loading indicator
-          ) : (
-            <Text style={styles.buttonText}>Sign Up with Google</Text>
-          )}
-        </TouchableOpacity>
+          <TextInput
+            style={styles.input}
+            placeholder="Email"
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+          />
 
-      </View>
-    </SafeAreaView>
+          <TextInput
+            style={styles.input}
+            placeholder="Username"
+            value={username}
+            onChangeText={setUsername}
+            keyboardType="email-address"
+            autoCapitalize="none"
+          />
+
+          <TextInput
+            style={styles.input}
+            placeholder="Password"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+          />
+
+          <TextInput
+            style={styles.input}
+            placeholder="Confirm Password"
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+            secureTextEntry
+          />
+
+          <TouchableOpacity
+            style={styles.button}
+            onPress={handleSignUp}
+            disabled={loading} // Disable the button while loading
+          >
+            {loading ? (
+              <ActivityIndicator color="white" /> // Show loading indicator
+            ) : (
+              <Text style={styles.buttonText}>Sign Up</Text>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.googleButton}
+            onPress={() => console.log('Sign up with Google')} // Replace with Google sign-up logic
+            disabled={loading} // Disable the button while loading
+          >
+            {loading ? (
+              <ActivityIndicator color="white" /> // Show loading indicator
+            ) : (
+              <Text style={styles.buttonText}>Sign Up with Google</Text>
+            )}
+          </TouchableOpacity>
+
+        </View>
+      </SafeAreaView>
+    </>
+
   )
 }
 
@@ -140,6 +169,13 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  backButton: {
+    position: 'absolute',
+    top: 50,
+    left: 20,
+    zIndex: 1,
+    padding: 10,
   },
   googleButton: {
     backgroundColor: '#DB4437',
