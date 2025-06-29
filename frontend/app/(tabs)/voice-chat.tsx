@@ -1,80 +1,88 @@
-// app/(tabs)/voice-chat.tsx
-import React, { useState, useRef } from 'react';
-import { View, Button, Text, ActivityIndicator } from 'react-native';
-import { Audio } from 'expo-av';
-import * as FileSystem from 'expo-file-system';
+// // voice-chat.tsx
+// import React, { useRef, useState } from "react";
+// import { View, Text, Button, ActivityIndicator, StyleSheet } from "react-native";
+// import { Audio } from "expo-av";
 
-const VoiceChat = () => {
-  const [recording, setRecording] = useState<Audio.Recording | null>(null);
-  const [response, setResponse] = useState('');
-  const [loading, setLoading] = useState(false);
-  const sound = useRef<Audio.Sound | null>(null);
+// const BACKEND_URL = "http://<your-ip>:5000"; // Replace with your IP
 
-  const startRecording = async () => {
-    await Audio.requestPermissionsAsync();
-    await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
-    const { recording } = await Audio.Recording.createAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
-    setRecording(recording);
-  };
+// export default function VoiceChat() {
+//   const [recording, setRecording] = useState<Audio.Recording | null>(null);
+//   const [response, setResponse] = useState("");
+//   const [loading, setLoading] = useState(false);
+//   const sound = useRef(new Audio.Sound());
 
-  const stopRecording = async () => {
-    if (!recording) return;
-    setLoading(true);
-    await recording.stopAndUnloadAsync();
-    const uri = recording.getURI();
-    setRecording(null);
+//   const startRecording = async () => {
+//     await Audio.requestPermissionsAsync();
+//     await Audio.setAudioModeAsync({ allowsRecordingIOS: true });
+//     const { recording } = await Audio.Recording.createAsync(
+//       Audio.RecordingOptionsPresets.HIGH_QUALITY
+//     );
+//     setRecording(recording);
+//   };
 
-    if (uri) {
-      // Upload audio for transcription
-      const formData = new FormData();
-      formData.append('audio', {
-        uri,
-        name: 'input.wav',
-        type: 'audio/wav'
-      } as any);
+//   const stopRecording = async () => {
+//     if (!recording) return;
 
-      const res1 = await fetch('http://<your-local-ip>:5000/transcribe', {
-        method: 'POST',
-        body: formData,
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
+//     setLoading(true);
+//     await recording.stopAndUnloadAsync();
+//     const uri = recording.getURI();
+//     setRecording(null);
 
-      const { text } = await res1.json();
+//     if (!uri) return;
 
-      // Get reply from LLM
-      const res2 = await fetch('http://<your-local-ip>:5000/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: text })
-      });
+//     const formData = new FormData();
+//     formData.append("audio", {
+//       uri,
+//       name: "input.wav",
+//       type: "audio/wav",
+//     } as any);
 
-      const { reply } = await res2.json();
-      setResponse(reply);
+//     // Transcribe
+//     const transcribeRes = await fetch(`${BACKEND_URL}/transcribe`, {
+//       method: "POST",
+//       body: formData,
+//       headers: { "Content-Type": "multipart/form-data" },
+//     });
+//     const { text } = await transcribeRes.json();
 
-      // Request TTS
-      const res3 = await fetch('http://<your-local-ip>:5000/speak', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: reply })
-      });
+//     // Chat
+//     const chatRes = await fetch(`${BACKEND_URL}/chat`, {
+//       method: "POST",
+//       headers: { "Content-Type": "application/json" },
+//       body: JSON.stringify({ prompt: text }),
+//     });
+//     const { reply } = await chatRes.json();
+//     setResponse(reply);
 
-      const { audio_url } = await res3.json();
+//     // TTS
+//     const speakRes = await fetch(`${BACKEND_URL}/speak`, {
+//       method: "POST",
+//       headers: { "Content-Type": "application/json" },
+//       body: JSON.stringify({ text: reply }),
+//     });
+//     const { audio_url } = await speakRes.json();
 
-      // Play the TTS audio
-      sound.current = new Audio.Sound();
-      await sound.current.loadAsync({ uri: audio_url });
-      await sound.current.playAsync();
-      setLoading(false);
-    }
-  };
+//     // Play audio
+//     await sound.current.unloadAsync();
+//     await sound.current.loadAsync({ uri: audio_url });
+//     await sound.current.playAsync();
 
-  return (
-    <View style={{ padding: 20 }}>
-      <Button title={recording ? "Stop Recording" : "Start Talking"} onPress={recording ? stopRecording : startRecording} />
-      {loading && <ActivityIndicator size="large" />}
-      <Text style={{ marginTop: 20 }}>🤖 {response}</Text>
-    </View>
-  );
-};
+//     setLoading(false);
+//   };
 
-export default VoiceChat;
+//   return (
+//     <View style={styles.container}>
+//       <Button
+//         title={recording ? "🛑 Stop" : "🎙️ Start Talking"}
+//         onPress={recording ? stopRecording : startRecording}
+//       />
+//       {loading && <ActivityIndicator style={{ margin: 10 }} />}
+//       <Text style={styles.response}>🤖 {response}</Text>
+//     </View>
+//   );
+// }
+
+// const styles = StyleSheet.create({
+//   container: { padding: 20 },
+//   response: { marginTop: 20, fontSize: 16 },
+// });

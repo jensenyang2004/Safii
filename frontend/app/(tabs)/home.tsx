@@ -24,7 +24,7 @@ export default function HomeScreen() {
       if(!rootNavigationState?.key){
         //do nothing 
       }else{
-        // router.replace('/(auth)/sign-in')
+        // router.replace('/(auth)/signIn')
       }
     }
   }, [user])
