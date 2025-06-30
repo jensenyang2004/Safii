@@ -20,7 +20,7 @@
     "@expo/vector-icons": "~14.0.4",
     "@react-native-async-storage/async-storage": "^2.1.1",
     "@react-native-firebase/app": "^21.8.0",
-    "@react-native-firebase/auth": "^21.8.0",
+    "@react-native-firebase/auth": "^22.2.1",
     "@react-native-firebase/firestore": "^21.8.0",
     "@react-native-firebase/functions": "^22.2.1",
     "@react-native-google-signin/google-signin": "^15.0.0",

@@ -1,8 +1,8 @@
-import { View, Text, Pressable, Alert } from 'react-native';
+import { View, Text, Pressable, Alert, StyleSheet } from 'react-native';
 import { useEffect } from 'react';
 import { router, useRootNavigationState } from 'expo-router';
 import { useAuth } from '@/context/AuthProvider';
-import '@/global.css';
+
 export default function HomeScreen() {
   const { user, loading, signOut } = useAuth();
   const rootNavigationState = useRootNavigationState();
@@ -24,19 +24,51 @@ export default function HomeScreen() {
   }, [user]);
 
   return (
-    <View className="flex-1 justify-center items-center bg-white">
-      <Text className="text-2xl font-bold mb-6">{user?.username}</Text>
+    <View style={styles.container}>
+      <Text style={styles.username}>{user?.username}</Text>
 
-      <Pressable
-        onPress={handleSignOut}
-        className="bg-blue-500 px-4 py-2 rounded"
-      >
-        {({ pressed }) => (
-          <Text className={`text-white text-center ${pressed ? 'opacity-70' : ''}`}>
-            Sign Out
-          </Text>
-        )}
+      <Pressable onPress={handleSignOut} style={({ pressed }) => [
+        styles.button,
+        pressed && styles.buttonPressed
+      ]}>
+        <Text style={styles.buttonText}>Sign Out</Text>
       </Pressable>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f8f9fa',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  username: {
+    fontSize: 28,
+    fontWeight: '600',
+    marginBottom: 20,
+    color: '#212529',
+  },
+  button: {
+    backgroundColor: '#007bff',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  buttonPressed: {
+    opacity: 0.75,
+  },
+  buttonText: {
+    color: '#000000',
+    fontSize: 16,
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+});
