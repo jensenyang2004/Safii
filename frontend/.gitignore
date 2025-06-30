@@ -36,3 +36,18 @@ yarn-error.*
 *.tsbuildinfo
 
 app-example
+
+# Auth sensitive files
+app/(auth)/config.ts
+app/(auth)/*.config.ts
+app/(auth)/*.secret.ts
+app/(auth)/*.dev.tsx
+app/(auth)/*.local.ts
+app/(auth)/*.test.ts
+app/(auth)/.env*
+app/(auth)/mailer.tsx
+app/(auth)/phone-auth.tsx
+app/(auth)/phone-auth-manual.tsx
+app/(auth)/sign-in-google.tsx
+app/(auth)/sign-in-x.tsx
+app/(auth)/sign-up-y.tsx
