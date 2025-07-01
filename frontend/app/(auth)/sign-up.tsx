@@ -29,7 +29,11 @@ const SignUp = () => {
       });
     } catch (err) {
       console.log(err)
-      Alert.alert('Error', err.message || 'An error occurred during sign up')
+      let errorMessage = 'An error occurred during sign up';
+      if (err && typeof err === 'object' && 'message' in err) {
+        errorMessage = String((err as { message?: unknown }).message);
+      }
+      Alert.alert('Error', errorMessage);
     } finally {
       setLoading(false)
     }

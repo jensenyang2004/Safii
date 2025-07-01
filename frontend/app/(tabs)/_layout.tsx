@@ -14,80 +14,75 @@ export default function TabLayout() {
           headerShown: false,
           tabBarActiveTintColor: Colors.MAINRED,
           tabBarItemStyle: {
-          justifyContent: 'center',
-          alignItems: 'center',
-          paddingVertical: '4%',
-          height: 60,
+            justifyContent: 'center',
+            alignItems: 'center',
+            paddingVertical: '4%',
+            height: 60,
           },
           tabBarLabelStyle: {
-          display: 'none', // Hide the label
+            display: 'none',
           },
-          tabBarShowLabel: false, // Hide the label
+          tabBarShowLabel: false,
           tabBarStyle: {
-        position: 'absolute',
-        bottom: '2%',
-        borderRadius: 38,
-        backgroundColor: Colors.PRIMARY,
-        elevation: 5,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-        borderTopWidth: 0,
-        width: '95%',
-        height: '10%',
-        alignSelf: 'center',
-        justifyContent: 'center',
-        marginHorizontal: '2.5%',
+            position: 'absolute',
+            bottom: '2%',
+            borderRadius: 38,
+            backgroundColor: Colors.PRIMARY,
+            elevation: 5,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.1,
+            shadowRadius: 8,
+            borderTopWidth: 0,
+            width: '95%',
+            height: '10%',
+            alignSelf: 'center',
+            justifyContent: 'center',
+            marginHorizontal: '2.5%',
           },
         }}
       >
         <Tabs.Screen
+          name="map"
+          options={{
+            tabBarIcon: ({ color }) => (
+              <FontAwesome5 name="map-marked-alt" size={24} color={color} />
+            ),
+          }}
+        />
+        <Tabs.Screen
           name="home"
           options={{
-        tabBarLabel: '',
-        tabBarIcon: ({ color }) => (
-          <FontAwesome name="home" size={24} color={color} />
-        ),
+            tabBarIcon: ({ color }) => (
+              <FontAwesome name="home" size={24} color={color} />
+            ),
           }}
         />
         <Tabs.Screen
           name="settings"
           options={{
-        tabBarLabel: '',
-        tabBarIcon: ({ color }) => (
-          <MaterialIcons name="settings-applications" size={24} color={color} />
-        ),
+            tabBarIcon: ({ color }) => (
+              <MaterialIcons name="settings-applications" size={24} color={color} />
+            ),
           }}
         />
         <Tabs.Screen
           name="test"
           options={{
-        tabBarLabel: '',
-        tabBarIcon: ({ color }) => (
-          <MaterialIcons name="settings-applications" size={24} color={color} />
-        ),
+            tabBarIcon: ({ color }) => (
+              <MaterialIcons name="settings-applications" size={24} color={color} />
+            ),
           }}
         />
         <Tabs.Screen
           name="map_tracking"
           options={{
-        tabBarLabel: '',
-        tabBarIcon: ({ color }) => (
-          <FontAwesome5 name="map-marked-alt" size={24} color={color} />
-        ),
-          }}
-        />
-        <Tabs.Screen
-          name="map"
-          options={{
-        tabBarLabel: '',
-        tabBarIcon: ({ color }) => (
-          <FontAwesome5 name="map-marked-alt" size={24} color={color} />
-        ),
+            tabBarIcon: ({ color }) => (
+              <FontAwesome5 name="map-marked-alt" size={24} color={color} />
+            ),
           }}
         />
       </Tabs>
     </View>
-  )
+  );
 }
