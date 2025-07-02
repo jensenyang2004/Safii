@@ -1,14 +1,23 @@
 import React, { useState } from "react";
 import { 
-    View, TextInput, FlatList, Text, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform, StyleSheet, SafeAreaView 
+    View, TextInput, FlatList, Text, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform, SafeAreaView 
 } from "react-native";
 import { collection, query, where, getDocs, updateDoc, doc } from "firebase/firestore";
 import { db } from "@/libs/firebase";
 import { useAuth } from "@/context/AuthProvider";
+import '@/global.css';
 
 const SearchUsersScreen = () => {
+
+    interface User {
+        id: string;
+        username: string;
+        // Add other user properties if needed
+    }
+
+
     const [searchQuery, setSearchQuery] = useState("");
-    const [results, setResults] = useState([]);
+    const [results, setResults] = useState<User[]>([]);
     const [loading, setLoading] = useState(false);
 
     const { user, fetchUserInfo } = useAuth();
@@ -24,7 +33,15 @@ const SearchUsersScreen = () => {
             const q = query(usersRef, where("username", ">=", searchQuery), where("username", "<=", searchQuery + "\uf8ff"));
             const querySnapshot = await getDocs(q);
             
-            const users = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            const users = querySnapshot.docs
+                .map(doc => {
+                    const data = doc.data();
+                    return {
+                        id: doc.id,
+                        username: data.username ?? "",
+                        // Add other user properties if needed
+                    };
+                });
             setResults(users);
         } catch (error) {
             console.error("Error searching users:", error);
@@ -33,131 +50,69 @@ const SearchUsersScreen = () => {
         }
     };
 
-    const handleSet = async (id) => {
-        const usersRef = doc(db, "users", user?.id)
+    const handleSet = async (id: string) => {
+        const usersRef = doc(db, "users", user?.id);
         try {
-          await updateDoc(usersRef, {
-              contact: id,
-          });
-          fetchUserInfo(user?.id);
-          console.log("Contact updated successfully");
+            await updateDoc(usersRef, {
+                contact: id,
+            });
+            fetchUserInfo(user?.id);
+            console.log("Contact updated successfully");
         } catch (error) {
             console.error("Error updating contact:", error);
         }
-    }
+    };
 
     return (
-        <SafeAreaView style={styles.container}>
+        <SafeAreaView className="flex-1 bg-gray-100">
             <KeyboardAvoidingView 
                 behavior={Platform.OS === "ios" ? "padding" : undefined} 
-                style={styles.keyboardView}
+                className="flex-1 px-5 pt-5"
             >
-                <View style={styles.searchBoxContainer}>
-                    <View style={styles.searchBox}>
+                <View className="items-center mb-4 w-full">
+                    <View className="flex-row items-center w-full bg-white rounded-xl px-4 py-2 shadow">
                         <TextInput
                             placeholder="Search users..."
                             value={searchQuery}
                             onChangeText={setSearchQuery}
-                            style={styles.input}
+                            className="flex-1 text-base py-2 mr-2"
                             returnKeyType="search"
                             onSubmitEditing={handleSearch}
                         />
-                        <TouchableOpacity onPress={handleSearch} style={styles.searchButton} activeOpacity={0.7}>
-                            <Text style={styles.buttonText}>Search</Text>
+                        <TouchableOpacity onPress={handleSearch} className="bg-blue-500 px-3 py-2 rounded-lg active:opacity-70">
+                            <Text className="text-white font-bold text-base">Search</Text>
                         </TouchableOpacity>
                     </View>
                 </View>
 
-                {loading && <ActivityIndicator size="large" color="#007BFF" style={styles.loading} />}
+                {loading && <ActivityIndicator size="large" color="#007BFF" className="mt-4" />}
 
                 <FlatList
                     data={results}
                     keyExtractor={(item) => item.id}
                     renderItem={({ item }) => (
-                        <View style={styles.userItem}>
-                            <Text style={styles.username}>{item.username}</Text>
-                            <TouchableOpacity onPress={() => {handleSet(item.id)}} style={styles.searchButton} activeOpacity={0.7}>
-                              <Text style={styles.buttonText}>Set as default emergency contact</Text>
+                        <View className="bg-white p-4 rounded-xl mt-3 shadow">
+                            <Text className="text-lg font-bold text-gray-800">{item?.username}</Text>
+                            <TouchableOpacity 
+                                onPress={() => handleSet(item.id)} 
+                                className="bg-blue-500 px-3 py-2 mt-2 rounded-lg active:opacity-70"
+                            >
+                                <Text className="text-white font-bold text-base">
+                                    Set as default emergency contact
+                                </Text>
                             </TouchableOpacity>
                         </View>
                     )}
-                    ListEmptyComponent={!loading && <Text style={styles.emptyText}>No users found</Text>}
+                    ListEmptyComponent={
+                        !loading ? (
+                            <Text className="text-center mt-6 text-gray-500 text-base">No users found</Text>
+                        ) : null
+                    }
                 />
             </KeyboardAvoidingView>
+            <Text className="text-4xl">Hello nativewind</Text>
         </SafeAreaView>
     );
 };
-
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: "#F8F9FA",
-    },
-    keyboardView: {
-        flex: 1, 
-        padding: 20,
-    },
-    searchBoxContainer: {
-        alignItems: "center",
-        marginBottom: 15,
-        width: "100%",
-    },
-    searchBox: {
-        flexDirection: "row",
-        alignItems: "center",
-        width: "100%",
-        backgroundColor: "#FFFFFF",
-        borderRadius: 10,
-        paddingHorizontal: 15,
-        paddingVertical: 10,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.2,
-        shadowRadius: 2,
-        elevation: 2,
-    },
-    input: {
-        flex: 1,
-        fontSize: 16,
-        paddingVertical: 8,
-        marginRight: 10,
-    },
-    searchButton: {
-        backgroundColor: "#007BFF",
-        paddingVertical: 10,
-        paddingHorizontal: 15,
-        borderRadius: 8,
-    },
-    buttonText: {
-        color: "white",
-        fontSize: 16,
-        fontWeight: "bold",
-    },
-    loading: {
-        marginTop: 15,
-    },
-    userItem: {
-        backgroundColor: "#FFF",
-        padding: 15,
-        borderRadius: 10,
-        marginTop: 10,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
-        shadowRadius: 3,
-        elevation: 2,
-    },
-    username: {
-        fontSize: 18,
-        fontWeight: "bold",
-        color: "#333",
-    },
-    emptyText: {
-        marginTop: 20,
-        textAlign: "center",
-        fontSize: 16,
-        color: "#888",
-    },
-});
 
 export default SearchUsersScreen;
