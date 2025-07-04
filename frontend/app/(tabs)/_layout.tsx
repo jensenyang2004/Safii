@@ -10,34 +10,40 @@ import VideoPlayerScreen from '../features/fakePhoneCallPlayer/FakePhoneCallScre
 export default function TabLayout() {
   return (
     <Tabs screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: Colors.PRIMARY
-        }}>
-      <Tabs.Screen name='home' 
-      options={{
-        tabBarLabel: 'Home',
-        tabBarIcon: ({color})=><FontAwesome name="home" size={24} color={color} />
-      }}/>
-      <Tabs.Screen name='map' 
-       options={{
-        tabBarLabel: 'Map',
-        tabBarIcon: ({color})=><FontAwesome5 name="map-marked-alt" size={24} color={color} />
-      }}/>
-      <Tabs.Screen name='settings' 
-      options={{
-        tabBarLabel: 'Settings',
-        tabBarIcon: ({color})=><MaterialIcons name="settings-applications" size={24} color={color} />
-      }}/>
-      <Tabs.Screen name='test' 
-      options={{
-        tabBarLabel: 'Test',
-        tabBarIcon: ({color})=><MaterialIcons name="settings-applications" size={24} color={color} />
-      }}/>
-      <Tabs.Screen name='map_tracking' 
-      options={{
-        tabBarLabel: 'Map Tracking',
-        tabBarIcon: ({color})=><FontAwesome5 name="map-marked-alt" size={24} color={color} />
-      }}/>
+      headerShown: false,
+      tabBarActiveTintColor: Colors.PRIMARY
+    }}>
+      <Tabs.Screen name='home'
+        options={{
+          tabBarLabel: 'Home',
+          tabBarIcon: ({ color }) => <FontAwesome name="home" size={24} color={color} />
+        }} />
+      <Tabs.Screen name='map'
+        options={{
+          tabBarLabel: 'Map',
+          tabBarIcon: ({ color }) => <FontAwesome5 name="map-marked-alt" size={24} color={color} />
+        }} />
+      <Tabs.Screen name='settings'
+        options={{
+          tabBarLabel: 'Settings',
+          tabBarIcon: ({ color }) => <MaterialIcons name="settings-applications" size={24} color={color} />
+        }} />
+      <Tabs.Screen name='contact'
+        options={{
+          tabBarLabel: 'Contacts',
+          tabBarIcon: ({ color }) => <MaterialIcons name="quick-contacts-dialer" size={24} color={color} />
+        }} />
+      <Tabs.Screen name='test'
+        options={{
+          tabBarLabel: 'Test',
+          tabBarIcon: ({ color }) => <MaterialIcons name="settings-applications" size={24} color={color} />
+        }} />
+      <Tabs.Screen name='map_tracking'
+        options={{
+          tabBarLabel: 'Map Tracking',
+          tabBarIcon: ({ color }) => <FontAwesome5 name="map-marked-alt" size={24} color={color} />
+        }} />
+
 
     </Tabs>
   )
