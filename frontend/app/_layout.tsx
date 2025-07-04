@@ -1,3 +1,17 @@
+// app/_layout.tsx
+
+// import React from 'react';
+// import { Slot } from 'expo-router';
+
+// export default function RootLayout() {
+//   return (
+//     // no Stack here — just let the router insert whatever group you're in
+//     <Slot />
+//   );
+// }
+
+
+
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
 import { Slot, Stack } from 'expo-router';
@@ -29,14 +43,26 @@ export default function RootLayout() {
     return null;
   }
   return (
-        <AuthProvider>
-        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-          <Stack>
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            {/* <Stack.Screen name="(auth)" options={{ headerShown: false }} /> */}
-          </Stack>
-          <StatusBar style="auto" />
-        </ThemeProvider>
-        </AuthProvider>
+    <AuthProvider>
+      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+        <Stack>
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="(modals)" options={{ headerShown: false }} />
+
+          <Stack.Screen
+            name="interactive-call"   // matches file: app/(modals)/interactive-call.tsx
+            options={{
+              headerShown: false,
+              presentation: 'fullScreenModal',
+              animation: 'fade',
+              gestureEnabled: true,
+              gestureDirection: 'vertical',
+            }}
+          />
+          {/* <Stack.Screen name="(auth)" options={{ headerShown: false }} /> */}
+        </Stack>
+        <StatusBar style="auto" />
+      </ThemeProvider>
+    </AuthProvider>
   );
 }
