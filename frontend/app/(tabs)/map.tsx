@@ -8,6 +8,10 @@ import SearchBar from '@/components/Map/search_bar';
 import MapCarousel from '@/components/Map/carousel';
 import { db } from '@/libs/firebase';
 import { collection, getDocs } from '@firebase/firestore';
+import { useTracking } from '@/context/TrackProvider';
+import BackgroundTask from 'react-native-background-task';
+import { AppState } from 'react-native';
+
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -27,32 +31,10 @@ export default function Map() {
     longitudeDelta: 0.0421,
   });
 
+  const { trackingModes, loading } = useTracking();
+
   const flatListRef = useRef<FlatList>(null);
 
-  const [trackingModes, setTrackingModes] = useState<any[]>([]);
-
-  useEffect(() => {
-    const fetchTrackingModes = async () => {
-      try {
-        const colRef = collection(db, 'TrackingMode');
-        const snapshot = await getDocs(colRef);
-        const data = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-        setTrackingModes(data);
-        console.log(data);
-        // setTrackingModes(snapshot);
-      } catch (error) {
-        console.error('Error fetching Trackingmode:', error);
-      }
-    };
-
-    fetchTrackingModes();
-    // console.log(trackingModes)
-
-    
-  }, []);
 
   useEffect(() => {
     (async () => {
@@ -83,13 +65,21 @@ export default function Map() {
       />
       <MapCarousel
         data={[
-          { id: 'search', component: <SearchBar/> },
-          { id: 'track-1', component: <TrackModeCard id="1" name="off-work"           contacts={[
-            { id: 'c1', name: 'Alice' },
-            { id: 'c2', name: 'Bob' },
-          ]}/> },
-          // { id: 'track-2', component: <TrackModeCard /> },
-          // more cards...
+          { id: 'search', component: <SearchBar /> },
+          ...(trackingModes ?? []).map((mode: any) => ({
+            id: mode.id,
+            component: (
+              <TrackModeCard
+                id={mode.id}
+                name={mode.name}
+                contacts={mode.contacts.map((c: any) => ({
+                  id: c.id,
+                  name: c.username,
+                  url: 'none',
+                }))}
+              />
+            ),
+          })),
         ]}
       />
 

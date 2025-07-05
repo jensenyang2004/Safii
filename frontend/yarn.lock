@@ -10384,6 +10384,11 @@ react-native-background-actions@^4.0.1:
   dependencies:
     eventemitter3 "^4.0.7"
 
+react-native-background-task@^0.2.1:
+  version "0.2.1"
+  resolved "https://registry.yarnpkg.com/react-native-background-task/-/react-native-background-task-0.2.1.tgz#9d110ed14b245e0d8b9ec8114ce24b33ddda65de"
+  integrity sha512-t5NvHWiqdIRf+KRUbeYH0QYSF3TTTe67g9TuOy/KbfU0KWqK1igLbQB/vw1o8nXZrWWIzSl9mSTG+2V/57TRzw==
+
 react-native-css-interop@0.1.22:
   version "0.1.22"
   resolved "https://registry.yarnpkg.com/react-native-css-interop/-/react-native-css-interop-0.1.22.tgz#70cc6ca7a8f14126e123e44a19ceed74dd2a167a"
@@ -10424,6 +10429,11 @@ react-native-is-edge-to-edge@^1.1.6:
   version "1.1.6"
   resolved "https://registry.npmjs.org/react-native-is-edge-to-edge/-/react-native-is-edge-to-edge-1.1.6.tgz"
   integrity sha512-1pHnFTlBahins6UAajXUqeCOHew9l9C2C8tErnpGC3IyLJzvxD+TpYAixnCbrVS52f7+NvMttbiSI290XfwN0w==
+
+react-native-live-activity@^0.1.0:
+  version "0.1.0"
+  resolved "https://registry.yarnpkg.com/react-native-live-activity/-/react-native-live-activity-0.1.0.tgz#2566aaeb0a795584519d8d5781e7b825d92bec6c"
+  integrity sha512-Lz3ilYEIykiH7XebSAEpXaMqdQ1MAiBK8f/QH4ZC+BQ5cdpfuVzyU3Jzrzpg++NxGPMuhbuTdvaMp53SQSqPWQ==
 
 react-native-maps@1.18.0:
   version "1.18.0"

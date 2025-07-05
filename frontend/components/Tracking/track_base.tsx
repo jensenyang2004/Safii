@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet, Animated, Easing } from 'react-native';
+import { useLiveActivity } from '@/hooks/useCountDown';
 
 type TrackModeCardProps = {
   id: string;
   name: string;
-  contacts: { id: string; name: string }[];
+  contacts: { id: string; url: string; name: string }[];
 };
 
 const avatarImg = require('../../assets/images/person.png'); // Replace with your actual avatar image
@@ -12,6 +13,7 @@ const avatarImg = require('../../assets/images/person.png'); // Replace with you
 export default function TrackModeCard({ id, name, contacts }: TrackModeCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [animation] = useState(new Animated.Value(0));
+  const { startActivity } = useLiveActivity();
 
   const handlePress = () => {
     setExpanded(!expanded);
@@ -34,9 +36,9 @@ export default function TrackModeCard({ id, name, contacts }: TrackModeCardProps
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <TouchableOpacity style={styles.header} onPress={() => startActivity()} activeOpacity={0.8}>
         <Text style={styles.headerText}>開起{name}模式</Text>
-      </View>
+      </TouchableOpacity>
       <Animated.View style={[styles.bottom, { height: expandedHeight }]}>
         <TouchableOpacity style={styles.bottomContent} onPress={handlePress} activeOpacity={0.8}>
           <Text style={styles.notifyText}>緊急時將通知</Text>
