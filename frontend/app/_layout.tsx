@@ -8,6 +8,7 @@ import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { AuthProvider } from '@/context/AuthProvider';
+import { TrackingProvider } from '@/context/TrackProvider';
 import '@/global.css';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
@@ -30,17 +31,19 @@ export default function RootLayout() {
   }
   return (
         <AuthProvider>
-          <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-            <Stack
-              screenOptions={{
-                headerTitleAlign: 'center',
-              }}
-            >
-              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-              <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-            </Stack>
-            <StatusBar style="auto" />
-          </ThemeProvider>
+          <TrackingProvider>
+            <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+              <Stack
+                screenOptions={{
+                  headerTitleAlign: 'center',
+                }}
+              >
+                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+              </Stack>
+              <StatusBar style="auto" />
+            </ThemeProvider>
+          </TrackingProvider>
         </AuthProvider>
   );
 }
