@@ -31,6 +31,7 @@ export default function ModalsLayout() {
           title: 'Phone Call',   // whatever title you like
         }}
       />
+      <Stack.Screen name="videoCall/VideoCallScreen" />
     </Stack>
   );
 }

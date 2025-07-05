@@ -5,7 +5,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { Colors } from '../../constants/Colors';
-import VideoPlayerScreen from '../features/fakePhoneCallPlayer/FakePhoneCallScreen';
+
 
 export default function TabLayout() {
   return (
@@ -33,6 +33,16 @@ export default function TabLayout() {
           tabBarLabel: 'Contacts',
           tabBarIcon: ({ color }) => <MaterialIcons name="quick-contacts-dialer" size={24} color={color} />
         }} />
+      <Tabs.Screen
+        name="siren"
+        options={{
+          title: 'Alarm',
+          tabBarIcon: ({ color, size }) => (
+            <MaterialIcons name="warning" color={color} size={size} />
+          ),
+        }}
+      />
+
       <Tabs.Screen name='test'
         options={{
           tabBarLabel: 'Test',

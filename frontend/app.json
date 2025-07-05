@@ -1,6 +1,7 @@
 {
   "expo": {
     "name": "Safii",
+    "owner": "safiii",
     "slug": "Safii",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -41,7 +42,6 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
-      
       "expo-router",
       [
         "expo-location",
@@ -83,7 +83,15 @@
       "expo-build-properties",
       "@react-native-firebase/app",
       "@react-native-firebase/auth",
-      "expo-secure-store"
+      "expo-secure-store",
+      "@videosdk.live/expo-config-plugin",
+      [
+        "@config-plugins/react-native-webrtc",
+        {
+          "cameraPermission":  "Allow $(PRODUCT_NAME) to access your camera",
+          "microphonePermission": "Allow $(PRODUCT_NAME) to access your microphone"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
@@ -93,8 +101,9 @@
         "origin": false
       },
       "eas": {
-        "projectId": "29161d9f-2ce5-4549-8e0c-585579fdaa80"
+        "projectId": "e7d435f3-55a6-4e7d-88e3-bf34383bc8be"
       }
     }
   }
+  
 }
