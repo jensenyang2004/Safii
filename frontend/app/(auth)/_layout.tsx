@@ -6,6 +6,12 @@ import React from "react";
 const AuthLayout = () => {
 
     const { user, loading } = useAuth()
+
+    // return here for development purposes
+    return <Redirect href='/(tabs)/home'/>
+
+
+
     if( !loading && user ) return <Redirect href='/(tabs)/home'/>
     return (
     <>

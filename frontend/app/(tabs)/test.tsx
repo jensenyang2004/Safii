@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View, TouchableOpacity, Switch, Platform, Alert } from 'react-native'
 import React, { useEffect, useState } from 'react'
 import { addDoc, collection, doc, setDoc, query, where, getDocs, updateDoc } from 'firebase/firestore'
-import * as TaskManager from 'expo-task-manager';
+import { defineTask, isTaskRegisteredAsync } from 'expo-task-manager';
 import * as BackgroundFetch from 'expo-background-fetch';
 
 
@@ -30,7 +30,7 @@ const Test = () => {
       return true;
     };
 
-    TaskManager.defineTask(BACKGROUND_LOCATION_TASK, async ({ data, error }) => {
+    defineTask(BACKGROUND_LOCATION_TASK, async ({ data, error }) => {
       if (error) {
         console.error(error);
         return;
@@ -67,7 +67,7 @@ const Test = () => {
         }
     
         // Check if task is already running
-        const hasTask = await TaskManager.isTaskRegisteredAsync(BACKGROUND_LOCATION_TASK);
+        const hasTask = await isTaskRegisteredAsync(BACKGROUND_LOCATION_TASK);
         if (!hasTask) {
           // Start background location updates
           await Location.startLocationUpdatesAsync(BACKGROUND_LOCATION_TASK, {

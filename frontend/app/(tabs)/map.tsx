@@ -1,231 +1,132 @@
-import { View, Text, StyleSheet, Platform, Alert, TouchableOpacity, Button } from 'react-native'
-import React, { useEffect, useState } from 'react'
+import {
+  View,
+  StyleSheet,
+  Dimensions,
+  FlatList,
+  TouchableOpacity,
+  Text,
+} from 'react-native';
+import React, { useEffect, useState, useRef } from 'react';
+import MapView from 'react-native-maps';
+import {
+  requestForegroundPermissionsAsync,
+  getCurrentPositionAsync,
+} from 'expo-location';
+import TrackModeCard from '@/components/Tracking/track_base';
+import SearchBar from '@/components/Map/search_bar';
+import MapCarousel from '@/components/Map/carousel';
+import ToolCard from '@/components/Safety_tools/tools_card';
+import { useTracking } from '@/context/TrackProvider';
 
-import MapView, { Marker, Polyline } from 'react-native-maps'
-// import Geolocation from '@react-native-community/geolocation'
+const { width: screenWidth } = Dimensions.get('window');
 
-import * as Location from 'expo-location'
-// import MaterialIcons from '@expo/vector-iconrs/MaterialIcons'
-import { getDistance } from 'geolib'
-// import MapViewStyle from './../Utils/MapViewStyle.json'
+const CARD_WIDTH = screenWidth * 0.8;
+const SPACING = screenWidth * 0.03;
+const SIDE_PADDING = (screenWidth - CARD_WIDTH) / 2;
+const SNAP_INTERVAL = CARD_WIDTH + SPACING;
 
-
-// const App = () => {
-export default function App() {
-
-  // const [location, setLocation] = useState('')
-  const [location, setLocation] = useState({})
-  const [source, setSource] = useState(null)
-  const [destination, setDestination] = useState(null)
-  const [isChoosingSource, setIsChoosingSource] = useState(false)
-  const [isChoosingDestination, setIsChoosingDestination] = useState(false)
-
-  const defaultLocation={
+export default function Map() {
+  const [location, setLocation] = useState({
     latitude: 23,
     longitude: 120.2,
     latitudeDelta: 0.0922,
     longitudeDelta: 0.0421,
-  }
+  });
+
+  const { trackingModes, loading } = useTracking();
+  const [showToolCard, setShowToolCard] = useState(false); // toggle state
+
+  const flatListRef = useRef<FlatList>(null);
 
   useEffect(() => {
-    (async () =>{
-      let {status} = await Location.requestForegroundPermissionsAsync()
-
-      if (status == 'granted') {
-
-        console.log('Permission successful!')
-
+    (async () => {
+      let { status } = await requestForegroundPermissionsAsync();
+      if (status === 'granted') {
+        let currentLocation = await getCurrentPositionAsync();
+        setLocation({
+          latitude: currentLocation.coords.latitude,
+          longitude: currentLocation.coords.longitude,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01,
+        });
       } else {
-
-        console.log('Permission not granted')
+        console.log('Location permission not granted');
       }
-
-      let location = await Location.getCurrentPositionAsync()
-      
-      setLocation({
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
-        latitudeDelta: 0.01,
-        longitudeDelta: 0.01,
-      })
-      console.log(location)
-
     })();
   }, []);
-
-  const showCoordinates = () => {
-    if (source && destination) {
-      console.log(source, destination);
-      const distance = 
-        getDistance(
-          { latitude: source.latitude, longitude: source.longitude },
-          { latitude: destination.latitude, longitude: destination.longitude },
-        ) / 1000;
-      Alert.alert(
-        'Coordinates and Distance',
-        `Source: \nLatitude: ${source.latitude}, Longitude: ${source.longitude}\n\nDestination: \nLatitude: ${destination.latitude}, Longitude: ${destination.longitude}\n\nDistance between source and destination: ${distance.toFixed(2,)} kilometers`
-      );
-      console.log(distance);
-    } else {
-      Alert.alert(
-        'Error',
-        'Please select both source and destination coordinates.',
-      );
-    }
-
-  };
-
-  const handleMapPress = (e) => {
-    const coordinates = e.nativeEvent.coordinate;
-    console.log(coordinates);
-
-    if(isChoosingSource){
-      setSource(coordinates);
-      setIsChoosingSource(false);
-    } else if (isChoosingDestination) {
-      setDestination(coordinates);
-      setIsChoosingDestination(false);
-    }
-  };
 
   const styles = createStyles();
 
   return (
-    
-    <View style={styles.container }  > 
+    <View style={styles.container}>
+      <MapView
+        style={styles.map}
+        region={location}
+        showsUserLocation={true}
+        mapType="standard"
+      />
 
-      {/* <TouchableOpacity style={styles.location} onPress={setLocation}>
-        <Text>
-          <MaterialIcons name="my-location" size={24} color="white"/>
+      {/* Toggle Button */}
+      <TouchableOpacity
+        style={styles.toggleButton}
+        onPress={() => setShowToolCard(prev => !prev)}
+      >
+        <Text style={styles.toggleButtonText}>
+          {showToolCard ? 'Show Modes' : 'Show Tools'}
         </Text>
-      </TouchableOpacity> */}
+      </TouchableOpacity>
 
-      <Text>{JSON.stringify(location)}</Text>
-
-        <MapView
-          style={styles.map}
-          // customMapStyle={MapViewStyle}
-          // provider={MapView.PROVIDER_GOOGLE}
-          region={location}
-          onRegionChangeComplete={data => console.log(data)}
-          // show the blue dot
-          showsUserLocation={true}
-          onPress={handleMapPress}
-
-          // zoomEnabled={true}
-          // followsUserLocation={true}
-          // showsMyLocationButton={true}
-          mapType="standard"
-          // mapType="satellite"
-        >
-          {location && (
-            <Marker 
-              coordinate={location} 
-              title={'Testing'} 
-              onPress={data => console.log(data.nativeEvent.coordinate)}
-              // description={marker.description}
-            />
-          )}
-          {source && (
-            <Marker coordinate={source} title={'Source'} pinColor={'green'} draggable={true} onDragEnd={e => setSource(e.nativeEvent.coordinate)}/>
-          )}
-          {destination && (
-            <Marker coordinate={destination} title={'Destination'} pinColor={'blue'} draggable={true} onDragEnd={e => setDestination(e.nativeEvent.coordinate)} />
-          )}
-          {source && destination && (
-            <Polyline coordinates={[source, destination]} 
-              strokeColor='#000'
-              strokeWidth={2}
-            />
-          )}
-
-        </MapView>
-        <View style={styles.buttonContainer}>
-          <View style={styles.buttonGroup}>
-            {source ? (
-              <Button title="Remove Source" onPress={() => setSource(null)}/>
-            ) : (
-              <Button
-                // style={styles.button}
-                title={
-                  isChoosingSource ? 'Please Choose Source' : 'Choose Source'
-                }
-                onPress={() => setIsChoosingSource(true)}
-              />
-            )}
-            
-            {destination ? (
-              <Button title="Remove Destination" onPress={() => setDestination(null)}/>
-            ) : (
-              <Button
-                title={
-                  isChoosingDestination ? 'Please Choose Destination' : 'Choose Destination'
-                }
-                onPress={() => setIsChoosingDestination(true)}
-              />
-            )}
-            
-          </View>
-          <Button title="Show Coordinates" onPress={showCoordinates}/>
-        </View>
+      {/* Conditional rendering */}
+      {showToolCard ? (
+        <ToolCard showBottomBar={true} />
+      ) : (
+        <MapCarousel
+          data={[
+            { id: 'search', component: <SearchBar /> },
+            ...(trackingModes ?? []).map((mode: any) => ({
+              id: mode.id,
+              component: (
+                <TrackModeCard
+                  id={mode.id}
+                  name={mode.name}
+                  contacts={mode.contacts.map((c: any) => ({
+                    id: c.id,
+                    name: c.username,
+                    url: 'none',
+                  }))}
+                />
+              ),
+            })),
+          ]}
+        />
+      )}
     </View>
-  )
+  );
 }
 
 function createStyles() {
   return StyleSheet.create({
-// const styles = StyleSheet.create({
-  container: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: 'center',
-    alignItems: 'center'
-  },
-  // map: {
-  //   ...StyleSheet.absoluteFillObject,
-  // },
-  map: {
-    width: '100%',
-    height: '100%',
-  },
-  button: {
-    backgroundColor: 'blue',
-    margin: 10
-  },
-  buttonContainer: {
-    position: 'absolute',
-    bottom: 20,
-    left: 20,
-    right: 20,
-  },
-  buttonGroup: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-  },
-  location: {
-    position: "absolute",
-    zIndex: 50,
-    bottom: 0,
-    right: 0,
-    margin: 20,
-    backgroundColor: "black",
-    height: 50,
-    width: 50,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 50,
-    elevation: 10,
-  },
-})
+    container: {
+      ...StyleSheet.absoluteFillObject,
+    },
+    map: {
+      width: '100%',
+      height: '100%',
+    },
+    toggleButton: {
+      position: 'absolute',
+      top: 60, // Adjust this for reachable height (avoid top bar)
+      right: 20,
+      backgroundColor: 'rgba(0,0,0,0.6)',
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 10,
+      zIndex: 999,
+    },
+    toggleButtonText: {
+      color: 'white',
+      fontSize: 14,
+      fontWeight: 'bold',
+    },
+  });
 }
-
-// import { View, Text } from 'react-native'
-// import React from 'react'
-
-// export default function map() {
-//   return (
-//     <View>
-//       <Text>Map</Text>
-//     </View>
-//   )
-// }
