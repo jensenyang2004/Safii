@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet, Animated, Easing } from 'react-native';
-import { useLiveActivity } from '@/hooks/useCountDown';
+// import { useLiveActivity } from '@/hooks/useCountDown';
+import { useTracking } from '@/context/TrackProvider';
 
 type TrackModeCardProps = {
   id: string;
@@ -13,7 +14,8 @@ const avatarImg = require('../../assets/images/person.png'); // Replace with you
 export default function TrackModeCard({ id, name, contacts }: TrackModeCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [animation] = useState(new Animated.Value(0));
-  const { startActivity } = useLiveActivity();
+  const { startTrackingMode } = useTracking();
+  // const { startActivity } = useLiveActivity();
 
   const handlePress = () => {
     setExpanded(!expanded);
@@ -36,7 +38,7 @@ export default function TrackModeCard({ id, name, contacts }: TrackModeCardProps
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity style={styles.header} onPress={() => startActivity()} activeOpacity={0.8}>
+      <TouchableOpacity style={styles.header} onPress={() => {startTrackingMode(id)}} activeOpacity={0.8}>
         <Text style={styles.headerText}>開起{name}模式</Text>
       </TouchableOpacity>
       <Animated.View style={[styles.bottom, { height: expandedHeight }]}>

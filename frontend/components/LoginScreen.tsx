@@ -2,23 +2,23 @@ import { View, Text, TouchableOpacity } from 'react-native'
 import { Colors } from '../constants/Colors';
 import { StyleSheet } from 'react-native';
 import React, { useCallback, useEffect } from 'react'
-import * as WebBrowser from 'expo-web-browser'
-import { useSSO } from '@clerk/clerk-expo'
+import { warmUpAsync, coolDownAsync, maybeCompleteAuthSession } from 'expo-web-browser'
+import { useSSO } from '@clerk/clerk-expo' // Assuming useSSO is a named export
 
 
 export const useWarmUpBrowser = () => {
   useEffect(() => {
     // Preloads the browser for Android devices to reduce authentication load time
     // See: https://docs.expo.dev/guides/authentication/#improving-user-experience
-    void WebBrowser.warmUpAsync()
+    void warmUpAsync()
     return () => {
       // Cleanup: closes browser when component unmounts
-      void WebBrowser.coolDownAsync()
+      void coolDownAsync()
     }
   }, [])
 }
 
-WebBrowser.maybeCompleteAuthSession()
+maybeCompleteAuthSession()
 export default function LoginScreen() {
     useWarmUpBrowser()
 

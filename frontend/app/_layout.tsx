@@ -1,21 +1,7 @@
-// app/_layout.tsx
-
-// import React from 'react';
-// import { Slot } from 'expo-router';
-
-// export default function RootLayout() {
-//   return (
-//     // no Stack here — just let the router insert whatever group you're in
-//     <Slot />
-//   );
-// }
-
-
-
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
 import { Slot, Stack } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
+import { hideAsync } from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import 'react-native-reanimated';
@@ -36,7 +22,7 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (loaded) {
-      SplashScreen.hideAsync();
+      hideAsync();
     }
   }, [loaded]);
 

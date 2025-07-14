@@ -1,12 +1,12 @@
-import * as SecureStore from 'expo-secure-store'
+import { getItemAsync, setItemAsync, deleteItemAsync } from 'expo-secure-store'
 import { Platform } from 'react-native'
-import { TokenCache } from '@clerk/clerk-expo/dist/cache'
+// import { TokenCache } from '@clerk/clerk-expo/dist/cache'
 
 const createTokenCache = (): TokenCache => {
   return {
     getToken: async (key: string) => {
       try {
-        const item = await SecureStore.getItemAsync(key)
+        const item = await getItemAsync(key)
         if (item) {
           console.log(`${key} was used 🔐 \n`)
         } else {
@@ -14,13 +14,13 @@ const createTokenCache = (): TokenCache => {
         }
         return item
       } catch (error) {
-        console.error('secure store get item error: ', error)
-        await SecureStore.deleteItemAsync(key)
+        console.error('secure store get item error: ', error) 
+        await deleteItemAsync(key)
         return null
       }
     },
-    saveToken: (key, token) => {
-        return SecureStore.setItemAsync(key, token)
+    saveToken: (key: string, token: string) => {
+        return setItemAsync(key, token)
       },
     // saveToken: (key: string, token: string) => {
     //   return SecureStore.setItemAsync(key, token)
