@@ -1,4 +1,3 @@
-// // app/features/fakePhoneCallPlayer/InteractiveCallScreen.tsx
 import React, { useState, useEffect } from 'react'
 import {
     View,
@@ -11,7 +10,7 @@ import {
 import { useRouter } from 'expo-router'
 import VideoPlayer from './components/VideoPlayer'
 import SubtitleOverlay from './components/SubtitleOverlay'
-import * as FileSystem from 'expo-file-system'
+import { readAsStringAsync } from 'expo-file-system'
 import { Asset } from 'expo-asset'
 import { parseSrt, Cue } from '../../utils/subtitles'
 import { MaterialIcons } from '@expo/vector-icons'
@@ -38,7 +37,7 @@ export default function InteractiveCallScreen({
         ; (async () => {
             const asset = Asset.fromModule(require('./assets/subtitles.srt'))
             await asset.downloadAsync()
-            const raw = await FileSystem.readAsStringAsync(asset.localUri!)
+            const raw = await readAsStringAsync(asset.localUri!)
             setCues(parseSrt(raw))
         })()
     }, [])

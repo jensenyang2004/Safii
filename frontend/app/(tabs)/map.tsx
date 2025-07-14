@@ -1,27 +1,29 @@
-import { View, StyleSheet, Dimensions, FlatList } from 'react-native';
+import {
+  View,
+  StyleSheet,
+  Dimensions,
+  FlatList,
+  TouchableOpacity,
+  Text,
+} from 'react-native';
 import React, { useEffect, useState, useRef } from 'react';
 import MapView from 'react-native-maps';
-import * as Location from 'expo-location';
+import {
+  requestForegroundPermissionsAsync,
+  getCurrentPositionAsync,
+} from 'expo-location';
 import TrackModeCard from '@/components/Tracking/track_base';
-import Card_ongoing from '@/components/Tracking/track_ongoning';
 import SearchBar from '@/components/Map/search_bar';
 import MapCarousel from '@/components/Map/carousel';
-import { db } from '@/libs/firebase';
-import { collection, getDocs } from '@firebase/firestore';
+import ToolCard from '@/components/Safety_tools/tools_card';
 import { useTracking } from '@/context/TrackProvider';
-import BackgroundTask from 'react-native-background-task';
-import { AppState } from 'react-native';
-
 
 const { width: screenWidth } = Dimensions.get('window');
 
-const CARD_WIDTH = screenWidth * 0.80;
-const SPACING = screenWidth*0.03;
+const CARD_WIDTH = screenWidth * 0.8;
+const SPACING = screenWidth * 0.03;
 const SIDE_PADDING = (screenWidth - CARD_WIDTH) / 2;
 const SNAP_INTERVAL = CARD_WIDTH + SPACING;
-
-
-const data = [1, 2, 3, 4, 5]; // sample data
 
 export default function Map() {
   const [location, setLocation] = useState({
@@ -32,15 +34,15 @@ export default function Map() {
   });
 
   const { trackingModes, loading } = useTracking();
+  const [showToolCard, setShowToolCard] = useState(false); // toggle state
 
   const flatListRef = useRef<FlatList>(null);
 
-
   useEffect(() => {
     (async () => {
-      let { status } = await Location.requestForegroundPermissionsAsync();
+      let { status } = await requestForegroundPermissionsAsync();
       if (status === 'granted') {
-        let currentLocation = await Location.getCurrentPositionAsync();
+        let currentLocation = await getCurrentPositionAsync();
         setLocation({
           latitude: currentLocation.coords.latitude,
           longitude: currentLocation.coords.longitude,
@@ -63,27 +65,41 @@ export default function Map() {
         showsUserLocation={true}
         mapType="standard"
       />
-      <MapCarousel
-        data={[
-          { id: 'search', component: <SearchBar /> },
-          ...(trackingModes ?? []).map((mode: any) => ({
-            id: mode.id,
-            component: (
-              <TrackModeCard
-                id={mode.id}
-                name={mode.name}
-                contacts={mode.contacts.map((c: any) => ({
-                  id: c.id,
-                  name: c.username,
-                  url: 'none',
-                }))}
-              />
-            ),
-          })),
-        ]}
-      />
 
+      {/* Toggle Button */}
+      <TouchableOpacity
+        style={styles.toggleButton}
+        onPress={() => setShowToolCard(prev => !prev)}
+      >
+        <Text style={styles.toggleButtonText}>
+          {showToolCard ? 'Show Modes' : 'Show Tools'}
+        </Text>
+      </TouchableOpacity>
 
+      {/* Conditional rendering */}
+      {showToolCard ? (
+        <ToolCard showBottomBar={true} />
+      ) : (
+        <MapCarousel
+          data={[
+            { id: 'search', component: <SearchBar /> },
+            ...(trackingModes ?? []).map((mode: any) => ({
+              id: mode.id,
+              component: (
+                <TrackModeCard
+                  id={mode.id}
+                  name={mode.name}
+                  contacts={mode.contacts.map((c: any) => ({
+                    id: c.id,
+                    name: c.username,
+                    url: 'none',
+                  }))}
+                />
+              ),
+            })),
+          ]}
+        />
+      )}
     </View>
   );
 }
@@ -97,9 +113,20 @@ function createStyles() {
       width: '100%',
       height: '100%',
     },
-    carouselContainer: {
+    toggleButton: {
       position: 'absolute',
-      bottom: '13%',
+      top: 60, // Adjust this for reachable height (avoid top bar)
+      right: 20,
+      backgroundColor: 'rgba(0,0,0,0.6)',
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 10,
+      zIndex: 999,
+    },
+    toggleButtonText: {
+      color: 'white',
+      fontSize: 14,
+      fontWeight: 'bold',
     },
   });
 }

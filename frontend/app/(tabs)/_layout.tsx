@@ -5,7 +5,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { Colors } from '../../constants/Colors';
-import VideoPlayerScreen from '../features/fakePhoneCallPlayer/FakePhoneCallScreen';
+import VideoPlayer from '../features/fakePhoneCallPlayer/components/VideoPlayer';
 
 export default function TabLayout() {
   return (

@@ -1,6 +1,6 @@
 // TrackingContext.tsx
 import { createContext, useContext, useEffect, useState } from 'react';
-import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/libs/firebase';
 
 
@@ -10,6 +10,18 @@ export const TrackingProvider = ({ children }) => {
   const [trackingModes, setTrackingModes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [timers, setTimers] = useState({}); // optional: track multiple countdowns
+
+  const startTrackingMode = async (modeId) => {
+    try {
+      const modeRef = doc(db, 'TrackingMode', modeId);
+      await updateDoc(modeRef, { On: true });
+      // Optionally refresh trackingModes
+      fetchTrackingModesWithContacts();
+    } catch (error) {
+      console.error('Error updating tracking mode:', error);
+    }
+  }
+
   const fetchTrackingModesWithContacts = async () => {
     try {
       const colRef = collection(db, 'TrackingMode');
@@ -41,6 +53,7 @@ export const TrackingProvider = ({ children }) => {
       setLoading(false);
     } catch (error) {
       console.error('Error fetching tracking modes with contacts:', error);
+      setTrackingModes([]);
       setLoading(false);
     }
   };
@@ -52,7 +65,7 @@ export const TrackingProvider = ({ children }) => {
 
 
   return (
-    <TrackingContext.Provider value={{ trackingModes, loading}}>
+    <TrackingContext.Provider value={{ trackingModes, loading, startTrackingMode }}>
       {children}
     </TrackingContext.Provider>
   );

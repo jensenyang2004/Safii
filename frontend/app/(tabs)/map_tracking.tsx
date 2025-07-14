@@ -2,7 +2,7 @@ import { View, Text, StyleSheet, Platform, Alert, TouchableOpacity, Button, Imag
 import React, { useEffect, useState } from 'react'
 
 import MapView, { Callout, Marker, Polyline } from 'react-native-maps'
-import * as Location from 'expo-location'
+// import * as Location from 'expo-location'
 import { getDistance } from 'geolib'
 
 import { collection, doc, limit, onSnapshot, query, setDoc, where } from "firebase/firestore";
