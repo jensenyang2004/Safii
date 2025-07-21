@@ -13,18 +13,18 @@ const TrackingContext = createContext(null);
 const BACKGROUND_LOCATION_TASK = 'background-location-task-tracking';
 
 
-  const requestBackgroundPermissions = async () => {
-    const { status: backgroundStatus } = await Location.requestBackgroundPermissionsAsync();
-    if (backgroundStatus !== 'granted') {
-      Alert.alert(
-        "Permission Required",
-        "Background location access is required for emergency tracking",
-        [{ text: "OK" }]
-      );
-      return false;
-    }
-    return true;
-  };
+const requestBackgroundPermissions = async () => {
+  const { status: backgroundStatus } = await Location.requestBackgroundPermissionsAsync();
+  if (backgroundStatus !== 'granted') {
+    Alert.alert(
+      "Permission Required",
+      "Background location access is required for emergency tracking",
+      [{ text: "OK" }]
+    );
+    return false;
+  }
+  return true;
+};
 
 defineTask(BACKGROUND_LOCATION_TASK, async ({ data, error }) => {
   if (error) {
