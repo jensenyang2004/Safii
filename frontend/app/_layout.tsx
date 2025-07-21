@@ -14,6 +14,8 @@ import '@/global.css';
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 // SplashScreen.preventAutoHideAsync();
 
+
+
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const [loaded] = useFonts({
@@ -30,8 +32,9 @@ export default function RootLayout() {
     return null;
   }
   return (
-        <AuthProvider>
+        
         <TrackingProvider>
+        <AuthProvider>
         <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
           <Stack>
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
@@ -51,7 +54,8 @@ export default function RootLayout() {
           </Stack>
           <StatusBar style="auto" />
         </ThemeProvider>
-        </TrackingProvider>
+        
         </AuthProvider>
+        </TrackingProvider>
   );
 }

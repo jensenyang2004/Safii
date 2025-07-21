@@ -19,11 +19,17 @@ import ToolCard from '@/components/Safety_tools/tools_card';
 import { useTracking } from '@/context/TrackProvider';
 
 const { width: screenWidth } = Dimensions.get('window');
+import * as TaskManager from 'expo-task-manager';
+import * as Location from 'expo-location';
 
+const BACKGROUND_LOCATION_TASK = 'background-location-task';
 const CARD_WIDTH = screenWidth * 0.8;
 const SPACING = screenWidth * 0.03;
 const SIDE_PADDING = (screenWidth - CARD_WIDTH) / 2;
 const SNAP_INTERVAL = CARD_WIDTH + SPACING;
+
+
+
 
 export default function Map() {
   const [location, setLocation] = useState({

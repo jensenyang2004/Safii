@@ -5,54 +5,75 @@ import { db } from '@/libs/firebase';
 import * as TaskManager from 'expo-task-manager';
 import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { defineTask, isTaskRegisteredAsync } from 'expo-task-manager';
+import { Alert } from 'react-native';
 
 
 const TrackingContext = createContext(null);
+const BACKGROUND_LOCATION_TASK = 'background-location-task-tracking';
+
+
+  const requestBackgroundPermissions = async () => {
+    const { status: backgroundStatus } = await Location.requestBackgroundPermissionsAsync();
+    if (backgroundStatus !== 'granted') {
+      Alert.alert(
+        "Permission Required",
+        "Background location access is required for emergency tracking",
+        [{ text: "OK" }]
+      );
+      return false;
+    }
+    return true;
+  };
+
+defineTask(BACKGROUND_LOCATION_TASK, async ({ data, error }) => {
+  if (error) {
+    console.error(error);
+    return;
+  }
+
+  const hasPermission = await requestBackgroundPermissions();
+  if (!hasPermission) {
+    console.error("No background permission");
+    return;
+  }
+  if (data) {
+    const { locations } = data;
+    // Upload location to Firebase
+    const { latitude, longitude } = locations[0].coords;
+
+    const currentTime = Date.now();
+
+    try {
+      const endTimeString = await AsyncStorage.getItem('countdownEndTime');
+      const countdownEndTime = endTimeString ? parseInt(endTimeString) : 0;
+
+      console.log('Countdown ends at:', countdownEndTime);
+      console.log('Current time:', currentTime);
+
+      if (currentTime >= countdownEndTime) {
+        console.log('Countdown ended. Stopping location tracking.');
+        await Location.stopLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
+      } else {
+        // Log location or upload to Firebase here
+        console.log('Location:', locations[0]);
+      }
+    } catch (err) {
+      console.error('Failed to check countdown time:', err);
+    }
+  }
+});
+
 
 export const TrackingProvider = ({ children }) => {
   const [trackingModes, setTrackingModes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [timers, setTimers] = useState({}); // optional: track multiple countdowns
-  const BACKGROUND_LOCATION_TASK = 'background-location-task';
+  const [isTracking, setIsTracking] = useState(false);
 
-
-  TaskManager.defineTask(BACKGROUND_LOCATION_TASK, async ({ data, error }) => {
-    if (error) {
-      console.error('Location task error:', error);
-      return;
-    }
-
-    const hasPermission = await requestBackgroundPermissions();
-    if (!hasPermission) {
-      console.error("No background permission");
-      return;
-    }
-
-    if (data) {
-      const { locations } = data;
-      const currentTime = Date.now();
-
-      try {
-        const endTimeString = await AsyncStorage.getItem('countdownEndTime');
-        const countdownEndTime = endTimeString ? parseInt(endTimeString) : 0;
-
-        console.log('Countdown ends at:', countdownEndTime);
-        console.log('Current time:', currentTime);
-
-        if (currentTime >= countdownEndTime) {
-          console.log('Countdown ended. Stopping location tracking.');
-          await Location.stopLocationUpdatesAsync('location-task');
-        } else {
-          // Log location or upload to Firebase here
-          console.log('Location:', locations[0]);
-        }
-      } catch (err) {
-        console.error('Failed to check countdown time:', err);
-      }
-    }
-  });
 
   const startTrackingMode = async (modeId) => {
+    setIsTracking(true);
     try {
       const modeRef = doc(db, 'TrackingMode', modeId);
       await updateDoc(modeRef, { On: true });
@@ -65,11 +86,12 @@ export const TrackingProvider = ({ children }) => {
 
         await AsyncStorage.setItem('countdownEndTime', endTime.toString());
 
-        await Location.startLocationUpdatesAsync('location-task', {
+        await Location.startLocationUpdatesAsync(BACKGROUND_LOCATION_TASK, {
           accuracy: Location.Accuracy.Balanced,
           timeInterval: 5000, // e.g., every 10 seconds
           distanceInterval: 0,
           showsBackgroundLocationIndicator: true,
+          deferredUpdatesInterval: 30000, // Process updates every 30 seconds
           pausesUpdatesAutomatically: false,
           foregroundService: {
             notificationTitle: 'Tracking',
@@ -79,6 +101,7 @@ export const TrackingProvider = ({ children }) => {
       };
 
       const stopTracking = async () => {
+        setIsTracking(false);
         await Location.stopLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
         await AsyncStorage.removeItem('countdownEndTime');
       };
@@ -132,7 +155,7 @@ export const TrackingProvider = ({ children }) => {
 
 
   return (
-    <TrackingContext.Provider value={{ trackingModes, loading, startTrackingMode }}>
+    <TrackingContext.Provider value={{ trackingModes, loading, startTrackingMode, isTracking }}>
       {children}
     </TrackingContext.Provider>
   );
