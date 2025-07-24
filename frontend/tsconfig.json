@@ -2,11 +2,15 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
+    "jsx": "react-native",                  // ⬅️ Required to handle JSX (tsx files)
+    "moduleResolution": "node",            // ⬅️ Helps resolve node_modules and aliases
+    "baseUrl": ".",                        // ⬅️ Required for path aliases to work
     "paths": {
-      "@/*": [
-        "./*"
-      ]
-    }
+      "@/*": ["./*"]                       // ⬅️ Your existing alias for '@/libs/firebase', etc.
+    },
+    "allowJs": true,                       // ⬅️ Optional: if you also use .js files
+    "esModuleInterop": true,               // ⬅️ Ensures default imports work with CommonJS modules
+    "skipLibCheck": true                   // ⬅️ Speeds up builds by skipping node_modules type checks
   },
   "include": [
     "**/*.ts",
@@ -14,5 +18,5 @@
     ".expo/types/**/*.ts",
     "expo-env.d.ts",
     "nativewind-env.d.ts"
-, "app/(tabs)/home.tsx"  ]
+  ]
 }
