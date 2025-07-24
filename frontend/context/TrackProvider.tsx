@@ -3,11 +3,12 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import { collection, getDocs, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/libs/firebase';
 import * as TaskManager from 'expo-task-manager';
+// import BackgroundFetch from 'react-native-background-fetch';
 import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { defineTask, isTaskRegisteredAsync } from 'expo-task-manager';
 import { Alert } from 'react-native';
-
+// import BackgroundTimer from 'react-native-background-timer';
 
 const TrackingContext = createContext(null);
 const BACKGROUND_LOCATION_TASK = 'background-location-task-tracking';
@@ -85,11 +86,12 @@ export const TrackingProvider = ({ children }) => {
         const endTime = now + durationInSeconds * 1000;
 
         await AsyncStorage.setItem('countdownEndTime', endTime.toString());
+        //rest of code will be performing for iOS on background too
 
         await Location.startLocationUpdatesAsync(BACKGROUND_LOCATION_TASK, {
           accuracy: Location.Accuracy.Balanced,
           timeInterval: 5000, // e.g., every 10 seconds
-          distanceInterval: 0,
+          distanceInterval: 10,
           showsBackgroundLocationIndicator: true,
           deferredUpdatesInterval: 30000, // Process updates every 30 seconds
           pausesUpdatesAutomatically: false,
@@ -106,11 +108,11 @@ export const TrackingProvider = ({ children }) => {
         await AsyncStorage.removeItem('countdownEndTime');
       };
       startCountdown(1000000);
-      stopTracking();
     } catch (error) {
       console.error('Error updating tracking mode:', error);
     }
   }
+""
 
   const fetchTrackingModesWithContacts = async () => {
     try {
