@@ -1,21 +1,20 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet, Animated, Easing } from 'react-native';
-// import { useLiveActivity } from '@/hooks/useCountDown';
 import { useTracking } from '@/context/TrackProvider';
 
 type TrackModeCardProps = {
   id: string;
   name: string;
   contacts: { id: string; url: string; name: string }[];
+  checkIntervalMinutes: number;
 };
 
-const avatarImg = require('../../assets/images/person.png'); // Replace with your actual avatar image
+const avatarImg = require('../../assets/images/person.png');
 
-export default function TrackModeCard({ id, name, contacts }: TrackModeCardProps) {
+export default function TrackModeCard({ id, name, contacts, checkIntervalMinutes }: TrackModeCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [animation] = useState(new Animated.Value(0));
-  const { handleStartTracking, handleStopTracking, isTracking } = useTracking();
-  // const { startActivity } = useLiveActivity();
+  const { startTrackingMode } = useTracking();
 
   const handlePress = () => {
     setExpanded(!expanded);
@@ -32,19 +31,12 @@ export default function TrackModeCard({ id, name, contacts }: TrackModeCardProps
     outputRange: [60, 120], // collapsed height, expanded height
   });
 
-  // Show up to 3 avatars, rest are counted in "+N"
   const visibleContacts = contacts.slice(0, 3);
   const moreCount = contacts.length - visibleContacts.length;
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity style={styles.header} onPress={() => {
-        if (isTracking) {
-          handleStopTracking();
-        } else {
-          handleStartTracking(id)}
-        }}
-        activeOpacity={0.8}>
+      <TouchableOpacity style={styles.header} onPress={() => startTrackingMode(id, checkIntervalMinutes)} activeOpacity={0.8}>
         <Text style={styles.headerText}>開起{name}模式</Text>
       </TouchableOpacity>
       <Animated.View style={[styles.bottom, { height: expandedHeight }]}>
@@ -154,12 +146,6 @@ const styles = StyleSheet.create({
     color: '#444',
     fontWeight: 'bold',
     fontSize: 14,
-  },
-  arrow: {
-    fontSize: 22,
-    color: '#888',
-    marginLeft: 8,
-    fontWeight: 'bold',
   },
   expandedContent: {
     marginTop: 10,
