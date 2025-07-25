@@ -12,6 +12,7 @@ import { router, useRootNavigationState } from 'expo-router';
 import { useAuth } from '@/context/AuthProvider';
 import '@/global.css';
 
+import CountdownComponent from '@/components/Test/Count_down';
 // 1. Import your fake-call hook
 import { useFakePhoneCall } from '../features/fakePhoneCallPlayer/hooks/useFakePhoneCall';
 
@@ -61,7 +62,7 @@ export default function HomeScreen() {
           </Text>
         )}
       </Pressable>
-
+      <CountdownComponent/>
       {/* <Pressable onPress={() => router.push('/interactive-call')} style={styles.callButton}>
         <Text style={styles.callButtonText}>Simulate Phone Call</Text>
       </Pressable>

@@ -73,7 +73,7 @@ export const TrackingProvider = ({ children }) => {
   const [isTracking, setIsTracking] = useState(false);
 
 
-  const startTrackingMode = async (modeId) => {
+  const startTrackingMode = async (modeId : any) => {
     setIsTracking(true);
     try {
       const modeRef = doc(db, 'TrackingMode', modeId);

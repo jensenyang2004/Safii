@@ -1216,6 +1216,8 @@ PODS:
   - EXJSONUtils (0.15.0)
   - EXManifests (0.16.6):
     - ExpoModulesCore
+  - EXNotifications (0.31.4):
+    - ExpoModulesCore
   - Expo (53.0.20):
     - DoubleConversion
     - ExpoModulesCore
@@ -3504,7 +3506,7 @@ PODS:
     - React-perflogger (= 0.79.5)
     - React-utils (= 0.79.5)
   - RecaptchaInterop (101.0.0)
-  - RNCAsyncStorage (2.1.2):
+  - RNCAsyncStorage (2.2.0):
     - DoubleConversion
     - glog
     - hermes-engine
@@ -3828,6 +3830,7 @@ DEPENDENCIES:
   - EXConstants (from `../node_modules/expo-constants/ios`)
   - EXJSONUtils (from `../node_modules/expo-json-utils/ios`)
   - EXManifests (from `../node_modules/expo-manifests/ios`)
+  - EXNotifications (from `../node_modules/expo-notifications/ios`)
   - Expo (from `../node_modules/expo`)
   - expo-dev-client (from `../node_modules/expo-dev-client/ios`)
   - expo-dev-launcher (from `../node_modules/expo-dev-launcher`)
@@ -3988,6 +3991,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/expo-json-utils/ios"
   EXManifests:
     :path: "../node_modules/expo-manifests/ios"
+  EXNotifications:
+    :path: "../node_modules/expo-notifications/ios"
   Expo:
     :path: "../node_modules/expo"
   expo-dev-client:
@@ -4224,6 +4229,7 @@ SPEC CHECKSUMS:
   EXConstants: 9d62a46a36eae6d28cb978efcbc68aef354d1704
   EXJSONUtils: 1d3e4590438c3ee593684186007028a14b3686cd
   EXManifests: f4cc4a62ee4f1c8a9cf2bb79d325eac6cb9f5684
+  EXNotifications: d0a50a5490845c702f2c605e94533ae5ddf1aadb
   Expo: f36ead9aa4bf1f3d238ddf2a8e43c64510eae109
   expo-dev-client: f1b99dfea0c9174d2e4ec96c2c5461587dda1e86
   expo-dev-launcher: 772afd177066a622ab6622b65e6fa9783640433b
@@ -4345,7 +4351,7 @@ SPEC CHECKSUMS:
   ReactCodegen: 28eb66b3670b0f91cae893a4b3b34813c305c34f
   ReactCommon: 3dbed0a44e9e5d7b77b0f35983633aa5d33c9694
   RecaptchaInterop: 11e0b637842dfb48308d242afc3f448062325aba
-  RNCAsyncStorage: e25fda4679876e5204c4c502d297757ec1f17ced
+  RNCAsyncStorage: faf86846c58994b6b8aab074a4914eb1796c2a9f
   RNFBApp: d15dab17b5639fb7f95712d07c204912a534b8c6
   RNFBAuth: d671a6c27eac871a90c7fbc000e5236b070af055
   RNFBFirestore: 1361e2bc9fc45d91d609807cd0539d812cfd5af1
