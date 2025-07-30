@@ -10,9 +10,12 @@ import {
 import { useEffect } from 'react';
 import { router, useRootNavigationState } from 'expo-router';
 import { useAuth } from '@/context/AuthProvider';
+import PreCalculatedTimeline from '@/components/Test/Tracking_test';
+import PreCalculatedTimeline2 from '@/components/Test/Tracking_test_2';
 import '@/global.css';
 
 import CountdownComponent from '@/components/Test/Count_down';
+import BackgroundCountdownTest from '@/components/Test/BGtask_countdown';
 // 1. Import your fake-call hook
 import { useFakePhoneCall } from '../features/fakePhoneCallPlayer/hooks/useFakePhoneCall';
 
@@ -62,7 +65,10 @@ export default function HomeScreen() {
           </Text>
         )}
       </Pressable>
-      <CountdownComponent/>
+      <PreCalculatedTimeline2/>
+      {/* <PreCalculatedTimeline/> */}
+      {/* <BackgroundCountdownTest/> */}
+      {/* <CountdownComponent/> */}
       {/* <Pressable onPress={() => router.push('/interactive-call')} style={styles.callButton}>
         <Text style={styles.callButtonText}>Simulate Phone Call</Text>
       </Pressable>
