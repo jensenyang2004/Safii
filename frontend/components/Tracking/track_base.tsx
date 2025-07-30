@@ -51,7 +51,7 @@ export default function TrackModeCard({ id, name, contacts, checkIntervalMinutes
                 <Text style={styles.moreText}>{`+${moreCount}`}</Text>
               </View>
             )}
-            <Text style={styles.arrow}>{'>'}</Text>
+            <Text>{'>'}</Text>
           </View>
           {expanded && (
             <View style={styles.expandedContent}>
