@@ -1,16 +1,11 @@
 // app/(tabs)/home.tsx
-import {
-  View,
-  Text,
-  Pressable,
-  Alert,
-  StyleSheet,
-  Button,
-} from 'react-native';
+import { ActivityIndicator, View, Text, Pressable, Alert, StyleSheet, Image } from 'react-native';
+
 import { useEffect } from 'react';
 import { router, useRootNavigationState } from 'expo-router';
 import { useAuth } from '@/context/AuthProvider';
 import '@/global.css';
+import ProfilePhotoUploader from '@/components/ProfilePhotoUploader';
 
 // 1. Import your fake-call hook
 import { useFakePhoneCall } from '../features/fakePhoneCallPlayer/hooks/useFakePhoneCall';
@@ -36,7 +31,6 @@ export default function HomeScreen() {
     try {
       await signOut();
       Alert.alert("Signed out successfully!");
-      router.replace('/(auth)/sign-in');
     } catch (error) {
       console.error("Error signing out: ", error);
     }
@@ -50,31 +44,54 @@ export default function HomeScreen() {
   //   }
   // }, [user]);
 
+  useEffect(() => {
+    if (user) {
+      console.log('User ID:', user.uid);
+      console.log('Username:', user.username);
+      console.log('Email:', user.email);
+      console.log('Avatar URL:', user.avatarUrl);
+      console.log('All properties:', Object.keys(user));
+    } else {
+      console.log('User is null or undefined');
+    }
+  }, [user]);
+
   return (
     <View style={styles.container}>
-      <Text style={styles.username}>{user?.username}</Text>
-
-      <Pressable onPress={handleSignOut} style={styles.signOutButton}>
-        {({ pressed }) => (
-          <Text style={[styles.signOutText, pressed && styles.pressed]}>
-            Sign Out
-          </Text>
+      <Pressable onPress={() => { }}>
+        {user?.avatarUrl ? (
+          <Image
+            source={{ uri: user.avatarUrl }}
+            style={styles.avatar}
+          />
+        ) : (
+          <View style={[styles.avatar, styles.avatarPlaceholder]}>
+            <Text style={styles.avatarPlaceholderText}>
+              {user?.displayName?.[0] || user?.username?.[0] || 'U'}
+            </Text>
+          </View>
         )}
       </Pressable>
 
-      {/* <Pressable onPress={() => router.push('/interactive-call')} style={styles.callButton}>
-        <Text style={styles.callButtonText}>Simulate Phone Call</Text>
-      </Pressable>
+      <Text style={styles.username}>
+        {user?.displayName || user?.username || user?.nickname || user?.email || 'Unknown User'}
+      </Text>
 
-      {incoming && (
-        <View style={styles.overlay}>
-          <Text style={styles.overlayText}>Incoming Call…</Text>
-          <View style={styles.overlayButtons}>
-            <Button title="Answer" onPress={answerCall} color="#4CAF50" />
-            <Button title="Decline" onPress={declineCall} color="#F44336" />
-          </View>
-        </View>
-      )} */}
+      <ProfilePhotoUploader />
+
+      {loading ? (
+        <ActivityIndicator size="large" color="#1E40AF" />
+      ) : (
+        <Pressable
+          onPress={signOut}
+          style={[styles.signOutButton, loading && styles.disabledButton]}
+          disabled={loading}
+        >
+          <Text style={styles.signOutText}>
+            Sign Out
+          </Text>
+        </Pressable>
+      )}
     </View>
 
   );
@@ -87,6 +104,37 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
+  },
+  avatar: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    marginBottom: 16,
+    borderWidth: 3,
+    borderColor: '#1E40AF',
+  },
+  avatarPlaceholder: {
+    backgroundColor: '#E5E7EB',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarPlaceholderText: {
+    fontSize: 48,
+    color: '#6B7280',
+    fontWeight: 'bold',
+  },
+  editOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: '#1E40AF',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'white',
   },
   username: {
     fontSize: 24,
@@ -107,6 +155,10 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.7,
+  },
+  disabledButton: {
+    opacity: 0.5,
+    backgroundColor: '#8B9AC0', // Lighter blue for disabled state
   },
   callButton: {
     backgroundColor: '#059669',

@@ -11,8 +11,6 @@ import { useAuth } from '@/context/AuthProvider'
 import { Circle } from 'react-native-maps';
 // import Icon from 'react-native-vector-icons/FontAwesome';
 
-
-
 export default function map_tracking() {
   const { user } = useAuth();
 
@@ -31,14 +29,14 @@ export default function map_tracking() {
 
   // Listen for emergency location updates from Firebase
   useEffect(() => {
-    if (!user?.id) return;
+    if (!user?.uid) return;
 
-    console.log("Setting up Firebase listener for user:", user.id);
+    console.log("Setting up Firebase listener for user:", user.uid);
     
     const emergencyLocationRef = collection(db, 'emergency_location');
     const q = query(
       emergencyLocationRef,
-      where('receiver', '==', user.id),
+      where('receiver', '==', user.uid),
       limit(1)
     );
 
