@@ -1,5 +1,5 @@
 // TrackingContext.tsx
-import { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useState, useEffect, useContext } from 'react';
 import { collection, getDocs, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/libs/firebase';
 
