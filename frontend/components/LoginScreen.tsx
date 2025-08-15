@@ -1,6 +1,5 @@
-import { View, Text, TouchableOpacity } from 'react-native'
+import { View, Text, TouchableOpacity , StyleSheet } from 'react-native'
 import { Colors } from '../constants/Colors';
-import { StyleSheet } from 'react-native';
 import React, { useCallback, useEffect } from 'react'
 import { warmUpAsync, coolDownAsync, maybeCompleteAuthSession } from 'expo-web-browser'
 import { useSSO } from '@clerk/clerk-expo' // Assuming useSSO is a named export

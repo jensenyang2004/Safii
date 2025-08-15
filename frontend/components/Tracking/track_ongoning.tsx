@@ -13,7 +13,25 @@ interface TrackingMode {
 }
 
 const Card_ongoing = ({ trackingMode }: { trackingMode: TrackingMode }) => {
-  const { remainingTime, stopTrackingMode } = useTracking();
+  const { stopTrackingMode, currentStrike, nextCheckInTime } = useTracking();
+
+  const [remainingTime, setRemainingTime] = React.useState(0);
+
+  React.useEffect(() => {
+    if (nextCheckInTime) {
+      const updateRemaining = () => {
+        const now = Date.now();
+        const timeLeft = Math.max(0, Math.ceil((nextCheckInTime - now) / 1000));
+        setRemainingTime(timeLeft);
+      };
+
+      updateRemaining();
+      const interval = setInterval(updateRemaining, 1000);
+      return () => clearInterval(interval);
+    } else {
+      setRemainingTime(0);
+    }
+  }, [nextCheckInTime]);
 
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
@@ -21,8 +39,10 @@ const Card_ongoing = ({ trackingMode }: { trackingMode: TrackingMode }) => {
     return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const totalDuration = trackingMode ? trackingMode.checkIntervalMinutes * 60 : 0;
-  const progressPercentage = totalDuration > 0 ? (remainingTime / totalDuration) * 100 : 0;
+  // Calculate progress based on the current session's duration
+  // This would require knowing the current session's total duration, which isn't directly available here.
+  // For now, we'll just show the countdown.
+  const progressPercentage = 100; // Placeholder, as actual progress bar logic is complex without session duration
 
   return (
     <View style={styles.card}>
@@ -33,6 +53,7 @@ const Card_ongoing = ({ trackingMode }: { trackingMode: TrackingMode }) => {
       <View style={styles.infoRow}>
         <View style={styles.statusContainer}>
           <Text style={styles.statusText}>正在進行 {trackingMode?.name ?? '模式'}...</Text>
+          <Text style={styles.strikeText}>Strikes: {currentStrike}/3</Text>
           <View style={styles.progressBarContainer}>
             <View style={[styles.progressBar, { width: `${progressPercentage}%` }]} />
           </View>

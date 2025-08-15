@@ -3,9 +3,8 @@ import React, { useState } from 'react'
 import { createUserWithEmailAndPassword } from 'firebase/auth'
 import { auth, db } from '@/libs/firebase'
 import { doc, setDoc } from 'firebase/firestore'
-import { router } from 'expo-router'
+import { router , Stack } from 'expo-router'
 import { AntDesign } from '@expo/vector-icons'
-import { Stack } from 'expo-router';
 
 const SignUp = () => {
   const [email, setEmail] = useState('')

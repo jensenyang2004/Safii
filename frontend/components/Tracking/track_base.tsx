@@ -34,9 +34,12 @@ export default function TrackModeCard({ id, name, contacts, checkIntervalMinutes
   const visibleContacts = contacts.slice(0, 3);
   const moreCount = contacts.length - visibleContacts.length;
 
+  // Default reduction minutes for now, ideally this comes from tracking mode config
+  const defaultReductionMinutes = 10;
+
   return (
     <View style={styles.container}>
-      <TouchableOpacity style={styles.header} onPress={() => startTrackingMode(id, checkIntervalMinutes)} activeOpacity={0.8}>
+      <TouchableOpacity style={styles.header} onPress={() => startTrackingMode(id, checkIntervalMinutes, defaultReductionMinutes)} activeOpacity={0.8}>
         <Text style={styles.headerText}>開起{name}模式</Text>
       </TouchableOpacity>
       <Animated.View style={[styles.bottom, { height: expandedHeight }]}>
