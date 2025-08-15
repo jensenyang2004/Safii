@@ -1,14 +1,13 @@
 import { View, Text, StyleSheet, Platform, Alert, TouchableOpacity, Button, Image } from 'react-native'
 import React, { useEffect, useState } from 'react'
 
-import MapView, { Callout, Marker, Polyline } from 'react-native-maps'
+import MapView, { Callout, Marker, Polyline , Circle } from 'react-native-maps'
 // import * as Location from 'expo-location'
 import { getDistance } from 'geolib'
 
 import { collection, doc, limit, onSnapshot, query, setDoc, where } from "firebase/firestore";
 import { db } from '@/libs/firebase'
 import { useAuth } from '@/context/AuthProvider'
-import { Circle } from 'react-native-maps';
 // import Icon from 'react-native-vector-icons/FontAwesome';
 
 

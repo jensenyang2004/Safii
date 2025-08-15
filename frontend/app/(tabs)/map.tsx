@@ -16,6 +16,7 @@ import SearchBar from '@/components/Map/search_bar';
 import MapCarousel from '@/components/Map/carousel';
 import ToolCard from '@/components/Safety_tools/tools_card';
 import Card_ongoing from '@/components/Tracking/track_ongoning';
+import ReportSafetyCard from '@/components/Tracking/ReportSafetyCard';
 import { useTracking } from '@/context/TrackProvider';
 
 const { width: screenWidth } = Dimensions.get('window');
@@ -28,7 +29,7 @@ export default function Map() {
     longitudeDelta: 0.0421,
   });
 
-  const { trackingModes, isTracking, trackingModeId } = useTracking();
+  const { trackingModes, isTracking, trackingModeId, isReportDue } = useTracking();
   const [showToolCard, setShowToolCard] = useState(false);
 
   useEffect(() => {
@@ -72,7 +73,11 @@ export default function Map() {
         <ToolCard showBottomBar={true} />
       ) : isTracking && trackingModeId ? (
         <View style={{ position: 'absolute', bottom: '12%', left: 0, right: 0, alignItems: 'center', zIndex: 999 }}>
-          <Card_ongoing trackingMode={trackingModes.find((mode: any) => mode.id === trackingModeId)} />
+          {isReportDue ? (
+            <ReportSafetyCard />
+          ) : (
+            <Card_ongoing trackingMode={trackingModes.find((mode: any) => mode.id === trackingModeId)} />
+          )}
         </View>
       ) : (
         <MapCarousel
