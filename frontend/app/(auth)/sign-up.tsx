@@ -1,12 +1,17 @@
 import { Text, StyleSheet, View, TextInput, TouchableOpacity, SafeAreaView, ActivityIndicator, Alert } from 'react-native'
 import React, { useState } from 'react'
-import { createUserWithEmailAndPassword } from 'firebase/auth'
+import {
+  createUserWithEmailAndPassword,
+  updateProfile,
+  User as FirebaseUser,
+} from 'firebase/auth';
 import { auth, db } from '@/libs/firebase'
-import { doc, setDoc } from 'firebase/firestore'
-import { router , Stack } from 'expo-router'
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { router, Stack } from 'expo-router';
 import { AntDesign } from '@expo/vector-icons'
+import { FirebaseError } from 'firebase/app';
 
-const SignUp = () => {
+export default function SignUp() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -15,26 +20,67 @@ const SignUp = () => {
 
   const handleSignUp = async () => {
     if (password !== confirmPassword) {
-      alert('Passwords do not match!')
-      return
+      Alert.alert('錯誤', '密碼與確認密碼不符');
+      return;
     }
+
     setLoading(true)
     try {
-      const res = await createUserWithEmailAndPassword(auth, email, password)
-      await setDoc(doc(db, "users", res.user.uid), {
-        username: username,
-        email: email,
-        id: res.user.uid,
-      });
-    } catch (err) {
-      console.log(err)
-      let errorMessage = 'An error occurred during sign up';
-      if (err && typeof err === 'object' && 'message' in err) {
-        errorMessage = String((err as { message?: unknown }).message);
+      // 1) 建帳號
+      const cred = await createUserWithEmailAndPassword(auth, email, password);
+      const user: FirebaseUser = cred.user;
+
+      // 2) 在 Auth Profile 加上 displayName
+      await updateProfile(user, { displayName: username });
+
+      // 3) 組出你的完整 User Schema
+      const userDoc = {
+        uid: user.uid,
+        phone: '',                // 如果有電話，可傳入
+        email: user.email!,
+        nickname: username,
+        avatarUrl: '',            // 可後續讓使用者上傳
+        gender: 'other',
+        createdAt: serverTimestamp(),
+        lastActiveAt: serverTimestamp(),
+        locationSharing: true,
+        currentLocation: { latitude: 0, longitude: 0 },
+        subscriptionStatus: 'free',
+        emergencyLevel: 'basic',
+        deviceTokens: [],
+        blockList: [],
+        reportCount: 0,
+        isHelper: false,
+        isVerified: false,
+      };
+
+      // 4) 寫入 Firestore
+      await setDoc(doc(db, 'users', user.uid), userDoc);
+
+      // 5) 註冊成功，跳到主畫面
+      router.replace('/');
+
+    } catch (err: unknown) {
+      setLoading(false);
+
+      if (err instanceof FirebaseError) {
+        switch (err.code) {
+          case 'auth/email-already-in-use':
+            Alert.alert('註冊失敗', '此電子郵件已經註冊。');
+            break;
+          case 'auth/invalid-email':
+            Alert.alert('註冊失敗', '請輸入有效的電子郵件地。');
+            break;
+          case 'auth/weak-password':
+            Alert.alert('註冊失敗', '密碼強度不足，請使用 6 個以上字元。');
+            break;
+          default:
+            Alert.alert('註冊失敗', err.message);
+        }
+      } else {
+        Alert.alert('註冊失敗', '發生未知錯誤，請稍後再試。');
+        console.error(err);
       }
-      Alert.alert('Error', errorMessage);
-    } finally {
-      setLoading(false)
     }
   }
 
@@ -79,38 +125,38 @@ const SignUp = () => {
 
           <TextInput
             style={styles.input}
-            placeholder="Username"
+            placeholder="暱稱"
             value={username}
             onChangeText={setUsername}
-            keyboardType="email-address"
             autoCapitalize="none"
           />
 
           <TextInput
             style={styles.input}
-            placeholder="Password"
+            placeholder="密碼"
             value={password}
             onChangeText={setPassword}
             secureTextEntry
           />
 
+
           <TextInput
             style={styles.input}
-            placeholder="Confirm Password"
+            placeholder="確認密碼"
             value={confirmPassword}
             onChangeText={setConfirmPassword}
             secureTextEntry
           />
 
           <TouchableOpacity
-            style={styles.button}
+            style={[styles.button, loading && styles.buttonDisabled]}
             onPress={handleSignUp}
-            disabled={loading} // Disable the button while loading
+            disabled={loading}
           >
             {loading ? (
-              <ActivityIndicator color="white" /> // Show loading indicator
+              <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.buttonText}>Sign Up</Text>
+              <Text style={styles.buttonText}>註冊</Text>
             )}
           </TouchableOpacity>
 
@@ -133,7 +179,6 @@ const SignUp = () => {
   )
 }
 
-export default SignUp
 
 const styles = StyleSheet.create({
   container: {
@@ -168,6 +213,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 20,
   },
+  buttonDisabled: { opacity: 0.6 },
   buttonText: {
     color: '#fff',
     fontSize: 16,
