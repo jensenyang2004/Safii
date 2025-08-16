@@ -1,6 +1,6 @@
 
 // TrackingContext.tsx
-import { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useState, useEffect, useContext } from 'react';
 import { collection, getDocs, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/libs/firebase';
 import * as TaskManager from 'expo-task-manager';
@@ -58,7 +58,7 @@ const BACKGROUND_LOCATION_TASK = 'background-location-task-tracking';
 Notifications.setNotificationHandler({
   handleNotification: async (notification) => {
     console.log('📱 Notification received:', notification.request.content.title);
-    const data = notification.request.content.data as NotificationData;
+    const data = notification.request.content.data as unknown as NotificationData;
 
     if (data?.type === 'missed_report' && data.strike === 3) {
       console.log('🚨 FINAL STRIKE RECEIVED! EXECUTING EMERGENCY ACTION FROM NOTIFICATION HANDLER!');
@@ -89,6 +89,8 @@ Notifications.setNotificationHandler({
       shouldShowAlert: true,
       shouldPlaySound: true,
       shouldSetBadge: false,
+      shouldShowBanner: true,
+      shouldShowList: true,
     };
   },
 });
@@ -137,7 +139,7 @@ defineTask(BACKGROUND_LOCATION_TASK,
 
 
 export const TrackingProvider = ({ children }: { children: React.ReactNode }) => {
-  const [trackingModes, setTrackingModes] = useState([]);
+  const [trackingModes, setTrackingModes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isTracking, setIsTracking] = useState<boolean>(false);
   const [isActive, setIsActive] = useState<boolean>(false);
@@ -269,7 +271,7 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
   }, []);
 
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    let interval: number;
     if (isTracking && !isReportDue && nextCheckInTime) {
       interval = setInterval(() => {
         const now = Date.now();
@@ -456,7 +458,8 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
 
     } catch (error) {
       console.error('❌ Error starting tracking:', error);
-      Alert.alert('Error', 'Failed to start tracking: ' + error.message);
+      const errMsg = (error instanceof Error) ? error.message : String(error);
+      Alert.alert('Error', 'Failed to start tracking: ' + errMsg);
     }
   };
 
@@ -521,7 +524,8 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
       
     } catch (error) {
       console.error('❌ Error reporting safety:', error);
-      Alert.alert('Error', 'Failed to report safety: ' + error.message);
+      const errMsg = (error instanceof Error) ? error.message : String(error);
+      Alert.alert('Error', 'Failed to report safety: ' + errMsg);
     }
   };
 

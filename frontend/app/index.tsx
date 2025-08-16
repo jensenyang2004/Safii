@@ -1,5 +1,7 @@
+// app/index.tsx
+
 import { Redirect } from "expo-router";
-import { Text, View } from "react-native";
+
 import '@/global.css';
 
 
