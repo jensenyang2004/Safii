@@ -38,8 +38,8 @@ export default function RootLayout() {
     return null;
   }
   return ( 
-    <TrackingProvider>
       <AuthProvider>
+        <TrackingProvider>
         <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
           <Stack>
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
@@ -58,8 +58,8 @@ export default function RootLayout() {
           </Stack>
           <StatusBar style="auto" />
         </ThemeProvider>  
+        </TrackingProvider>
       </AuthProvider>
-    </TrackingProvider>
   );
 }
 

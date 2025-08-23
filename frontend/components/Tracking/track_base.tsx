@@ -35,7 +35,7 @@ export default function TrackModeCard({ id, name, contacts, checkIntervalMinutes
   const moreCount = contacts.length - visibleContacts.length;
 
   // Default reduction minutes for now, ideally this comes from tracking mode config
-  const defaultReductionMinutes = 10;
+  const defaultReductionMinutes = 3;
 
   return (
     <View style={styles.container}>
