@@ -17,6 +17,10 @@ import SearchBar from '@/components/Map/search_bar';
 import MapCarousel from '@/components/Map/carousel';
 import ToolCard from '@/components/Safety_tools/tools_card';
 import { useTracking } from '@/context/TrackProvider';
+import { doc, updateDoc } from 'firebase/firestore';
+import { db } from '@/libs/firebase';
+
+import { getAuth } from 'firebase/auth';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -34,9 +38,17 @@ export default function Map() {
   });
 
   const { trackingModes, loading } = useTracking();
+  const modes = trackingModes ?? [];
+
   const [showToolCard, setShowToolCard] = useState(false); // toggle state
 
   const flatListRef = useRef<FlatList>(null);
+
+
+  const auth = getAuth();
+  const currentUserId = auth.currentUser?.uid;
+
+  const styles = createStyles();
 
   useEffect(() => {
     (async () => {
@@ -55,7 +67,15 @@ export default function Map() {
     })();
   }, []);
 
-  const styles = createStyles();
+  const closeTrackingMode = async (modeId: string) => {
+    try {
+      const modeRef = doc(db, 'TrackingMode', modeId);
+      await updateDoc(modeRef, { On: false });
+      console.log(`Tracking mode with ID ${modeId} has been closed.`);
+    } catch (error) {
+      console.error('Error closing tracking mode:', error);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -83,22 +103,48 @@ export default function Map() {
         <MapCarousel
           data={[
             { id: 'search', component: <SearchBar /> },
-            ...(trackingModes ?? []).map((mode: any) => ({
-              id: mode.id,
-              component: (
-                <TrackModeCard
-                  id={mode.id}
-                  name={mode.name}
-                  contacts={mode.contacts.map((c: any) => ({
-                    id: c.id,
-                    name: c.username,
-                    url: 'none',
-                  }))}
-                />
+            ...modes
+              .filter((mode: any) => mode.userId === currentUserId)
+              .map((mode: any) => {
+                const contacts = Array.isArray(mode.contacts) ? mode.contacts : []; // ✅ 保護
+                return {
+                  id: mode.id,
+                  component: (
+                    <TrackModeCard
+                      id={mode.id}
+                      name={mode.name}
+                      contacts={contacts.map((c: any) => ({
+                        id: c.id,
+                        name: c.username || c.displayName || '未命名',
+                        url: 'none',
+                      }))}
+                    />
+                  ),
+                };
+              }
+
               ),
-            })),
           ]}
         />
+        // <MapCarousel
+        //   data={[
+        //     { id: 'search', component: <SearchBar /> },
+        //     ...(trackingModes ?? []).map((mode: any) => ({
+        //       id: mode.id,
+        //       component: (
+        //         <TrackModeCard
+        //           id={mode.id}
+        //           name={mode.name}
+        //           contacts={mode.contacts.map((c: any) => ({
+        //             id: c.id,
+        //             name: c.username,
+        //             url: 'none',
+        //           }))}
+        //         />
+        //       ),
+        //     })),
+        //   ]}
+        // />
       )}
     </View>
   );

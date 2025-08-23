@@ -1,3 +1,4 @@
+// components/Tracking/track_base.tsx
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet, Animated, Easing } from 'react-native';
 // import { useLiveActivity } from '@/hooks/useCountDown';
@@ -14,8 +15,25 @@ const avatarImg = require('../../assets/images/person.png'); // Replace with you
 export default function TrackModeCard({ id, name, contacts }: TrackModeCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [animation] = useState(new Animated.Value(0));
-  const { startTrackingMode } = useTracking();
-  // const { startActivity } = useLiveActivity();
+
+
+  const trackingContext = useTracking();
+
+  if (!trackingContext) {
+    console.error('Tracking context is null');
+    return <Text>Error: Tracking context is unavailable</Text>;
+  }
+
+  const { startTrackingMode, closeTrackingMode } = trackingContext;
+
+  const handleToggleMode = () => {
+    if (expanded) {
+      closeTrackingMode(id);
+    } else {
+      startTrackingMode(id);
+    }
+    setExpanded(!expanded);
+  };
 
   const handlePress = () => {
     setExpanded(!expanded);
@@ -38,8 +56,12 @@ export default function TrackModeCard({ id, name, contacts }: TrackModeCardProps
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity style={styles.header} onPress={() => {startTrackingMode(id)}} activeOpacity={0.8}>
-        <Text style={styles.headerText}>開起{name}模式</Text>
+      <TouchableOpacity
+        style={[styles.header, expanded ? styles.closeMode : styles.startMode]}
+        onPress={handleToggleMode}
+        activeOpacity={0.8}
+      >
+        <Text style={styles.headerText}>{expanded ? `關閉${name}模式` : `開啟${name}模式`}</Text>
       </TouchableOpacity>
       <Animated.View style={[styles.bottom, { height: expandedHeight }]}>
         <TouchableOpacity style={styles.bottomContent} onPress={handlePress} activeOpacity={0.8}>
@@ -95,6 +117,12 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 4,
     shadowOffset: { width: 0, height: 2 },
+  },
+  closeMode: {
+    backgroundColor: '#F18C8E',
+  },
+  startMode: {
+    backgroundColor: '#BFD3C1',
   },
   headerText: {
     color: '#fff',
