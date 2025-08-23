@@ -1,7 +1,7 @@
 
 // TrackingContext.tsx
 import React, { createContext, useState, useEffect, useContext } from 'react';
-import { collection, getDocs, doc, getDoc, updateDoc, query, where, addDoc, setDoc, Timestamp, serverTimestamp } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, updateDoc, query, where, addDoc, setDoc, Timestamp, serverTimestamp, onSnapshot } from 'firebase/firestore';
 import { db } from '@/libs/firebase';
 import * as TaskManager from 'expo-task-manager';
 import * as Location from 'expo-location';
@@ -10,6 +10,8 @@ import { defineTask } from 'expo-task-manager';
 import { Alert, AppState, Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { useAuth } from './AuthProvider';
+import { getAuth } from '@firebase/auth';
+import { registerForPushNotificationsAsync, sendPushNotification } from '@/libs/notifications';
 
 const STORAGE_KEYS = {
   TIMELINE: 'calculated_timeline',
