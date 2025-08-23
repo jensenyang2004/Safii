@@ -2,17 +2,17 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { auth, db } from '@/libs/firebase';
-import { onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { router } from 'expo-router';
 import { Alert } from 'react-native';
 
 interface User {
-  uid?: string;
+  uid: string;
   username?: string;
   nickname?: string;
-  email?: string;
-  displayName: string | null; 
+  email?: string | null;
+  displayName?: string | null;
   avatarUrl?: string;
   // Add other fields from your user document
 }
@@ -21,7 +21,7 @@ const AuthContext = createContext<{
   user: User | null;
   loading: boolean;
   signOut: () => Promise<void>;
-  fetchUserInfo: (uid: string | undefined) => Promise<void>;
+  fetchUserInfo: (authUser: FirebaseUser | null) => Promise<void>;
 }>({
   user: null,
   loading: true, // Initial loading state
@@ -42,9 +42,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       console.log("FIREBASE SIGN OUT COMPLETE");
       setUser(null); // Force update the user state to null
       console.log("USER STATE CLEARED");
-      // router.replace('/(auth)/sign-in');/
-      // router.replace('/(auth)');
-      router.replace('/sign-in');
+      router.replace('/(auth)/sign-in');
     } catch (error) {
       console.error('Error signing out:', error);
       Alert.alert('Error', 'Failed to sign out. Please try again.');
@@ -53,37 +51,56 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }
 
-  const fetchUserInfo = async (uid: string | undefined) => {
-    if (!uid) {
+  const fetchUserInfo = async (authUser: FirebaseUser | null) => {
+    if (!authUser) {
       setLoading(false);
       setUser(null);
       return;
     }
     setLoading(true);
     try {
-      const docRef = doc(db, "users", uid);
+      const docRef = doc(db, "users", authUser.uid);
       const docSnap = await getDoc(docRef);
 
       if (docSnap.exists()) {
-        setUser(docSnap.data());
+        const firestoreData = docSnap.data();
+        // Merge auth data and firestore data
+        setUser({
+          uid: authUser.uid,
+          email: authUser.email,
+          displayName: authUser.displayName,
+          ...firestoreData,
+        } as User);
       } else {
-        setUser(null);
+        // User is authenticated, but no document in Firestore.
+        // Create user object from auth data only.
+        console.warn(`No user document found for uid: ${authUser.uid}. Using auth data as fallback.`);
+        setUser({
+          uid: authUser.uid,
+          email: authUser.email,
+          displayName: authUser.displayName,
+        });
       }
     } catch (err) {
-      console.error("Error fetching user info:", err); // More specific error message
-      setUser(null);
+      console.error("Error fetching user info:", err);
+      // On error, create a minimal user object to avoid breaking the session
+      setUser({ 
+        uid: authUser.uid,
+        email: authUser.email,
+        displayName: authUser.displayName,
+      });
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (authUser) => {  // Renamed for clarity
-      fetchUserInfo(authUser?.uid);
+    const unsubscribe = onAuthStateChanged(auth, (authUser) => {
+      fetchUserInfo(authUser);
     });
 
     return () => {
-      unsubscribe(); // No need for the typeof check, unsubscribe will always be a function
+      unsubscribe();
     };
   }, []);
 

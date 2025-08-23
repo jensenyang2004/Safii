@@ -1,7 +1,7 @@
 
 // TrackingContext.tsx
 import React, { createContext, useState, useEffect, useContext } from 'react';
-import { collection, getDocs, doc, getDoc, updateDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, updateDoc, query, where, addDoc, setDoc, Timestamp, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/libs/firebase';
 import * as TaskManager from 'expo-task-manager';
 import * as Location from 'expo-location';
@@ -9,6 +9,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { defineTask } from 'expo-task-manager';
 import { Alert, AppState, Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
+import { useAuth } from './AuthProvider';
 
 const STORAGE_KEYS = {
   TIMELINE: 'calculated_timeline',
@@ -20,6 +21,8 @@ const STORAGE_KEYS = {
   TRACKING_MODE_ID: 'tracking_mode_id', // Keep this for tracking mode details
   INITIAL_SESSION_MINUTES: 'initial_session_minutes',
   INITIAL_REDUCTION_MINUTES: 'initial_reduction_minutes',
+  CURRENT_USER_ID: 'current_user_id', // For background task
+  EMERGENCY_CONTACT_IDS: 'emergency_contact_ids', // For emergency handler
 };
 
 // Types
@@ -61,9 +64,29 @@ Notifications.setNotificationHandler({
     const data = notification.request.content.data as unknown as NotificationData;
 
     if (data?.type === 'missed_report' && data.strike === 3) {
-      console.log('🚨 FINAL STRIKE RECEIVED! EXECUTING EMERGENCY ACTION FROM NOTIFICATION HANDLER!');
-      console.log('📍 This is where you would send location to server');
-      console.log('📞 This is where you would notify emergency contacts');
+      console.log('🚨 FINAL STRIKE RECEIVED! EXECUTING EMERGENCY ACTION!');
+      
+      try {
+        const distressedUserId = await AsyncStorage.getItem(STORAGE_KEYS.CURRENT_USER_ID);
+        const contactIdsStr = await AsyncStorage.getItem(STORAGE_KEYS.EMERGENCY_CONTACT_IDS);
+
+        if (distressedUserId && contactIdsStr) {
+          const emergencyContactIds = JSON.parse(contactIdsStr);
+
+          for (const contactId of emergencyContactIds) {
+            const emergencyDocRef = doc(db, 'emergency_location', contactId);
+            await setDoc(emergencyDocRef, {
+              senderId: distressedUserId,
+              createdAt: serverTimestamp(),
+            });
+            console.log(`🔔 Sent emergency alert to contact: ${contactId}`);
+          }
+        } else {
+          console.error('Could not retrieve user or contact info from storage for emergency.');
+        }
+      } catch (e) {
+        console.error('❌ Failed to execute emergency action:', e);
+      }
 
       // Clean up storage
       await AsyncStorage.multiRemove([
@@ -74,6 +97,8 @@ Notifications.setNotificationHandler({
         STORAGE_KEYS.NOTIFICATION_IDS,
         STORAGE_KEYS.REPORT_DEADLINE,
         STORAGE_KEYS.TRACKING_MODE_ID,
+        STORAGE_KEYS.CURRENT_USER_ID,
+        STORAGE_KEYS.EMERGENCY_CONTACT_IDS,
       ]);
 
     } else if (data?.type === 'session_end') {
@@ -121,24 +146,63 @@ const requestBackgroundPermissions = async () => {
 defineTask(BACKGROUND_LOCATION_TASK,
   async ({ data, error }: TaskManager.TaskManagerTaskBody<{ locations: Location.LocationObject[] } | undefined>) => {
     if (error) {
-    console.error(error);
-    return;
-  }
+      console.error('❌ Background location task error:', error);
+      return;
+    }
 
-  const hasPermission = await requestBackgroundPermissions();
-  if (!hasPermission) {
-    console.error("No background permission");
-    return;
-  }
-  if (data) {
-    const { locations } = data;
-    // Upload location to Firebase
-    const { latitude, longitude } = locations[0].coords;
-  }
-});
+    const hasPermission = await requestBackgroundPermissions();
+    if (!hasPermission) {
+      console.error("No background permission");
+      return;
+    }
+
+    const userId = await AsyncStorage.getItem(STORAGE_KEYS.CURRENT_USER_ID);
+    if (!userId) {
+      console.error("❌ Background task could not find user ID. Stopping.");
+      await Location.stopLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
+      return;
+    }
+
+    if (data && data.locations) {
+      const { locations } = data;
+      const currentLocation = locations[0];
+      if (currentLocation) {
+        const { latitude, longitude } = currentLocation.coords;
+        const updateTime = new Date(currentLocation.timestamp);
+
+        console.log('📍 Background Location Update:', { latitude, longitude, timestamp: updateTime.toISOString() });
+        
+        try {
+          // Ensure user document exists before writing to subcollection
+          const userDocRef = doc(db, 'users', userId);
+          await setDoc(userDocRef, {}, { merge: true });
+
+          const locationData = {
+            lat: latitude,
+            long: longitude,
+            updateTime: Timestamp.fromDate(updateTime),
+          };
+
+          // Update real-time location
+          const realTimeRef = doc(db, 'users', userId, 'real_time_location', 'current');
+          await setDoc(realTimeRef, locationData, { merge: true });
+
+          // Add to location history
+          const historyRef = collection(db, 'users', userId, 'location_history');
+          await addDoc(historyRef, locationData);
+
+          console.log(`✅ Successfully updated location for user ${userId}`);
+
+        } catch (dbError) {
+          console.error("❌ Failed to write location to Firebase:", dbError);
+        }
+      }
+    }
+  });
 
 
 export const TrackingProvider = ({ children }: { children: React.ReactNode }) => {
+  const { user } = useAuth();
   const [trackingModes, setTrackingModes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isTracking, setIsTracking] = useState<boolean>(false);
@@ -395,6 +459,10 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
   };
 
   const startTrackingMode = async (modeId: any, sessionMinutes: number, reductionMinutes: number) => {
+    if (!user?.uid) {
+      Alert.alert('Error', 'User not authenticated.');
+      return;
+    }
     try {
       const modeRef = doc(db, 'TrackingMode', modeId);
       await updateDoc(modeRef, { On: true });
@@ -408,6 +476,14 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
         Alert.alert('Invalid Input', 'Session must be at least 10 minutes');
         return;
       }
+
+      const activeMode = trackingModes.find(mode => mode.id === modeId);
+      if (!activeMode) {
+        Alert.alert('Error', 'Could not find the selected tracking mode.');
+        return;
+      }
+
+      const emergencyContactIds = activeMode.contacts.map((c: any) => c.id);
 
       console.log('🚀 Starting tracking with pre-calculated timeline...');
       
@@ -426,6 +502,8 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
       await AsyncStorage.setItem(STORAGE_KEYS.TRACKING_MODE_ID, modeId);
       await AsyncStorage.setItem(STORAGE_KEYS.INITIAL_SESSION_MINUTES, sessionMinutes.toString());
       await AsyncStorage.setItem(STORAGE_KEYS.INITIAL_REDUCTION_MINUTES, reductionMinutes.toString());
+      await AsyncStorage.setItem(STORAGE_KEYS.CURRENT_USER_ID, user.uid); // Save user ID for background task
+      await AsyncStorage.setItem(STORAGE_KEYS.EMERGENCY_CONTACT_IDS, JSON.stringify(emergencyContactIds)); // Save contact IDs for emergency
       
       setTimeline(calculatedTimeline);
       setIsTracking(true);
@@ -446,7 +524,7 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
       await Location.startLocationUpdatesAsync(BACKGROUND_LOCATION_TASK, {
         accuracy: Location.Accuracy.Balanced,
         timeInterval: 5000,
-        distanceInterval: 10,
+        distanceInterval: 50,
         showsBackgroundLocationIndicator: true,
         deferredUpdatesInterval: 30000,
         pausesUpdatesAutomatically: false,
@@ -531,8 +609,11 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
 
   const stopTrackingMode = async () => {
     try {
-      // Cancel all notifications
+      // Get all necessary data from storage before clearing it
       const notificationIdsStr = await AsyncStorage.getItem(STORAGE_KEYS.NOTIFICATION_IDS);
+      const modeId = await AsyncStorage.getItem(STORAGE_KEYS.TRACKING_MODE_ID);
+
+      // 1. Cancel all scheduled notifications
       if (notificationIdsStr) {
         const notificationIds = JSON.parse(notificationIdsStr);
         for (const id of notificationIds) {
@@ -540,9 +621,21 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
         }
       }
 
-      // Clear storage
+      // 2. Stop background location updates
+      if (await Location.hasStartedLocationUpdatesAsync(BACKGROUND_LOCATION_TASK)) {
+        await Location.stopLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
+      }
+
+      // 3. Update the mode status in Firestore
+      if(modeId){
+          const modeRef = doc(db, 'TrackingMode', modeId);
+          await updateDoc(modeRef, { On: false });
+      }
+
+      // 4. Clear all tracking-related data from storage
       await AsyncStorage.multiRemove(Object.values(STORAGE_KEYS));
       
+      // 5. Reset the component state
       setIsTracking(false);
       setTrackingModeId(null);
       setTimeline([]);
@@ -550,16 +643,6 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
       setIsReportDue(false);
       setReportDeadline(null);
       setNextCheckInTime(null);
-
-      if (await Location.hasStartedLocationUpdatesAsync(BACKGROUND_LOCATION_TASK)) {
-        await Location.stopLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
-      }
-
-      const modeId = await AsyncStorage.getItem(STORAGE_KEYS.TRACKING_MODE_ID); // Need to re-get as it's removed above
-      if(modeId){
-          const modeRef = doc(db, 'TrackingMode', modeId);
-          await updateDoc(modeRef, { On: false });
-      }
       
       console.log('🛑 Tracking stopped and timeline cleared');
       
@@ -569,9 +652,9 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
   };
 
 
-  const fetchTrackingModesWithContacts = async () => {
+  const fetchTrackingModesWithContacts = async (userId: string) => {
     try {
-      const colRef = collection(db, 'TrackingMode');
+      const colRef = query(collection(db, 'TrackingMode'), where('userId', '==', userId));
       const snapshot = await getDocs(colRef);
 
       const data = await Promise.all(
@@ -600,10 +683,11 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
   };
 
   useEffect(() => {
-    fetchTrackingModesWithContacts();
-  }, []);
-
-
+    if (user?.uid) {
+      console.log(user)
+      fetchTrackingModesWithContacts(user.uid);
+    }
+  }, [user]);
 
   return (
     <TrackingContext.Provider value={{

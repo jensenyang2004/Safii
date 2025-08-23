@@ -4,24 +4,15 @@ import { ActivityIndicator, View, Text, Pressable, Alert, StyleSheet, Image } fr
 import { useEffect } from 'react';
 import { router, useRootNavigationState } from 'expo-router';
 import { useAuth } from '@/context/AuthProvider';
-import PreCalculatedTimeline from '@/components/Test/Tracking_test';
-import PreCalculatedTimeline2 from '@/components/Test/Tracking_test_2';
 import '@/global.css';
-import ProfilePhotoUploader from '@/components/ProfilePhotoUploader';
+// import ProfilePhotoUploader from '@/components/ProfilePhotoUploader';
 
-import CountdownComponent from '@/components/Test/Count_down';
-import BackgroundCountdownTest from '@/components/Test/BGtask_countdown';
 // 1. Import your fake-call hook
 import { useFakePhoneCall } from '../features/fakePhoneCallPlayer/hooks/useFakePhoneCall';
 
-function simulateCall() {
-  // this pushes into your modal stack at /interactive-call
-  router.push('/interactive-call');
-}
 
 export default function HomeScreen() {
   const { user, loading, signOut } = useAuth();
-  const rootNavigationState = useRootNavigationState();
 
   // 2. Destructure the state+actions from the hook
   const {
@@ -81,7 +72,7 @@ export default function HomeScreen() {
         {user?.displayName || user?.username || user?.nickname || user?.email || 'Unknown User'}
       </Text>
 
-      <ProfilePhotoUploader />
+      {/* <ProfilePhotoUploader /> */}
 
       {loading ? (
         <ActivityIndicator size="large" color="#1E40AF" />
