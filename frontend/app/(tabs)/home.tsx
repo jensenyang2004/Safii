@@ -39,17 +39,17 @@ export default function HomeScreen() {
   //   }
   // }, [user]);
 
-  useEffect(() => {
-    if (user) {
-      console.log('User ID:', user.uid);
-      console.log('Username:', user.username);
-      console.log('Email:', user.email);
-      console.log('Avatar URL:', user.avatarUrl);
-      console.log('All properties:', Object.keys(user));
-    } else {
-      console.log('User is null or undefined');
-    }
-  }, [user]);
+  // useEffect(() => {
+  //   if (user) {
+  //     console.log('User ID:', user.uid);
+  //     console.log('Username:', user.username);
+  //     console.log('Email:', user.email);
+  //     console.log('Avatar URL:', user.avatarUrl);
+  //     console.log('All properties:', Object.keys(user));
+  //   } else {
+  //     console.log('User is null or undefined');
+  //   }
+  // }, [user]);
 
   return (
     <View style={styles.container}>

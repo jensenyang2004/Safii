@@ -1,3 +1,4 @@
+// components/Tracking/track_base.tsx
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet, Animated, Easing } from 'react-native';
 import { useTracking } from '@/context/TrackProvider';
@@ -96,6 +97,12 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 4,
     shadowOffset: { width: 0, height: 2 },
+  },
+  closeMode: {
+    backgroundColor: '#F18C8E',
+  },
+  startMode: {
+    backgroundColor: '#BFD3C1',
   },
   headerText: {
     color: '#fff',

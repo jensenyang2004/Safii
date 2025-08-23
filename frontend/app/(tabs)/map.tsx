@@ -18,6 +18,10 @@ import ToolCard from '@/components/Safety_tools/tools_card';
 import Card_ongoing from '@/components/Tracking/track_ongoning';
 import ReportSafetyCard from '@/components/Tracking/ReportSafetyCard';
 import { useTracking } from '@/context/TrackProvider';
+import { doc, updateDoc } from 'firebase/firestore';
+import { db } from '@/libs/firebase';
+
+import { getAuth } from 'firebase/auth';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -49,7 +53,15 @@ export default function Map() {
     })();
   }, []);
 
-  const styles = createStyles();
+  const closeTrackingMode = async (modeId: string) => {
+    try {
+      const modeRef = doc(db, 'TrackingMode', modeId);
+      await updateDoc(modeRef, { On: false });
+      console.log(`Tracking mode with ID ${modeId} has been closed.`);
+    } catch (error) {
+      console.error('Error closing tracking mode:', error);
+    }
+  };
 
   return (
     <View style={styles.container}>
