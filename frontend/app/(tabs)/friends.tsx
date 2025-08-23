@@ -3,6 +3,10 @@ import { View, Text, StyleSheet, FlatList, Pressable, TextInput, ActivityIndicat
 import { useFriends } from '../../context/FriendProvider';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { requestForegroundPermissionsAsync, getCurrentPositionAsync } from 'expo-location';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { db } from '@/libs/firebase';
+import { getAuth } from 'firebase/auth';
 
 interface SearchResult {
   id: string;
@@ -10,6 +14,12 @@ interface SearchResult {
   displayName?: string;
   avatarUrl?: string;
   // Add other properties that your search results might have
+}
+
+interface LocationData {
+  lat: number;
+  long: number;
+  updateTime: string; // Adjust type as needed
 }
 
 export default function FriendsScreen() {
@@ -87,6 +97,22 @@ export default function FriendsScreen() {
         onPress={() => removeFriend(item.userId)}
       >
         <FontAwesome5 name="user-minus" size={16} color="#EF4444" />
+      </Pressable>
+
+      <Pressable
+        style={styles.sendLocationButton}
+        onPress={() => {
+          const auth = getAuth();
+          const currentUserId = auth.currentUser?.uid;
+
+          if (!currentUserId) {
+            Alert.alert('Error', 'You must be logged in to send location info.');
+            return;
+          }
+          sendLocationInfo(item.userId, currentUserId);
+        }}
+      >
+        <Text style={styles.actionButtonText}>Send Location</Text>
       </Pressable>
     </View>
   );
@@ -214,6 +240,55 @@ export default function FriendsScreen() {
       console.error('Error refreshing data:', error);
     } finally {
       setIsRefreshing(false);
+    }
+  };
+
+  const requestLocationPermission = async () => {
+    const { status } = await requestForegroundPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission Denied', 'Location permission is required to send location info.');
+      return false;
+    }
+    return true;
+  };
+
+  const sendLocationInfo = async (friendId: string, userId: string) => {
+    try {
+      // Reference to the user's real-time location in Firestore
+      const realTimeLocationRef = doc(db, `users/${userId}/real_time_location/current`);
+      const realTimeLocationSnapshot = await getDoc(realTimeLocationRef);
+
+      if (!realTimeLocationSnapshot.exists) {
+        Alert.alert('Error', 'Real-time location data not found.');
+        return;
+      }
+
+      const locationData = realTimeLocationSnapshot.data() as LocationData;
+
+      if (!locationData || !locationData.lat || !locationData.long || !locationData.updateTime) {
+        Alert.alert('Error', 'Invalid location data.');
+        console.log('Invalid location data:', locationData);
+        return;
+      }
+      // Reference to the friend's location sharing document
+      const locationSharingRef = doc(db, `location_sharing/${friendId}`);
+      const locationSharingData = {
+        userId: userId,
+        location: {
+          latitude: locationData.lat,
+          longitude: locationData.long,
+          latitudeDelta: 0.01, // Adjust as needed
+          longitudeDelta: 0.01, // Adjust as needed
+        },
+        updateTime: locationData.updateTime,
+      };
+
+      await setDoc(locationSharingRef, locationSharingData);
+
+      Alert.alert('Success', 'Location sharing initiated successfully.');
+    } catch (error) {
+      console.error('Error initiating location sharing:', error);
+      Alert.alert('Error', 'Failed to initiate location sharing.');
     }
   };
 
@@ -414,6 +489,17 @@ const styles = StyleSheet.create({
     padding: 12,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+
+  sendLocationButton: {
+    backgroundColor: '#1E40AF',
+    padding: 8,
+    borderRadius: 5,
+    marginLeft: 10,
+  },
+  actionButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
   },
   friendItem: {
     flexDirection: 'row',
