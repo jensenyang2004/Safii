@@ -661,7 +661,7 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
         snapshot.docs.map(async (docSnap) => {
           const trackingData = docSnap.data();
           const contacts = await Promise.all(
-            (trackingData.emergencyContactIds || []).map(async (id : string) => {
+            (trackingData.emergencyContactIds || []).map(async (id: string) => {
               const contactDoc = await getDoc(doc(db, 'users', id));
               return { id: contactDoc.id, ...contactDoc.data() };
             })
@@ -688,6 +688,64 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
       fetchTrackingModesWithContacts(user.uid);
     }
   }, [user]);
+
+  useEffect(() => {
+    const auth = getAuth();
+    const currentUserId = auth.currentUser?.uid;
+
+    if (!currentUserId) return;
+
+    // Query to monitor location_sharing table for the current user's ID
+    const locationSharingQuery = query(
+      collection(db, 'location_sharing'),
+      where('__name__', '==', currentUserId) // Assuming 'receiverId' is the field for the recipient
+    );
+
+
+    const unsubscribe = onSnapshot(locationSharingQuery, async snapshot => {
+      snapshot.docChanges().forEach(async change => {
+        if (change.type === 'added') {
+          const data = change.doc.data();
+
+          const snap = await getDoc(docRef(db, 'users', data.userId));
+          let senderName = 'Unknown User';
+          if (snap.exists()) {
+            const { username, displayName } = snap.data();
+            senderName = username ?? displayName ?? 'Unknown User';
+          }
+
+
+
+          Alert.alert(
+            'Location Info Received',
+            `User ${senderName} has sent you their location.`,
+            [
+              {
+                text: 'View Location',
+                onPress: () => {
+                  // Handle viewing location (e.g., navigate to a map screen)
+                  console.log('Location data:', data.location);
+                },
+              },
+              {
+                text: 'Dismiss',
+                style: 'cancel',
+              },
+            ]
+          );
+
+          registerForPushNotificationsAsync().then(token => {
+            if (token) {
+              sendPushNotification(token, `User ${data.senderId} has sent you their location.`);
+            }
+          });
+
+        }
+      });
+    });
+
+    return () => unsubscribe(); // Clean up listener when component unmounts
+  }, []);
 
   return (
     <TrackingContext.Provider value={{
