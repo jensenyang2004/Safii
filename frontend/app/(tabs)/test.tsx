@@ -99,7 +99,7 @@ const Test = () => {
       try {
         console.log("Uploading location...")
         const emergencyLocationRef = collection(db, "emergency_location");
-        const q = query(emergencyLocationRef, where("sender", "==", user?.id), where("status", "==", "on"));
+        const q = query(emergencyLocationRef, where("sender", "==", user?.uid), where("status", "==", "on"));
         const querySnapshot = await getDocs(q);
         querySnapshot.forEach(async (document) => {
           await updateDoc(doc(db, "emergency_location", document.id), {
@@ -117,7 +117,7 @@ const Test = () => {
         // TODO: Implement location sharing functionality
         try {
             await addDoc(collection(db, "emergency_location"), {
-                sender: user?.id,
+                sender: user?.uid,
                 receiver: user?.contact,
                 location: location,
                 status: "on"
@@ -133,7 +133,7 @@ const Test = () => {
     const handleEmergencyDismiss = async () => {
       try {
         const emergencyLocationRef = collection(db, "emergency_location");
-        const q = query(emergencyLocationRef, where("sender", "==", user?.id));
+        const q = query(emergencyLocationRef, where("sender", "==", user?.uid));
         
         const querySnapshot = await getDocs(q);
         querySnapshot.forEach(async (document) => {
