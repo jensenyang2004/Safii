@@ -691,63 +691,63 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
     }
   }, [user]);
 
-  useEffect(() => {
-    const auth = getAuth();
-    const currentUserId = auth.currentUser?.uid;
+  // useEffect(() => {
+  //   const auth = getAuth();
+  //   const currentUserId = auth.currentUser?.uid;
 
-    if (!currentUserId) return;
+  //   if (!currentUserId) return;
 
-    // Query to monitor location_sharing table for the current user's ID
-    const locationSharingQuery = query(
-      collection(db, 'location_sharing'),
-      where('__name__', '==', currentUserId) // Assuming 'receiverId' is the field for the recipient
-    );
-
-
-    const unsubscribe = onSnapshot(locationSharingQuery, async snapshot => {
-      snapshot.docChanges().forEach(async change => {
-        if (change.type === 'added') {
-          const data = change.doc.data();
-
-          const snap = await getDoc(docRef(db, 'users', data.userId));
-          let senderName = 'Unknown User';
-          if (snap.exists()) {
-            const { username, displayName } = snap.data();
-            senderName = username ?? displayName ?? 'Unknown User';
-          }
+  //   // Query to monitor location_sharing table for the current user's ID
+  //   const locationSharingQuery = query(
+  //     collection(db, 'location_sharing'),
+  //     where('__name__', '==', currentUserId) // Assuming 'receiverId' is the field for the recipient
+  //   );
 
 
+  //   const unsubscribe = onSnapshot(locationSharingQuery, async snapshot => {
+  //     snapshot.docChanges().forEach(async change => {
+  //       if (change.type === 'added') {
+  //         const data = change.doc.data();
 
-          Alert.alert(
-            'Location Info Received',
-            `User ${senderName} has sent you their location.`,
-            [
-              {
-                text: 'View Location',
-                onPress: () => {
-                  // Handle viewing location (e.g., navigate to a map screen)
-                  console.log('Location data:', data.location);
-                },
-              },
-              {
-                text: 'Dismiss',
-                style: 'cancel',
-              },
-            ]
-          );
+  //         const snap = await getDoc(docRef(db, 'users', data.userId));
+  //         let senderName = 'Unknown User';
+  //         if (snap.exists()) {
+  //           const { username, displayName } = snap.data();
+  //           senderName = username ?? displayName ?? 'Unknown User';
+  //         }
 
-          registerForPushNotificationsAsync().then(token => {
-            if (token) {
-              sendPushNotification(token, `User ${data.senderId} has sent you their location.`);
-            }
-          });
 
-        }
-      });
-    });
 
-    return () => unsubscribe(); // Clean up listener when component unmounts
-  }, []);
+  //         Alert.alert(
+  //           'Location Info Received',
+  //           `User ${senderName} has sent you their location.`,
+  //           [
+  //             {
+  //               text: 'View Location',
+  //               onPress: () => {
+  //                 // Handle viewing location (e.g., navigate to a map screen)
+  //                 console.log('Location data:', data.location);
+  //               },
+  //             },
+  //             {
+  //               text: 'Dismiss',
+  //               style: 'cancel',
+  //             },
+  //           ]
+  //         );
+
+  //         registerForPushNotificationsAsync().then(token => {
+  //           if (token) {
+  //             sendPushNotification(token, `User ${data.senderId} has sent you their location.`);
+  //           }
+  //         });
+
+  //       }
+  //     });
+  //   });
+
+  //   return () => unsubscribe(); // Clean up listener when component unmounts
+  // }, []);
 
   return (
     <TrackingContext.Provider value={{

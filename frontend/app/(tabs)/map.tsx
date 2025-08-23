@@ -2,10 +2,11 @@ import {
   View,
   StyleSheet,
   Dimensions,
+  FlatList,
   TouchableOpacity,
   Text,
 } from 'react-native';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import MapView from 'react-native-maps';
 import {
   requestForegroundPermissionsAsync,
@@ -15,15 +16,14 @@ import TrackModeCard from '@/components/Tracking/track_base';
 import SearchBar from '@/components/Map/search_bar';
 import MapCarousel from '@/components/Map/carousel';
 import ToolCard from '@/components/Safety_tools/tools_card';
-import Card_ongoing from '@/components/Tracking/track_ongoning';
-import ReportSafetyCard from '@/components/Tracking/ReportSafetyCard';
 import { useTracking } from '@/context/TrackProvider';
-import { doc, updateDoc } from 'firebase/firestore';
-import { db } from '@/libs/firebase';
-
-import { getAuth } from 'firebase/auth';
 
 const { width: screenWidth } = Dimensions.get('window');
+
+const CARD_WIDTH = screenWidth * 0.8;
+const SPACING = screenWidth * 0.03;
+const SIDE_PADDING = (screenWidth - CARD_WIDTH) / 2;
+const SNAP_INTERVAL = CARD_WIDTH + SPACING;
 
 export default function Map() {
   const [location, setLocation] = useState({
@@ -33,8 +33,10 @@ export default function Map() {
     longitudeDelta: 0.0421,
   });
 
-  const { trackingModes, isTracking, trackingModeId, isReportDue } = useTracking();
-  const [showToolCard, setShowToolCard] = useState(false);
+  const { trackingModes, loading } = useTracking();
+  const [showToolCard, setShowToolCard] = useState(false); // toggle state
+
+  const flatListRef = useRef<FlatList>(null);
 
   useEffect(() => {
     (async () => {
@@ -53,15 +55,7 @@ export default function Map() {
     })();
   }, []);
 
-  const closeTrackingMode = async (modeId: string) => {
-    try {
-      const modeRef = doc(db, 'TrackingMode', modeId);
-      await updateDoc(modeRef, { On: false });
-      console.log(`Tracking mode with ID ${modeId} has been closed.`);
-    } catch (error) {
-      console.error('Error closing tracking mode:', error);
-    }
-  };
+  const styles = createStyles();
 
   return (
     <View style={styles.container}>
@@ -72,6 +66,7 @@ export default function Map() {
         mapType="standard"
       />
 
+      {/* Toggle Button */}
       <TouchableOpacity
         style={styles.toggleButton}
         onPress={() => setShowToolCard(prev => !prev)}
@@ -81,16 +76,9 @@ export default function Map() {
         </Text>
       </TouchableOpacity>
 
+      {/* Conditional rendering */}
       {showToolCard ? (
         <ToolCard showBottomBar={true} />
-      ) : isTracking && trackingModeId ? (
-        <View style={{ position: 'absolute', bottom: '12%', left: 0, right: 0, alignItems: 'center', zIndex: 999 }}>
-          {isReportDue ? (
-            <ReportSafetyCard />
-          ) : (
-            <Card_ongoing trackingMode={trackingModes.find((mode: any) => mode.id === trackingModeId)} />
-          )}
-        </View>
       ) : (
         <MapCarousel
           data={[
@@ -128,7 +116,7 @@ function createStyles() {
     },
     toggleButton: {
       position: 'absolute',
-      top: 60,
+      top: 60, // Adjust this for reachable height (avoid top bar)
       right: 20,
       backgroundColor: 'rgba(0,0,0,0.6)',
       paddingHorizontal: 12,

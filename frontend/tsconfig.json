@@ -3,7 +3,7 @@
   "compilerOptions": {
     "strict": true,
     "jsx": "react-native",                  // ⬅️ Required to handle JSX (tsx files)
-    "moduleResolution": "node",            // ⬅️ Helps resolve node_modules and aliases
+    "moduleResolution": "bundler",         // ⬅️ Helps resolve node_modules and aliases
     "baseUrl": ".",                        // ⬅️ Required for path aliases to work
     "paths": {
       "@/*": ["./*"]                       // ⬅️ Your existing alias for '@/libs/firebase', etc.
