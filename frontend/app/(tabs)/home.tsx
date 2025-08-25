@@ -8,7 +8,7 @@ import '@/global.css';
 import ProfilePhotoUploader from '@/components/ProfilePhotoUploader';
 
 // 1. Import your fake-call hook
-import { useFakePhoneCall } from '../features/fakePhoneCallPlayer/hooks/useFakePhoneCall';
+import { useFakePhoneCall } from '../../hooks/useFakePhoneCall';
 
 function simulateCall() {
   // this pushes into your modal stack at /interactive-call

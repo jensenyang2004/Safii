@@ -52,12 +52,12 @@ export default function RootLayout() {
 function RootLayoutNav() {
   const { user, loading } = useAuth(); // Now this works!
 
-  useEffect(() => {
-    console.log('User in RootLayoutNav:', user);
-    console.log('User is null?', user === null);
-    console.log('User type:', typeof user);
-    console.log('Showing auth screens?', user === null);
-  }, [user]);
+  // useEffect(() => {
+  //   console.log('User in RootLayoutNav:', user);
+  //   console.log('User is null?', user === null);
+  //   console.log('User type:', typeof user);
+  //   console.log('Showing auth screens?', user === null);
+  // }, [user]);
 
   const isAuthenticated = user !== null;
 
