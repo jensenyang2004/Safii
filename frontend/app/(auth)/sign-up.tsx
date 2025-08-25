@@ -58,7 +58,7 @@ export default function SignUp() {
       await setDoc(doc(db, 'users', user.uid), userDoc);
 
       // 5) 註冊成功，跳到主畫面
-      router.replace('/');
+      router.replace('/(onboarding)');
 
     } catch (err: unknown) {
       setLoading(false);

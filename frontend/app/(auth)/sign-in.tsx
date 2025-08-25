@@ -27,6 +27,7 @@ const SignInScreen = () => {
       });
 
       // On success, go to home
+      // router.replace('/(onboarding)');
       router.replace('/(tabs)/home');
 
     } catch (err) {

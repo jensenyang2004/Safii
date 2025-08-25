@@ -72,6 +72,12 @@ export default function HomeScreen() {
           </View>
         )}
       </Pressable>
+      
+      {/* for testiing onboarding, can be removed */}
+      {/* <Pressable onPress={() => { router.replace('/(onboarding)'); }} >
+
+        <Text>Edit Profile</Text>
+      </Pressable> */}
 
       <Text style={styles.username}>
         {user?.displayName || user?.username || user?.nickname || user?.email || 'Unknown User'}
