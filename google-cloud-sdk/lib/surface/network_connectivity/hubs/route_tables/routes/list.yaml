@@ -1,0 +1,45 @@
+- release_tracks: [BETA, GA]
+
+  help_text:
+    brief: List routes.
+    description: Retrieve and display a list of all routes in the specified route table.
+
+    examples: |
+      To list all routes across all route tables, run:
+
+        $ {command} --hub=- --route_table=-
+
+      To list all routes in route table `my-route-table`, run:
+
+        $ {command} --hub=my-hub --route_table=my-route-table
+
+  arguments:
+    resource:
+      spec: !REF googlecloudsdk.command_lib.network_connectivity.resources:routeTable
+      help_text: Parent route table of the routes to display.
+
+  request: &request
+    BETA:
+      api_version: v1beta
+    GA:
+      api_version: v1
+    collection: networkconnectivity.projects.locations.global.hubs.routeTables.routes
+
+  output:
+    # Columns: IP_CIDR_RANGE, PRIORITY, LOCATION, STATE, TYPE, NEXT_HOP, HUB, ROUTE_TABLE
+    format: |
+      table(
+        ipCidrRange,
+        priority,
+        location.basename(),
+        state,
+        type,
+        format(
+          "{0}{1}",
+          nextHopVpcNetwork.yesno(yes="N/A", no=""),
+          firstof(nextHopVpnTunnel.siteToSiteDataTransfer, nextHopRouterApplianceInstance.siteToSiteDataTransfer, nextHopInterconnectAttachment.siteToSiteDataTransfer).yesno(yes="ON", no="")
+        ).yesno(no="OFF"):label=SITE_TO_SITE,
+        firstof(nextHopVpcNetwork.uri, nextHopVpnTunnel.uri, nextHopRouterApplianceInstance.uri, nextHopInterconnectAttachment.uri).basename():label=NEXT_HOP,
+        name.segment(5):label=HUB,
+        name.segment(7):label=ROUTE_TABLE
+      )

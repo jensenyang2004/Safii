@@ -1,0 +1,171 @@
+- release_tracks: [GA, ALPHA]
+
+  help_text:
+    brief: Create cloud access bindings for a specific group.
+    GA:
+      description: |
+        Create a new cloud access binding. The access level will be bound with the group. The access
+        level will be enforced when any user in the group tries to access the Google cloud console
+        or API.
+      examples: |
+        To create a new cloud access binding, run:
+
+          $ {command} --group-key=my-group-key --level=accessPolicies/123/accessLevels/abc
+
+        To create a new cloud access binding for the dry run access level, run:
+
+          $ {command} --group-key=my-group-key --level=accessPolicies/123/accessLevels/abc \
+            --dry-run-level=accessPolicies/123/accessLevels/def
+    ALPHA:
+      description: |
+        Create a new access binding. The access level will be bound with the group and the
+        restricted client application. The access level is enforced at the organization level for
+        all context-aware access group members, as specified in the binding.
+        If a restricted client application is specified, then the enforcement applies only to the
+        specified application, and not to the entire organization.
+      examples: |
+        To create a new cloud access binding at the organization level, run:
+
+          $ {command} --group-key=my-group-key --level=accessPolicies/123/accessLevels/abc
+
+        To create a new cloud access binding for particular applications, run:
+
+          $ {command} --group-key=my-group-key --level=accessPolicies/123/accessLevels/abc \
+            --organization='1234567890' \
+            --restricted-client-application-names='Google Cloud SDK, Cloud Console' \
+            --restricted-client-application-client-ids='123456789.apps.googleusercontent.com'
+
+        To create a new cloud access binding for the dry run access level at the organization level,
+        run:
+
+          $ {command} --group-key=my-group-key --level=accessPolicies/123/accessLevels/abc \
+            --dry-run-level=accessPolicies/123/accessLevels/def
+
+        To create a new cloud access binding for the dry run access level for particular
+        applications, run:
+
+          $ {command} --group-key=my-group-key --level=accessPolicies/123/accessLevels/abc \
+            --dry-run-level=accessPolicies/123/accessLevels/def \
+            --organization='1234567890' \
+            --restricted-client-application-names='Google Cloud SDK, Cloud Console' \
+            --restricted-client-application-client-ids='123456789.apps.googleusercontent.com'
+
+  GA:
+    request:
+      collection: accesscontextmanager.organizations.gcpUserAccessBindings
+      api_version: v1
+      disable_resource_check: true
+      modify_request_hooks:
+      - googlecloudsdk.command_lib.accesscontextmanager.cloud_bindings:ProcessLevels
+      - googlecloudsdk.command_lib.accesscontextmanager.cloud_bindings:ProcessOrganization
+  ALPHA:
+    request:
+      collection: accesscontextmanager.organizations.gcpUserAccessBindings
+      api_version: v1alpha
+      disable_resource_check: true
+      modify_request_hooks:
+      - googlecloudsdk.command_lib.accesscontextmanager.cloud_bindings:ProcessLevels
+      - googlecloudsdk.command_lib.accesscontextmanager.cloud_bindings:ProcessOrganization
+      - googlecloudsdk.command_lib.accesscontextmanager.cloud_bindings:ProcessRestrictedClientApplicationsAlpha
+      - googlecloudsdk.command_lib.accesscontextmanager.cloud_bindings:ProcessReauthSettings
+
+  arguments:
+    params:
+    - api_field: gcpUserAccessBinding.groupKey
+      arg_name: group-key
+      required: true
+      type: str
+      help_text: Google Group id whose members are subject to the restrictions of this binding.
+    - api_field: gcpUserAccessBinding.accessLevels
+      arg_name: level
+      type: str
+      GA:
+        help_text: |
+          The access level that binds to the given group. The input must be the full identifier
+          of an access level, such as `accessPolicies/123/accessLevels/abc`.
+      ALPHA:
+        help_text: |
+          The access level that binds to the given group and restricted client applications.
+          The input must be the full identifier of an access level, such as
+          `accessPolicies/123/accessLevels/abc`. If no `restricted-client-application-client-ids`
+          or `restricted-client-application-names` are provided, then the access level is applied
+          to the entire organization.
+    - api_field: gcpUserAccessBinding.dryRunAccessLevels
+      arg_name: dry-run-level
+      type: str
+      GA:
+        help_text: |
+          The dry run access level that binds to the given group. The dry run access level will be
+          evaluated but won't be enforced. Denial on dry run access level will be logged. The input
+          must be the full identifier of an access level, such as
+          `accessPolicies/123/accessLevels/new-def`.
+      ALPHA:
+        help_text: |
+          The dry run access level that binds to the given group and restricted client applications.
+          The dry run access level is evaluated but isn't enforced. Denial on a dry run access level
+          is logged. The input must be the full identifier of an access level, such as
+          `accessPolicies/123/accessLevels/new-def`. If no
+          `restricted-client-application-client-ids` or `restricted-client-application-names` are
+          provided, then the access level is applied to the entire organization.
+    - api_field: gcpUserAccessBinding.reauthSettings.sessionLength
+      hidden: true
+      arg_name: session-length
+      type: googlecloudsdk.command_lib.accesscontextmanager.cloud_bindings:ProcessSessionLength
+      release_tracks: [ALPHA]
+      help_text: |
+        The maximum lifetime of a user session provided as an  ISO 8601 duration string. Must be at
+        least one hour or zero, and no more than twenty-four hours. Granularity is limited to
+        seconds.
+
+        When --session-length=0 then users in the group attached to this binding will have infinite
+        session length, effectively disabling reauth.
+
+        A session begins once a user signs-in successfully. If a user signs out before the end of
+        the session lifetime, a new login creates a new session with a fresh lifetime. When a
+        session expires, the user is asked to reauthenticate in accordance with reauth-method.
+
+        Setting --reauth-method when --session-length is empty raises an error.
+    - api_field: gcpUserAccessBinding.reauthSettings.reauthMethod
+      hidden: true
+      arg_name: reauth-method
+      release_tracks: [ALPHA]
+      default: login
+      help_text: |
+        Specifies the security check a user must undergo once their session expires. Defaults to
+        --reauth-method=LOGIN if unspecified and --session-length is set. Cannot be used when
+        --session-length is empty or 0.
+      choices:
+      - arg_value: login
+        enum_value: LOGIN
+        help_text: |
+          The user will prompted to perform regular login. Users who are enrolled for two-step
+          verification and haven't chosen to "Remember this computer" will be prompted for their
+          second factor.
+      - arg_value: security-key
+        enum_value: SECURITY_KEY
+        help_text: |
+         The user will be prompted to autheticate using their security key. If no security key has
+         been configured, then we will fallback to LOGIN.
+      - arg_value: password
+        enum_value: PASSWORD
+        help_text: |
+          The user will be prompted for their password.
+    - api_field: parent
+      arg_name: organization
+      type: googlecloudsdk.command_lib.util.hooks.types:Resource:collection=cloudresourcemanager.organizations
+      processor: googlecloudsdk.command_lib.util.hooks.processors:RelativeName
+      help_text: Parent organization for this binding.
+    - arg_name: policy
+      type: str
+      hidden: true
+      help_text: The access policy that the access level belongs to.
+    - arg_name: restricted-client-application-client-ids
+      required: false
+      release_tracks: [ALPHA]
+      type: 'googlecloudsdk.calliope.arg_parsers:ArgList:'
+      help_text: Client IDs to which the access level is applied.
+    - arg_name: restricted-client-application-names
+      required: false
+      release_tracks: [ALPHA]
+      type: 'googlecloudsdk.calliope.arg_parsers:ArgList:'
+      help_text: Application names to which the access level is applied.
