@@ -1,7 +1,6 @@
-
 // TrackingContext.tsx
 import React, { createContext, useState, useEffect, useContext } from 'react';
-import { collection, getDocs, doc, getDoc, updateDoc, query, where, addDoc, setDoc, Timestamp, serverTimestamp, onSnapshot } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, updateDoc, query, where, addDoc, setDoc, Timestamp, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { db } from '@/libs/firebase';
 import * as TaskManager from 'expo-task-manager';
 import * as Location from 'expo-location';
@@ -10,8 +9,6 @@ import { defineTask } from 'expo-task-manager';
 import { Alert, AppState, Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { useAuth } from './AuthProvider';
-import { getAuth } from '@firebase/auth';
-import { registerForPushNotificationsAsync, sendPushNotification } from '@/libs/notifications';
 
 const STORAGE_KEYS = {
   TIMELINE: 'calculated_timeline',
@@ -25,6 +22,7 @@ const STORAGE_KEYS = {
   INITIAL_REDUCTION_MINUTES: 'initial_reduction_minutes',
   CURRENT_USER_ID: 'current_user_id', // For background task
   EMERGENCY_CONTACT_IDS: 'emergency_contact_ids', // For emergency handler
+  ACTIVE_TRACKING_DOC_ID: 'active_tracking_doc_id', // For the random doc ID
 };
 
 // Types
@@ -33,12 +31,14 @@ interface TimelineEvent {
   type: 'session_end' | 'missed_report';
   strike: number;
   description: string;
+  deadline?: number;
 }
 
 interface NotificationData {
   type: string;
   strike: number;
   eventTime: number;
+  deadline?: number;
 }
 
 type TrackingContextType = {
@@ -66,46 +66,22 @@ Notifications.setNotificationHandler({
     const data = notification.request.content.data as unknown as NotificationData;
 
     if (data?.type === 'missed_report' && data.strike === 3) {
-      console.log('🚨 FINAL STRIKE RECEIVED! EXECUTING EMERGENCY ACTION!');
-      
-      try {
-        const distressedUserId = await AsyncStorage.getItem(STORAGE_KEYS.CURRENT_USER_ID);
-        const contactIdsStr = await AsyncStorage.getItem(STORAGE_KEYS.EMERGENCY_CONTACT_IDS);
-
-        if (distressedUserId && contactIdsStr) {
-          const emergencyContactIds = JSON.parse(contactIdsStr);
-
-          for (const contactId of emergencyContactIds) {
-            const emergencyDocRef = doc(db, 'emergency_location', contactId);
-            await setDoc(emergencyDocRef, {
-              senderId: distressedUserId,
-              createdAt: serverTimestamp(),
-            });
-            console.log(`🔔 Sent emergency alert to contact: ${contactId}`);
-          }
-        } else {
-          console.error('Could not retrieve user or contact info from storage for emergency.');
-        }
-      } catch (e) {
-        console.error('❌ Failed to execute emergency action:', e);
+      console.log('🚨 FINAL STRIKE NOTIFICATION RECEIVED! Emergency is handled by contact-side listener.');
+      // NOTE: The original emergency logic that writes to Firestore is REMOVED from here.
+      // The app still needs to clean up its local state as if the session is over.
+      const trackingDocId = await AsyncStorage.getItem(STORAGE_KEYS.ACTIVE_TRACKING_DOC_ID);
+      if (trackingDocId) {
+        const trackingDocRef = doc(db, 'active_tracking', trackingDocId);
+        await deleteDoc(trackingDocRef);
+        console.log("✅ Dead man's switch cleaned up from user side.");
       }
-
-      // Clean up storage
-      await AsyncStorage.multiRemove([
-        STORAGE_KEYS.TIMELINE,
-        STORAGE_KEYS.IS_ACTIVE,
-        STORAGE_KEYS.START_TIME,
-        STORAGE_KEYS.CURRENT_STRIKE,
-        STORAGE_KEYS.NOTIFICATION_IDS,
-        STORAGE_KEYS.REPORT_DEADLINE,
-        STORAGE_KEYS.TRACKING_MODE_ID,
-        STORAGE_KEYS.CURRENT_USER_ID,
-        STORAGE_KEYS.EMERGENCY_CONTACT_IDS,
-      ]);
+      await AsyncStorage.multiRemove(Object.values(STORAGE_KEYS));
 
     } else if (data?.type === 'session_end') {
       console.log(`⏰ Session ${data.strike + 1} ended - Report required`);
-      await AsyncStorage.setItem(STORAGE_KEYS.REPORT_DEADLINE, data.eventTime.toString()); // Store the deadline
+      if (data.deadline) {
+        await AsyncStorage.setItem(STORAGE_KEYS.REPORT_DEADLINE, data.deadline.toString());
+      }
       await AsyncStorage.setItem(STORAGE_KEYS.IS_ACTIVE, 'true'); // Ensure active state
     } else if (data?.type === 'missed_report') {
       console.log(`❌ Missed report ${data.strike} - Starting next session`);
@@ -175,7 +151,6 @@ defineTask(BACKGROUND_LOCATION_TASK,
         console.log('📍 Background Location Update:', { latitude, longitude, timestamp: updateTime.toISOString() });
         
         try {
-          // Ensure user document exists before writing to subcollection
           const userDocRef = doc(db, 'users', userId);
           await setDoc(userDocRef, {}, { merge: true });
 
@@ -185,11 +160,9 @@ defineTask(BACKGROUND_LOCATION_TASK,
             updateTime: Timestamp.fromDate(updateTime),
           };
 
-          // Update real-time location
           const realTimeRef = doc(db, 'users', userId, 'real_time_location', 'current');
           await setDoc(realTimeRef, locationData, { merge: true });
 
-          // Add to location history
           const historyRef = collection(db, 'users', userId, 'location_history');
           await addDoc(historyRef, locationData);
 
@@ -223,7 +196,6 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
 
   const initializeSystem = async () => {
     try {
-      // Request notification permissions
       const { status } = await Notifications.requestPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert('Permission Required', 'Notifications are required for this safety system');
@@ -231,7 +203,6 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
       }
       console.log('✅ Notification permissions granted.');
 
-      // Create notification channel for Android
       if (Platform.OS === 'android') {
         await Notifications.setNotificationChannelAsync('tracking', {
           name: 'Safety Tracking',
@@ -253,7 +224,6 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
       const timelineStr = await AsyncStorage.getItem(STORAGE_KEYS.TIMELINE);
       const isActiveStr = await AsyncStorage.getItem(STORAGE_KEYS.IS_ACTIVE);
       const startTimeStr = await AsyncStorage.getItem(STORAGE_KEYS.START_TIME);
-      const currentStrikeStr = await AsyncStorage.getItem(STORAGE_KEYS.CURRENT_STRIKE);
       const reportDeadlineStr = await AsyncStorage.getItem(STORAGE_KEYS.REPORT_DEADLINE);
       const modeId = await AsyncStorage.getItem(STORAGE_KEYS.TRACKING_MODE_ID);
 
@@ -281,6 +251,7 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
 
         setTimeline(timeline);
         setIsActive(true);
+        setIsTracking(true);
         setCurrentStrike(currentStrikeCount);
         setTrackingModeId(modeId);
 
@@ -290,14 +261,16 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
             setIsReportDue(true);
             setReportDeadline(deadline);
           } else {
-            // If deadline passed, it means a missed report, so clear it
             await AsyncStorage.removeItem(STORAGE_KEYS.REPORT_DEADLINE);
             setIsReportDue(false);
             setReportDeadline(null);
           }
+        } else {
+          // If no deadline is in storage, we cannot be in a "report due" state.
+          setIsReportDue(false);
+          setReportDeadline(null);
         }
 
-        // Determine next check-in time
         const nextSessionEnd = timeline.find(event => event.type === 'session_end' && event.time > now);
         if (nextSessionEnd) {
           setNextCheckInTime(nextSessionEnd.time);
@@ -307,8 +280,8 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
         
         console.log('📱 Resumed existing tracking session and reconciled state.');
       } else {
-        // If there's no active session, ensure state is clean.
         setIsActive(false);
+        setIsTracking(false);
         setTimeline([]);
         setCurrentStrike(0);
         setIsReportDue(false);
@@ -318,7 +291,7 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
       }
     } catch (error) {
       console.error('Error loading and reconciling state:', error);
-      await stopTrackingMode(); // Reset state on error
+      await stopTrackingMode();
     }
   };
 
@@ -337,13 +310,11 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
   }, []);
 
   useEffect(() => {
-    let interval: number;
+    let interval: any;
     if (isTracking && !isReportDue && nextCheckInTime) {
       interval = setInterval(() => {
         const now = Date.now();
         if (now >= nextCheckInTime) {
-          // This means a session_end notification should have fired, and isReportDue should be true
-          // Re-reconcile state to pick up changes if notification handler didn't update UI yet
           loadAndReconcileState(); 
         }
       }, 1000);
@@ -351,7 +322,6 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
       interval = setInterval(() => {
         const now = Date.now();
         if (now >= reportDeadline) {
-          // This means a missed_report notification should have fired
           loadAndReconcileState();
         }
       }, 1000);
@@ -370,24 +340,17 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
     let currentTime = startTime;
     let currentSessionDuration = sessionDurationMs;
     
-    console.log('📊 Calculating full timeline:');
-    console.log(`   Start time: ${new Date(startTime).toLocaleTimeString()}`);
-    console.log(`   Session duration: ${sessionDurationMs / 1000 / 60} minutes`);
-    console.log(`   Report duration: ${reportDurationMs / 1000 / 60} minutes`);
-    console.log(`   Reduction per strike: ${reductionMs / 1000 / 60} minutes`);
-
     for (let strike = 0; strike < 3; strike++) {
-      // Session end time
       const sessionEndTime = currentTime + currentSessionDuration;
+      const reportDeadlineTime = sessionEndTime + reportDurationMs;
       timeline.push({
         time: sessionEndTime,
         type: 'session_end',
         strike: strike,
-        description: `Session ${strike + 1} ends - Report safety required`
+        description: `Session ${strike + 1} ends - Report safety required`,
+        deadline: reportDeadlineTime,
       });
 
-      // Report deadline time (3 minutes after session end)
-      const reportDeadlineTime = sessionEndTime + reportDurationMs;
       timeline.push({
         time: reportDeadlineTime,
         type: 'missed_report',
@@ -395,12 +358,8 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
         description: `Missed report ${strike + 1} - ${strike < 2 ? 'Start next session' : 'EMERGENCY!'}`
       });
 
-      // Next session starts immediately after report deadline
       currentTime = reportDeadlineTime;
-      // Reduce session duration for next session
-      currentSessionDuration = Math.max(currentSessionDuration - reductionMs, 10 * 60 * 1000); // Minimum 10 minutes
-      
-      console.log(`   Strike ${strike + 1}: Session ends at ${new Date(sessionEndTime).toLocaleTimeString()}, Report deadline at ${new Date(reportDeadlineTime).toLocaleTimeString()}`);
+      currentSessionDuration = Math.max(currentSessionDuration - reductionMs, 10 * 60 * 1000);
     }
 
     return timeline;
@@ -412,12 +371,9 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
     for (const event of timeline) {
       const now = Date.now();
       if (event.time <= now) {
-        // Skip events that are in the past or current time
         continue;
       }
 
-      const delay = Math.max(1, Math.floor((event.time - now) / 1000)); // At least 1 second delay
-      
       let title: string, body: string;
       if (event.type === 'session_end') {
         title = `⏰ Session ${event.strike + 1} Complete`;
@@ -435,6 +391,9 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
         body = 'Please check your safety status';
       }
 
+      // Calculate seconds until the event
+      const seconds = Math.max(Math.round((event.time - now) / 1000), 1);
+
       const notificationId = await Notifications.scheduleNotificationAsync({
         content: {
           title,
@@ -443,18 +402,19 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
           data: {
             type: event.type,
             strike: event.strike,
-            eventTime: event.time
+            eventTime: event.time,
+            deadline: event.deadline,
           }
         },
         trigger: {
           type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-          seconds: delay,
-          channelId: 'tracking',        
+          seconds,
+          repeats: false,
         },
       });
 
       notificationIds.push(notificationId);
-      console.log(`📅 Scheduled: ${title} for ${new Date(event.time).toLocaleTimeString()}`);
+      console.log(`📅 Scheduled: ${title} in ${seconds} seconds (for ${new Date(event.time).toLocaleTimeString()})`);
     }
 
     return notificationIds;
@@ -471,13 +431,8 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
 
       const sessionMs = sessionMinutes * 60 * 1000;
       const reductionMs = reductionMinutes * 60 * 1000;
-      const reportMs = 3 * 60 * 1000; // Fixed 3 minutes
+      const reportMs = 3 * 60 * 1000;
       const startTime = Date.now();
-
-      if (sessionMs < 10 * 60 * 1000) {
-        Alert.alert('Invalid Input', 'Session must be at least 10 minutes');
-        return;
-      }
 
       const activeMode = trackingModes.find(mode => mode.id === modeId);
       if (!activeMode) {
@@ -489,13 +444,36 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
 
       console.log('🚀 Starting tracking with pre-calculated timeline...');
       
-      // Calculate entire timeline assuming user never responds
       const calculatedTimeline = calculateFullTimeline(startTime, sessionMs, reportMs, reductionMs);
-      
-      // Schedule all notifications
       const notificationIds = await scheduleAllNotifications(calculatedTimeline);
       
-      // Save state
+      const finalEvent = calculatedTimeline[calculatedTimeline.length - 1];
+      if (finalEvent) {
+        const emergencyActivationTime = Timestamp.fromMillis(finalEvent.time);
+        const trackingDocRef = doc(collection(db, 'active_tracking'));
+
+        const contactStatusMap = {};
+        emergencyContactIds.forEach(id => {
+          contactStatusMap[id] = {
+            status: 'active', // Status for each contact
+            notificationCount: 0
+          };
+        });
+
+        await setDoc(trackingDocRef, {
+          trackedUserId: user.uid,
+          emergencyContactIds: emergencyContactIds,
+          emergencyActivationTime: emergencyActivationTime,
+          lastUpdateTime: serverTimestamp(),
+          isActive: true, // <-- ADD THIS LINE
+          nextNotificationTime: emergencyActivationTime,
+          overallStatus: 'notifying', // The whole event is active
+          contactStatus: contactStatusMap // The detailed map
+        });
+        await AsyncStorage.setItem(STORAGE_KEYS.ACTIVE_TRACKING_DOC_ID, trackingDocRef.id);
+        console.log("✅ Dead man's switch set in Firestore.");
+      }
+      
       await AsyncStorage.setItem(STORAGE_KEYS.TIMELINE, JSON.stringify(calculatedTimeline));
       await AsyncStorage.setItem(STORAGE_KEYS.IS_ACTIVE, 'true');
       await AsyncStorage.setItem(STORAGE_KEYS.START_TIME, startTime.toString());
@@ -504,15 +482,14 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
       await AsyncStorage.setItem(STORAGE_KEYS.TRACKING_MODE_ID, modeId);
       await AsyncStorage.setItem(STORAGE_KEYS.INITIAL_SESSION_MINUTES, sessionMinutes.toString());
       await AsyncStorage.setItem(STORAGE_KEYS.INITIAL_REDUCTION_MINUTES, reductionMinutes.toString());
-      await AsyncStorage.setItem(STORAGE_KEYS.CURRENT_USER_ID, user.uid); // Save user ID for background task
-      await AsyncStorage.setItem(STORAGE_KEYS.EMERGENCY_CONTACT_IDS, JSON.stringify(emergencyContactIds)); // Save contact IDs for emergency
+      await AsyncStorage.setItem(STORAGE_KEYS.CURRENT_USER_ID, user.uid);
+      await AsyncStorage.setItem(STORAGE_KEYS.EMERGENCY_CONTACT_IDS, JSON.stringify(emergencyContactIds));
       
       setTimeline(calculatedTimeline);
       setIsTracking(true);
       setCurrentStrike(0);
       setTrackingModeId(modeId);
 
-      // Set next check-in time
       const nextSessionEnd = calculatedTimeline.find(event => event.type === 'session_end' && event.time > Date.now());
       if (nextSessionEnd) {
         setNextCheckInTime(nextSessionEnd.time);
@@ -521,7 +498,6 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
       }
       
       console.log('✅ Tracking started with full timeline pre-calculated');
-      console.log('📱 Close the app to test background execution');
 
       await Location.startLocationUpdatesAsync(BACKGROUND_LOCATION_TASK, {
         accuracy: Location.Accuracy.Balanced,
@@ -532,7 +508,7 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
         pausesUpdatesAutomatically: false,
         foregroundService: {
           notificationTitle: 'Tracking',
-          notificationBody: 'Tracking your location...', // This will be updated by the notification handler
+          notificationBody: 'Tracking your location...',
         },
       });
 
@@ -544,10 +520,10 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
   };
 
   const reportSafety = async () => {
+    if (!user?.uid) return;
     try {
       console.log('✅ USER REPORTED SAFETY!');
       
-      // Cancel all future notifications
       const notificationIdsStr = await AsyncStorage.getItem(STORAGE_KEYS.NOTIFICATION_IDS);
       if (notificationIdsStr) {
         const notificationIds = JSON.parse(notificationIdsStr);
@@ -557,34 +533,44 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
         console.log('🧹 Cancelled all future notifications');
       }
 
-      // Recalculate timeline from now
       const initialSessionMinutesStr = await AsyncStorage.getItem(STORAGE_KEYS.INITIAL_SESSION_MINUTES);
       const initialReductionMinutesStr = await AsyncStorage.getItem(STORAGE_KEYS.INITIAL_REDUCTION_MINUTES);
 
-      const sessionMs = initialSessionMinutesStr ? parseInt(initialSessionMinutesStr) * 60 * 1000 : 30 * 60 * 1000; // Fallback to 30 mins
-      const reductionMs = initialReductionMinutesStr ? parseInt(initialReductionMinutesStr) * 60 * 1000 : 10 * 60 * 1000; // Fallback to 10 mins
+      const sessionMs = initialSessionMinutesStr ? parseInt(initialSessionMinutesStr) * 60 * 1000 : 30 * 60 * 1000;
+      const reductionMs = initialReductionMinutesStr ? parseInt(initialReductionMinutesStr) * 60 * 1000 : 10 * 60 * 1000;
       const reportMs = 3 * 60 * 1000;
       const newStartTime = Date.now();
 
       console.log('🔄 Recalculating timeline from current time...');
       const newTimeline = calculateFullTimeline(newStartTime, sessionMs, reportMs, reductionMs);
-      
-      // Schedule new notifications
       const newNotificationIds = await scheduleAllNotifications(newTimeline);
       
-      // Update state
+      const newFinalEvent = newTimeline[newTimeline.length - 1];
+      if (newFinalEvent) {
+          const trackingDocId = await AsyncStorage.getItem(STORAGE_KEYS.ACTIVE_TRACKING_DOC_ID);
+          if (trackingDocId) {
+            const newEmergencyActivationTime = Timestamp.fromMillis(newFinalEvent.time);
+            const trackingDocRef = doc(db, 'active_tracking', trackingDocId);
+            await updateDoc(trackingDocRef, {
+                emergencyActivationTime: newEmergencyActivationTime,
+                lastUpdateTime: serverTimestamp()
+            });
+            console.log("✅ Dead man's switch updated in Firestore.");
+          }
+      }
+      
       await AsyncStorage.setItem(STORAGE_KEYS.TIMELINE, JSON.stringify(newTimeline));
       await AsyncStorage.setItem(STORAGE_KEYS.START_TIME, newStartTime.toString());
       await AsyncStorage.setItem(STORAGE_KEYS.CURRENT_STRIKE, '0');
       await AsyncStorage.setItem(STORAGE_KEYS.NOTIFICATION_IDS, JSON.stringify(newNotificationIds));
-      await AsyncStorage.removeItem(STORAGE_KEYS.REPORT_DEADLINE); // Clear report deadline
+      await AsyncStorage.removeItem(STORAGE_KEYS.REPORT_DEADLINE);
       
       setTimeline(newTimeline);
       setCurrentStrike(0);
       setIsReportDue(false);
       setReportDeadline(null);
+      setIsTracking(true);
 
-      // Set next check-in time
       const nextSessionEnd = newTimeline.find(event => event.type === 'session_end' && event.time > Date.now());
       if (nextSessionEnd) {
         setNextCheckInTime(nextSessionEnd.time);
@@ -592,14 +578,13 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
         setNextCheckInTime(null);
       }
       
-      // Send notification to prove it worked
       await Notifications.scheduleNotificationAsync({
         content: {
           title: '✅ Safety Reported',
           body: 'Timeline has been recalculated with full session duration.',
           sound: 'default',
         },
-        trigger: null, // Send immediately
+        trigger: null,
       });
       
     } catch (error) {
@@ -610,12 +595,11 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
   };
 
   const stopTrackingMode = async () => {
+    if (!user?.uid) return;
     try {
-      // Get all necessary data from storage before clearing it
       const notificationIdsStr = await AsyncStorage.getItem(STORAGE_KEYS.NOTIFICATION_IDS);
       const modeId = await AsyncStorage.getItem(STORAGE_KEYS.TRACKING_MODE_ID);
 
-      // 1. Cancel all scheduled notifications
       if (notificationIdsStr) {
         const notificationIds = JSON.parse(notificationIdsStr);
         for (const id of notificationIds) {
@@ -623,21 +607,29 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
         }
       }
 
-      // 2. Stop background location updates
       if (await Location.hasStartedLocationUpdatesAsync(BACKGROUND_LOCATION_TASK)) {
         await Location.stopLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
       }
 
-      // 3. Update the mode status in Firestore
       if(modeId){
           const modeRef = doc(db, 'TrackingMode', modeId);
           await updateDoc(modeRef, { On: false });
       }
 
-      // 4. Clear all tracking-related data from storage
+      const trackingDocId = await AsyncStorage.getItem(STORAGE_KEYS.ACTIVE_TRACKING_DOC_ID);
+      if (trackingDocId) {
+        const trackingDocRef = doc(db, 'active_tracking', trackingDocId);
+        // --- THIS IS THE KEY CHANGE ---
+        // Instead of deleting, we now deactivate the document.
+        await updateDoc(trackingDocRef, {
+          isActive: false,
+          stoppedAt: serverTimestamp() // Optional: nice for auditing
+        });
+        console.log("✅ Dead man's switch deactivated in Firestore.");
+      }
+
       await AsyncStorage.multiRemove(Object.values(STORAGE_KEYS));
       
-      // 5. Reset the component state
       setIsTracking(false);
       setTrackingModeId(null);
       setTimeline([]);
@@ -686,68 +678,9 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
 
   useEffect(() => {
     if (user?.uid) {
-      console.log(user)
       fetchTrackingModesWithContacts(user.uid);
     }
   }, [user]);
-
-  // useEffect(() => {
-  //   const auth = getAuth();
-  //   const currentUserId = auth.currentUser?.uid;
-
-  //   if (!currentUserId) return;
-
-  //   // Query to monitor location_sharing table for the current user's ID
-  //   const locationSharingQuery = query(
-  //     collection(db, 'location_sharing'),
-  //     where('__name__', '==', currentUserId) // Assuming 'receiverId' is the field for the recipient
-  //   );
-
-
-  //   const unsubscribe = onSnapshot(locationSharingQuery, async snapshot => {
-  //     snapshot.docChanges().forEach(async change => {
-  //       if (change.type === 'added') {
-  //         const data = change.doc.data();
-
-  //         const snap = await getDoc(docRef(db, 'users', data.userId));
-  //         let senderName = 'Unknown User';
-  //         if (snap.exists()) {
-  //           const { username, displayName } = snap.data();
-  //           senderName = username ?? displayName ?? 'Unknown User';
-  //         }
-
-
-
-  //         Alert.alert(
-  //           'Location Info Received',
-  //           `User ${senderName} has sent you their location.`,
-  //           [
-  //             {
-  //               text: 'View Location',
-  //               onPress: () => {
-  //                 // Handle viewing location (e.g., navigate to a map screen)
-  //                 console.log('Location data:', data.location);
-  //               },
-  //             },
-  //             {
-  //               text: 'Dismiss',
-  //               style: 'cancel',
-  //             },
-  //           ]
-  //         );
-
-  //         registerForPushNotificationsAsync().then(token => {
-  //           if (token) {
-  //             sendPushNotification(token, `User ${data.senderId} has sent you their location.`);
-  //           }
-  //         });
-
-  //       }
-  //     });
-  //   });
-
-  //   return () => unsubscribe(); // Clean up listener when component unmounts
-  // }, []);
 
   return (
     <TrackingContext.Provider value={{
