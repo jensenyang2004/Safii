@@ -1,15 +1,47 @@
 // app/(tabs)/_layout.tsx
 
 import { View, Text } from 'react-native'
-import React from 'react'
+import React, { useEffect } from 'react' // I added useEffect here
 import { Stack, Tabs } from 'expo-router';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import FontAwesome5 from '@expo/vector-icons/FontAwesome5';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { Colors } from '../../constants/Colors';
 import VideoPlayer from '../features/fakePhoneCallPlayer/components/VideoPlayer';
+import { getAuth } from 'firebase/auth'; // Added import for getAuth
+
+// I added these imports for our notification functions
+import { registerForPushNotificationsAsync, saveTokenToFirestore } from '../../libs/notifications';
 
 export default function TabLayout() {
+  console.log('TabLayout component rendered'); // Added log
+
+  // --- I AM ADDING THIS ENTIRE BLOCK ---
+  useEffect(() => {
+    console.log('useEffect in TabLayout fired'); // Added log
+    // This effect runs when the layout mounts
+    const setupPushNotifications = async () => {
+      console.log('Calling setupPushNotifications'); // Added log
+      console.log('Calling registerForPushNotificationsAsync'); // Added log
+      const token = await registerForPushNotificationsAsync();
+      console.log('Token received:', token); // Added log
+      
+      // --- I AM ADDING THIS LOG --- 
+      const auth = getAuth();
+      console.log('auth.currentUser before saveTokenToFirestore:', auth.currentUser);
+      // ----------------------------
+
+      if (token) {
+        console.log('Calling saveTokenToFirestore with token:', token); // Added log
+        await saveTokenToFirestore(token);
+        console.log('saveTokenToFirestore completed'); // Added log
+      }
+    };
+
+    setupPushNotifications();
+  }, []); // The empty array means this effect runs only once
+  // -------------------------------------
+
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />

@@ -32,7 +32,10 @@
       "googleServicesFile": "./google-services.json",
       "permissions": [
         "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.ACCESS_FINE_LOCATION"
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_LOCATION"
       ]
     },
     "web": {
@@ -83,7 +86,8 @@
       "expo-build-properties",
       "@react-native-firebase/app",
       "@react-native-firebase/auth",
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-notifications"
     ],
     "experiments": {
       "typedRoutes": true
@@ -93,7 +97,7 @@
         "origin": false
       },
       "eas": {
-        "projectId": "29161d9f-2ce5-4549-8e0c-585579fdaa80"
+        "projectId": "e7d435f3-55a6-4e7d-88e3-bf34383bc8be"
       }
     }
   }
