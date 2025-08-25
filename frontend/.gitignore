@@ -51,3 +51,6 @@ app/(auth)/phone-auth-manual.tsx
 app/(auth)/sign-in-google.tsx
 app/(auth)/sign-in-x.tsx
 app/(auth)/sign-up-y.tsx
+
+
+safii-90f1d-firebase-adminsdk-fbsvc-9c9bcfaed6.json
