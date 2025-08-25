@@ -161,7 +161,7 @@ function createStyles() {
     },
     toggleButton: {
       position: 'absolute',
-      top: 60, // Adjust this for reachable height (avoid top bar)
+      top: 70, // Adjust this for reachable height (avoid top bar)
       right: 20,
       backgroundColor: 'rgba(0,0,0,0.6)',
       paddingHorizontal: 12,

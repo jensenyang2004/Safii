@@ -1,6 +1,6 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
-import { Slot, Stack, router } from 'expo-router'; // 確保導入 router
+import { Slot, Stack, router, useSegments } from 'expo-router'; // 確保導入 router 和 useSegments
 import { hideAsync } from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useState } from 'react'; // 導入 useState
@@ -25,6 +25,9 @@ export default function RootLayout() {
   });
 
   const [onboardingComplete, setOnboardingComplete] = useState<boolean | null>(null); // 新增狀態
+  const segments = useSegments(); // Get the current segments
+
+  const isSettingsPage = segments.includes('(modals)') && segments.includes('settings'); // Check if it's the settings page
 
   useEffect(() => {
     async function checkOnboardingStatus() {
@@ -55,28 +58,11 @@ export default function RootLayout() {
         <TrackingProvider>
           <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
             <RootLayoutNav />
-            {/* {onboardingComplete ? <RootLayoutNav /> : <OnboardingStack />} */}
             <StatusBar style="auto" />
           </ThemeProvider>
         </TrackingProvider>
       </FriendProvider>
     </AuthProvider>
-  );
-}
-
-// 新增的 Onboarding 堆疊組件
-function OnboardingStack() {
-  return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen 
-        name="(onboarding)"
-        options={{
-          headerShown: false,
-          title: '',
-          headerTitle: '',
-        }}
-      />
-    </Stack>
   );
 }
 
@@ -94,24 +80,40 @@ function RootLayoutNav() {
 
   return (
     <Stack>
-      {isAuthenticated ? (
-        <>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="(modals)" options={{ headerShown: false }} />
-          <Stack.Screen
-            name="interactive-call"
-            options={{
-              headerShown: false,
-              presentation: 'fullScreenModal',
-              animation: 'fade',
-              gestureEnabled: true,
-              gestureDirection: 'vertical',
-            }}
-          />
-        </>
-      ) : (
-        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-      )}
+      <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+      <Stack.Screen name="(modals)" options={{ headerShown: false }} />
+      <Stack.Screen name="(onboarding)" options={{ headerShown: false }} />
     </Stack>
+    
+    // <Stack>
+    //   {isAuthenticated ? (
+    //     <>
+    //       {/* <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+    //       <Stack.Screen name="(modals)" options={{ headerShown: false }} />
+    //       <Stack.Screen
+    //         name="(tabs)/settings"
+    //         options={
+    //           {
+    //             presentation: 'modal',
+    //             animation: 'slide_from_right',
+    //             headerShown: false,
+    //           }
+    //         }
+    //       />
+    //       <Stack.Screen
+    //         name="interactive-call"
+    //         options={{
+    //           headerShown: false,
+    //           presentation: 'fullScreenModal',
+    //           animation: 'fade',
+    //           gestureEnabled: true,
+    //           gestureDirection: 'vertical',
+    //         }}
+    //       /> */}
+    //     </>
+    //   ) : (
+    //     <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+    //   )}
+    // </Stack>
   );
 }
