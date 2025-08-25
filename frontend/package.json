@@ -69,6 +69,7 @@
     "react-native-live-activity": "^0.1.0",
     "react-native-maps": "1.20.1",
     "react-native-modal": "^14.0.0-rc.1",
+    "react-native-pager-view": "6.7.1",
     "react-native-permissions": "^5.4.1",
     "react-native-reanimated": "3.18.0",
     "react-native-reanimated-carousel": "^4.0.2",
