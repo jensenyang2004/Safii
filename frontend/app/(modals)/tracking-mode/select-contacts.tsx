@@ -5,6 +5,7 @@ import { collection, getDocs, doc, updateDoc, getDoc } from 'firebase/firestore'
 import { db } from '@/libs/firebase';
 import { useAuth } from '@/context/AuthProvider';
 import { useLocalSearchParams, router } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons'; 
 
 type FriendItem = {
   id: string;           // friends 子文件 ID（可用朋友 uid 當 docId，更單純）
@@ -110,6 +111,9 @@ export default function SelectContactsScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={{ position: 'absolute', left: 12, top: 8 }}>
+          <Ionicons name="arrow-back" size={24} color="#111827" />
+        </TouchableOpacity>
         <Text style={styles.title}>選擇通知聯絡人</Text>
         <Text style={styles.sub}>已選 {selectedCount} 位</Text>
       </View>
@@ -152,7 +156,7 @@ export default function SelectContactsScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#F9FAFB', paddingHorizontal: 16 },
   header: { paddingVertical: 12 },
-  title: { fontSize: 20, fontWeight: '700', color: '#111827' },
+  title: { position: 'relative', marginHorizontal: 60, fontSize: 20, fontWeight: '700', color: '#111827' },
   sub: { marginTop: 4, color: '#6B7280' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 

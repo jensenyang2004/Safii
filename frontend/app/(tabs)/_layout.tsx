@@ -12,6 +12,7 @@ import { getAuth } from 'firebase/auth'; // Added import for getAuth
 
 // I added these imports for our notification functions
 import { registerForPushNotificationsAsync, saveTokenToFirestore } from '../../libs/notifications';
+import GlobalSettingsButton from '../../components/GlobalSettingsButton';
 
 export default function TabLayout() {
   console.log('TabLayout component rendered'); // Added log
@@ -48,7 +49,13 @@ export default function TabLayout() {
       <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'transparent' }}>
         <Tabs
           screenOptions={{
-            headerShown: false,
+            headerShown: false, // Keep true to allow custom header to render
+            // header: ({ options }) => (
+            //   <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', paddingTop: 50, paddingRight: 20 }}>
+            //     {options.headerRight && options.headerRight({})}
+            //   </View>
+            // ),
+            // headerRight: () => <GlobalSettingsButton />, // Our button
 
             tabBarActiveTintColor: Colors.MAINRED,
             tabBarItemStyle: {
@@ -106,14 +113,7 @@ export default function TabLayout() {
               ),
             }}
           />
-          <Tabs.Screen
-            name="settings"
-            options={{
-              tabBarIcon: ({ color }) => (
-                <MaterialIcons name="settings-applications" size={24} color={color} />
-              ),
-            }}
-          />
+          
           <Tabs.Screen
             name="test"
             options={{
@@ -122,15 +122,10 @@ export default function TabLayout() {
               ),
             }}
           />
-          <Tabs.Screen
-            name="map_tracking"
-            options={{
-              tabBarIcon: ({ color }) => (
-                <FontAwesome5 name="map-marked-alt" size={24} color={color} />
-              ),
-            }}
-          />
-          <Tabs.Screen name="(onboarding)" options={{ href: null }} />
+          {/* <Tabs.Screen
+            name="(onboarding)"
+            options={{ href: null }}
+          /> */}
         </Tabs>
       </View>
     </>

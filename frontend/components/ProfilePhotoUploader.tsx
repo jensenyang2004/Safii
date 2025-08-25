@@ -171,6 +171,7 @@ const styles = StyleSheet.create({
         width: '100%',
     },
     option: {
+        flex: 1,
         alignItems: 'center',
         marginHorizontal: 20,
         padding: 10,
