@@ -67,15 +67,8 @@ Notifications.setNotificationHandler({
 
     if (data?.type === 'missed_report' && data.strike === 3) {
       console.log('🚨 FINAL STRIKE NOTIFICATION RECEIVED! Emergency is handled by contact-side listener.');
-      // NOTE: The original emergency logic that writes to Firestore is REMOVED from here.
-      // The app still needs to clean up its local state as if the session is over.
-      const trackingDocId = await AsyncStorage.getItem(STORAGE_KEYS.ACTIVE_TRACKING_DOC_ID);
-      if (trackingDocId) {
-        const trackingDocRef = doc(db, 'active_tracking', trackingDocId);
-        await deleteDoc(trackingDocRef);
-        console.log("✅ Dead man's switch cleaned up from user side.");
-      }
-      await AsyncStorage.multiRemove(Object.values(STORAGE_KEYS));
+      // Clean up local state, but leave Firestore doc active.
+      await stopTrackingMode({ isEmergency: true });
 
     } else if (data?.type === 'session_end') {
       console.log(`⏰ Session ${data.strike + 1} ended - Report required`);
@@ -233,8 +226,8 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
         
         const finalEvent = timeline[timeline.length - 1];
         if (finalEvent && now > finalEvent.time && finalEvent.type === 'missed_report' && finalEvent.strike === 3) {
-          console.log('🚨 Emergency period has passed. Cleaning up.');
-          await stopTrackingMode();
+          console.log('🚨 Emergency period has passed. Cleaning up local state.');
+          await stopTrackingMode({ isEmergency: true });
           return;
         }
 
@@ -359,7 +352,7 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
       });
 
       currentTime = reportDeadlineTime;
-      currentSessionDuration = Math.max(currentSessionDuration - reductionMs, 10 * 60 * 1000);
+      currentSessionDuration = Math.max(currentSessionDuration - reductionMs, 1 * 60 * 1000);
     }
 
     return timeline;
@@ -440,7 +433,7 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
         return;
       }
 
-      const emergencyContactIds = activeMode.contacts.map((c: any) => c.id);
+      const emergencyContactIds: string[] = activeMode.contacts.map((c: any) => String(c.id));
 
       console.log('🚀 Starting tracking with pre-calculated timeline...');
       
@@ -452,8 +445,8 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
         const emergencyActivationTime = Timestamp.fromMillis(finalEvent.time);
         const trackingDocRef = doc(collection(db, 'active_tracking'));
 
-        const contactStatusMap = {};
-        emergencyContactIds.forEach(id => {
+        const contactStatusMap: Record<string, { status: 'active'; notificationCount: number }> = {};
+        emergencyContactIds.forEach((id: string) => {
           contactStatusMap[id] = {
             status: 'active', // Status for each contact
             notificationCount: 0
@@ -594,8 +587,11 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
     }
   };
 
-  const stopTrackingMode = async () => {
+  const stopTrackingMode = async (options?: { isEmergency: boolean }) => {
     if (!user?.uid) return;
+
+    const isEmergency = options?.isEmergency ?? false;
+
     try {
       const notificationIdsStr = await AsyncStorage.getItem(STORAGE_KEYS.NOTIFICATION_IDS);
       const modeId = await AsyncStorage.getItem(STORAGE_KEYS.TRACKING_MODE_ID);
@@ -605,27 +601,36 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
         for (const id of notificationIds) {
           await Notifications.cancelScheduledNotificationAsync(id);
         }
+        console.log('🧹 Cancelled all future notifications');
       }
 
-      if (await Location.hasStartedLocationUpdatesAsync(BACKGROUND_LOCATION_TASK)) {
-        await Location.stopLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
-      }
-
-      if(modeId){
+      // --- CRITICAL: Only stop tracking if it is NOT an emergency ---
+      if (!isEmergency) {
+        if (await Location.hasStartedLocationUpdatesAsync(BACKGROUND_LOCATION_TASK)) {
+          await Location.stopLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
+          console.log('✅ Background location tracking stopped for safe shutdown.');
+        }
+        if (modeId) {
           const modeRef = doc(db, 'TrackingMode', modeId);
           await updateDoc(modeRef, { On: false });
+          console.log('✅ TrackingMode set to OFF.');
+        }
+      } else {
+        console.log('🚨 Emergency active: Background location tracking will CONTINUE.');
       }
 
       const trackingDocId = await AsyncStorage.getItem(STORAGE_KEYS.ACTIVE_TRACKING_DOC_ID);
       if (trackingDocId) {
-        const trackingDocRef = doc(db, 'active_tracking', trackingDocId);
-        // --- THIS IS THE KEY CHANGE ---
-        // Instead of deleting, we now deactivate the document.
-        await updateDoc(trackingDocRef, {
-          isActive: false,
-          stoppedAt: serverTimestamp() // Optional: nice for auditing
-        });
-        console.log("✅ Dead man's switch deactivated in Firestore.");
+        if (isEmergency) {
+          console.log("Emergency stop: Leaving dead man's switch active in Firestore.");
+        } else {
+          const trackingDocRef = doc(db, 'active_tracking', trackingDocId);
+          await updateDoc(trackingDocRef, {
+            isActive: false,
+            stoppedAt: serverTimestamp()
+          });
+          console.log("✅ Dead man's switch deactivated in Firestore for safe stop.");
+        }
       }
 
       await AsyncStorage.multiRemove(Object.values(STORAGE_KEYS));
@@ -638,7 +643,7 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
       setReportDeadline(null);
       setNextCheckInTime(null);
       
-      console.log('🛑 Tracking stopped and timeline cleared');
+      console.log('🛑 Tracking stopped and local state cleared');
       
     } catch (error) {
       console.error('❌ Error stopping tracking:', error);

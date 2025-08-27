@@ -5,6 +5,7 @@ import {
   FlatList,
   TouchableOpacity,
   Text,
+  Pressable,
 } from 'react-native';
 import React, { useEffect, useState, useRef } from 'react';
 import MapView, { Marker } from 'react-native-maps';
@@ -20,6 +21,8 @@ import MapCarousel from '@/components/Map/carousel';
 import ToolCard from '@/components/Safety_tools/tools_card';
 import { useTracking } from '@/context/TrackProvider';
 import { useEmergencyListener } from '@/hooks/useEmergencyListener';
+import EmergencyList from '@/components/Emergency/EmergencyList';
+import EmergencyInfoModal from '@/components/Emergency/EmergencyInfoModal';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -37,8 +40,9 @@ export default function Map() {
   });
 
   const { trackingModes, isTracking, trackingModeId, isReportDue } = useTracking();
-  const { emergencyData } = useEmergencyListener();
-  const [showToolCard, setShowToolCard] = useState(false); // toggle state
+  const { emergencyData: emergencies } = useEmergencyListener();
+  const [showToolCard, setShowToolCard] = useState(false);
+  const [selectedEmergency, setSelectedEmergency] = useState(null);
 
   const mapRef = useRef<MapView>(null);
   const flatListRef = useRef<FlatList>(null);
@@ -61,16 +65,54 @@ export default function Map() {
   }, []);
 
   useEffect(() => {
-    if (emergencyData && mapRef.current) {
+    // When a specific emergency is selected, focus on it
+    if (selectedEmergency && mapRef.current) {
       const newRegion = {
-        latitude: emergencyData.lat,
-        longitude: emergencyData.long,
+        latitude: selectedEmergency.lat,
+        longitude: selectedEmergency.long,
         latitudeDelta: 0.01, // Zoom level
         longitudeDelta: 0.01, // Zoom level
       };
-      mapRef.current.animateToRegion(newRegion, 1000); // Animate over 1 second
+      mapRef.current.animateToRegion(newRegion, 1000);
     }
-  }, [emergencyData]);
+  }, [selectedEmergency]);
+
+  useEffect(() => {
+    // When the list of emergencies first appears, focus on the first one
+    if (emergencies && emergencies.length > 0 && !selectedEmergency && mapRef.current) {
+      const firstEmergency = emergencies[0];
+      const newRegion = {
+        latitude: firstEmergency.lat,
+        longitude: firstEmergency.long,
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
+      };
+      mapRef.current.animateToRegion(newRegion, 1000);
+    }
+  }, [emergencies]);
+
+
+  const recenterMap = async () => {
+    if (mapRef.current) {
+      try {
+        let { status } = await requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          console.log('Location permission not granted');
+          return;
+        }
+        let currentLocation = await getCurrentPositionAsync();
+        const newRegion = {
+          latitude: currentLocation.coords.latitude,
+          longitude: currentLocation.coords.longitude,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01,
+        };
+        mapRef.current.animateToRegion(newRegion, 1000);
+      } catch (error) {
+        console.error("Failed to recenter map:", error);
+      }
+    }
+  };
 
   const styles = createStyles();
 
@@ -119,18 +161,23 @@ export default function Map() {
         showsUserLocation={true}
         mapType="standard"
       >
-        {emergencyData && (
+        {emergencies && emergencies.map(emergency => (
           <Marker
+            key={emergency.emergencyDocId}
             coordinate={{
-              latitude: emergencyData.lat,
-              longitude: emergencyData.long,
+              latitude: emergency.lat,
+              longitude: emergency.long,
             }}
-            title={`SOS: ${emergencyData.senderName}`}
-            description={`Last update: ${emergencyData.updateTime.toDate().toLocaleTimeString()}`}
+            title={`SOS: ${emergency.trackedUserName}`}
+            description={emergency.updateTime ? `Last update: ${emergency.updateTime.toDate().toLocaleTimeString()}` : 'No update time available'}
             pinColor="red"
+            onPress={() => setSelectedEmergency(emergency)}
           />
-        )}
+        ))}
       </MapView>
+
+      <EmergencyList emergencies={emergencies} onSelectEmergency={setSelectedEmergency} />
+      <EmergencyInfoModal emergency={selectedEmergency} onClose={() => setSelectedEmergency(null)} />
 
       {/* Toggle Button */}
       <TouchableOpacity
@@ -142,8 +189,13 @@ export default function Map() {
         </Text>
       </TouchableOpacity>
 
+      {/* Recenter Button */}
+      <Pressable style={styles.recenterButton} onPress={recenterMap}>
+        <Text style={styles.recenterButtonText}>🎯</Text>
+      </Pressable>
+
       {/* Don't show carousel if there is an emergency */}
-      {!emergencyData && !showToolCard && <MapCarousel data={carouselData} />}
+      {!showToolCard && <MapCarousel data={carouselData} />}
 
       {showToolCard && <ToolCard showBottomBar={true} />}
     </View>
@@ -173,6 +225,25 @@ function createStyles() {
       color: 'white',
       fontSize: 14,
       fontWeight: 'bold',
+    },
+    recenterButton: {
+      position: 'absolute',
+      bottom: 250, // Adjust to be above the carousel
+      right: 20,
+      backgroundColor: 'rgba(255,255,255,0.9)',
+      width: 50,
+      height: 50,
+      borderRadius: 25,
+      justifyContent: 'center',
+      alignItems: 'center',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.2,
+      shadowRadius: 2,
+      elevation: 3,
+    },
+    recenterButtonText: {
+      fontSize: 24,
     },
   });
 }
