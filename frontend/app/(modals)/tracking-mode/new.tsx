@@ -2,11 +2,8 @@
 import React, { useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { View, Text, TextInput, Switch, TouchableOpacity, StyleSheet, Alert } from 'react-native';
-<<<<<<< HEAD
-=======
 
 import { Ionicons } from '@expo/vector-icons'; // Added Ionicons import
->>>>>>> origin/Ikbing-auth
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/libs/firebase';
 import { useAuth } from '@/context/AuthProvider';
@@ -124,12 +121,9 @@ export default function CreateTrackingModeScreen() {
     return (
         <SafeAreaView style={styles.safe}>
             <View style={styles.header}>
-<<<<<<< HEAD
-=======
                 <TouchableOpacity onPress={() => router.back()} style={{ position: 'absolute', left: 16, top: 8 }}>
                     <Ionicons name="arrow-back" size={24} color="#111827" />
                 </TouchableOpacity>
->>>>>>> origin/Ikbing-auth
                 <Text style={styles.title}>建立 Tracking 模式</Text>
                 <Text style={styles.sub}>填寫模式名稱與基本參數</Text>
             </View>
@@ -219,11 +213,7 @@ export default function CreateTrackingModeScreen() {
 
 const styles = StyleSheet.create({
     safe: { flex: 1, backgroundColor: '#f9fafb', paddingHorizontal: 16 },
-<<<<<<< HEAD
-    header: { paddingTop: 8, paddingBottom: 12 },
-=======
     header: { paddingTop: 8, paddingBottom: 12, paddingLeft: 48 }, // Adjusted paddingLeft
->>>>>>> origin/Ikbing-auth
     title: { fontSize: 20, fontWeight: '700', color: '#111827' },
     sub: { marginTop: 4, color: '#6b7280' },
 

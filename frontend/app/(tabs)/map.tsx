@@ -23,6 +23,7 @@ import { useTracking } from '@/context/TrackProvider';
 import { useEmergencyListener } from '@/hooks/useEmergencyListener';
 import EmergencyList from '@/components/Emergency/EmergencyList';
 import EmergencyInfoModal from '@/components/Emergency/EmergencyInfoModal';
+import { useAuth } from '@/context/AuthProvider';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -48,7 +49,7 @@ export default function Map() {
   const flatListRef = useRef<FlatList>(null);
 
 
-  const auth = getAuth();
+  const auth = useAuth();
   const currentUserId = auth.currentUser?.uid;
 
   const styles = createStyles();
@@ -119,8 +120,6 @@ export default function Map() {
       }
     }
   };
-
-  const styles = createStyles();
 
   let carouselData: any[] = [{ id: 'search', component: <SearchBar /> }];
 
