@@ -1,34 +1,35 @@
-// app/(modals)/_layout.tsx
-import React from 'react';
 import { Stack } from 'expo-router';
 
-export default function ModalsLayout() {
+export default function ModalLayout() {
   return (
-    <Stack
-      screenOptions={{
-        // leave the header visible
-        headerShown: false,
-
-        // globally style background / title / back button color
-        headerStyle:      { backgroundColor: '#FFF' },
-        headerTitleStyle: { color: '#1E1E1E', fontSize: 18, fontWeight: '600' },
-        headerTintColor:  'white',    // color of the back arrow
-
-        // If you want a fully custom React component:
-        // header: ({ back, navigation, options, route }) => (
-        //   <MyFancyHeader back={back} title={options.title} />
-        // ),
-
-        presentation:     'fullScreenModal',
-        animation:        'fade',
-        gestureEnabled:   true,
-        gestureDirection: 'vertical',
-      }}
-    >
+    <Stack screenOptions={{ headerShown: false }}>
+      {/* <Stack.Screen options={{ headerShown: false }} /> */}
+      <Stack.Screen
+        name="calling"
+        options={{
+          presentation: 'modal',
+          headerShown: false,
+        }}
+      />
       <Stack.Screen
         name="interactive-call"
         options={{
-          title: 'Phone Call',   // whatever title you like
+          presentation: 'modal',
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="tracking-mode/new"
+        options={{
+          presentation: 'modal',
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
+        name="tracking-mode/select-contacts"
+        options={{
+          presentation: 'modal',
+          headerShown: false,
         }}
       />
     </Stack>

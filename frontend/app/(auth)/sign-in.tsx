@@ -27,6 +27,7 @@ const SignInScreen = () => {
       });
 
       // On success, go to home
+      // router.replace('/(onboarding)');
       router.replace('/(tabs)/home');
 
     } catch (err) {
@@ -70,9 +71,13 @@ const SignInScreen = () => {
         value={password}
         onChangeText={setPassword}
         secureTextEntry
+        onSubmitEditing={submit}
       />
-      <Button title="Sign In" onPress={submit} />
-      <Button title="Sign Up" onPress={() => { router.replace('/(auth)/sign-up') }} />
+
+      <View style={styles.buttonContainer}>
+        <Button title="Sign In" onPress={submit} />
+        <Button title="Sign Up" onPress={() => { router.replace('/(auth)/sign-up') }} />
+      </View>
     </View>
   );
 };
@@ -96,6 +101,11 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     paddingHorizontal: 10,
     borderRadius: 5,
+  },
+  buttonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginTop: 10,
   },
 });
 

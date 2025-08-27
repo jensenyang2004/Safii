@@ -168,6 +168,21 @@ defineTask(BACKGROUND_LOCATION_TASK,
     }
   });
 
+type TrackingMode = {
+  id: string;
+  name: string;
+  userId: string;
+  On: boolean;
+  autoStart: boolean;
+  checkIntervalMinutes: number;
+  unresponsiveThreshold: number;
+  intervalReductionMinutes: number;
+  startTime: {
+    dayOfWeek: string[];
+    time: string;
+  };
+  emergencyContactIds: string[];
+};
 
 export const TrackingProvider = ({ children }: { children: React.ReactNode }) => {
   const { user } = useAuth();

@@ -2,10 +2,10 @@
 
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
-import { Slot, Stack } from 'expo-router';
+import { Slot, Stack, router, useSegments } from 'expo-router'; // 確保導入 router 和 useSegments
 import { hideAsync } from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react'; // 導入 useState
 import 'react-native-reanimated';
 import { FriendProvider } from '../context/FriendProvider';
 
@@ -14,9 +14,11 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { AuthProvider, useAuth } from '@/context/AuthProvider';
 import { TrackingProvider } from '@/context/TrackProvider';
 import '@/global.css';
+import * as SecureStore from 'expo-secure-store'; // 導入 SecureStore
 
-// Prevent the splash screen from auto-hiding before asset loading is complete.
-// SplashScreen.preventAutoHideAsync();
+const ONBOARDING_COMPLETED_KEY = 'onboarding_completed'; // 與 OnboardingScreen 中使用的鍵相同
+
+// SplashScreen.preventAutoHideAsync(); // 保持這行或根據需要調整
 
 
 
@@ -26,89 +28,96 @@ export default function RootLayout() {
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
   });
 
+  const [onboardingComplete, setOnboardingComplete] = useState<boolean | null>(null); // 新增狀態
+  const segments = useSegments(); // Get the current segments
+
+  const isSettingsPage = segments.includes('(modals)') && segments.includes('settings'); // Check if it's the settings page
 
   useEffect(() => {
-    if (loaded) {
+    async function checkOnboardingStatus() {
+      const status = await SecureStore.getItemAsync(ONBOARDING_COMPLETED_KEY);
+      setOnboardingComplete(status === 'true');
+    }
+    checkOnboardingStatus();
+  }, []);
+
+  useEffect(() => {
+    if (loaded && onboardingComplete !== null) { // 確保字體和 Onboarding 狀態都已加載
       hideAsync();
     }
-  }, [loaded]);
+  }, [loaded, onboardingComplete]); // 依賴新增的 onboardingComplete 狀態
 
-
-  if (!loaded) {
-    return null;
+  if (!loaded || onboardingComplete === null) { // 在加載完成前顯示加載指示器
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color="#1E40AF" />
+        <Text>Loading app...</Text>
+      </View>
+    );
   }
-  return ( 
-      <AuthProvider>
+
+  return (
+    <AuthProvider>
+      <FriendProvider>
         <TrackingProvider>
-        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-          <Stack>
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="(modals)" options={{ headerShown: false }} />
-            <Stack.Screen
-              name="interactive-call"   // matches file: app/(modals)/interactive-call.tsx
-              options={{
-                headerShown: false,
-                presentation: 'fullScreenModal',
-                animation: 'fade',
-                gestureEnabled: true,
-                gestureDirection: 'vertical',
-              }}
-            />
-            <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-          </Stack>
-          <StatusBar style="auto" />
-        </ThemeProvider>  
+          <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+            <RootLayoutNav />
+            <StatusBar style="auto" />
+          </ThemeProvider>
         </TrackingProvider>
-      </AuthProvider>
+      </FriendProvider>
+    </AuthProvider>
   );
 }
 
 function RootLayoutNav() {
-  const { user, loading } = useAuth(); // Now this works!
-
-  useEffect(() => {
-    console.log('User in RootLayoutNav:', user);
-    console.log('User is null?', user === null);
-    console.log('User type:', typeof user);
-    console.log('Showing auth screens?', user === null);
-  }, [user]);
+  const { user, loading } = useAuth();
 
   const isAuthenticated = user !== null;
 
   if (loading) return (
     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
       <ActivityIndicator size="large" color="#1E40AF" />
-      <Text>Loading...</Text>
+      <Text>Loading user...</Text>
     </View>
   );
 
   return (
     <Stack>
-      {isAuthenticated ? (
-        // <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-        // Authenticated routes
-        <>
-          <Stack.Screen name="(tabs)" options={{
-            headerShown: false
-          }} />
-          <Stack.Screen name="(modals)" options={{ headerShown: false }} />
-
-          <Stack.Screen
-            name="interactive-call"   // matches file: app/(modals)/interactive-call.tsx
-            options={{
-              headerShown: false,
-              presentation: 'fullScreenModal',
-              animation: 'fade',
-              gestureEnabled: true,
-              gestureDirection: 'vertical',
-            }}
-          />
-        </>
-      ) : (
-        // Non-authenticated routes
-        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-      )}
-
+      <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+      <Stack.Screen name="(modals)" options={{ headerShown: false }} />
+      <Stack.Screen name="(onboarding)" options={{ headerShown: false }} />
     </Stack>
+    
+    // <Stack>
+    //   {isAuthenticated ? (
+    //     <>
+    //       {/* <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+    //       <Stack.Screen name="(modals)" options={{ headerShown: false }} />
+    //       <Stack.Screen
+    //         name="(tabs)/settings"
+    //         options={
+    //           {
+    //             presentation: 'modal',
+    //             animation: 'slide_from_right',
+    //             headerShown: false,
+    //           }
+    //         }
+    //       />
+    //       <Stack.Screen
+    //         name="interactive-call"
+    //         options={{
+    //           headerShown: false,
+    //           presentation: 'fullScreenModal',
+    //           animation: 'fade',
+    //           gestureEnabled: true,
+    //           gestureDirection: 'vertical',
+    //         }}
+    //       /> */}
+    //     </>
+    //   ) : (
+    //     <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+    //   )}
+    // </Stack>
   );
 }
