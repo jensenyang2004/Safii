@@ -139,7 +139,7 @@ export const FriendProvider = ({ children }: { children: React.ReactNode }) => {
 
         setLoading(true);
         try {
-            console.log('Fetching requests for user:', user.uid);
+            // console.log('Fetching requests for user:', user.uid);
 
             // Use a consistent collection name
             const requestCollection = 'friendRequests';
@@ -149,14 +149,13 @@ export const FriendProvider = ({ children }: { children: React.ReactNode }) => {
             const incomingQuery = query(incomingRef, where('to', '==', user.uid), where('status', '==', 'pending'));
             const incomingSnapshot = await getDocs(incomingQuery);
 
-            console.log('Incoming requests count:', incomingSnapshot.docs.length);
+            // console.log('Incoming requests count:', incomingSnapshot.docs.length);
 
             // Fetch outgoing requests
             const outgoingRef = collection(db, requestCollection);
             const outgoingQuery = query(outgoingRef, where('from', '==', user.uid), where('status', '==', 'pending'));
             const outgoingSnapshot = await getDocs(outgoingQuery);
 
-            console.log('Outgoing requests count:', outgoingSnapshot.docs.length);
 
             const incoming: FriendRequest[] = [];
             const outgoing: FriendRequest[] = [];
@@ -197,10 +196,6 @@ export const FriendProvider = ({ children }: { children: React.ReactNode }) => {
                     timestamp: data.timestamp,
                 });
             }
-
-            console.log('Processed incoming requests:', incoming);
-            console.log('Processed outgoing requests:', outgoing);
-
             setIncomingRequests(incoming);
             setOutgoingRequests(outgoing);
         } catch (error) {

@@ -47,6 +47,12 @@ export default function Map() {
   const mapRef = useRef<MapView>(null);
   const flatListRef = useRef<FlatList>(null);
 
+
+  const auth = getAuth();
+  const currentUserId = auth.currentUser?.uid;
+
+  const styles = createStyles();
+
   useEffect(() => {
     (async () => {
       let { status } = await requestForegroundPermissionsAsync();
@@ -213,7 +219,7 @@ function createStyles() {
     },
     toggleButton: {
       position: 'absolute',
-      top: 60, // Adjust this for reachable height (avoid top bar)
+      top: 70, // Adjust this for reachable height (avoid top bar)
       right: 20,
       backgroundColor: 'rgba(0,0,0,0.6)',
       paddingHorizontal: 12,
