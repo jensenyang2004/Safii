@@ -54,6 +54,8 @@ type TrackingContextType = {
   isReportDue: boolean;
   reportDeadline: number | null;
   nextCheckInTime: number | null;
+  createTrackingMode: (mode: TrackingMode) => Promise<void>;
+  deleteTrackingMode: (modeId: string) => Promise<void>;
 };
 
 const TrackingContext = createContext<TrackingContextType | null>(null);
@@ -665,6 +667,24 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
     }
   };
 
+  const createTrackingMode = async (mode: Omit<TrackingMode, 'id'>) => {
+    try {
+      const docRef = await addDoc(collection(db, 'TrackingMode'), mode); // Use addDoc to create a new document
+      setTrackingModes((prevModes) => [...prevModes, { id: docRef.id, ...mode }]); // Update state with the new mode
+    } catch (error) {
+      console.error('Failed to create tracking mode:', error);
+      throw error;
+    }
+  };
+
+  const deleteTrackingMode = async (modeId: string) => {
+    try {
+      await deleteDoc(doc(db, 'TrackingMode', modeId)); // Delete from Firebase
+      setTrackingModes((prevModes) => prevModes.filter((mode) => mode.id !== modeId)); // Update state
+    } catch (error) {
+      console.error('Failed to delete tracking mode:', error);
+    }
+  };
 
   const fetchTrackingModesWithContacts = async (userId: string) => {
     try {
@@ -716,6 +736,8 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
       isReportDue,
       reportDeadline,
       nextCheckInTime,
+      createTrackingMode,
+      deleteTrackingMode
     }}>
       {children}
     </TrackingContext.Provider>

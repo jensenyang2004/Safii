@@ -145,7 +145,7 @@ export default function Map() {
         <TrackModeCard
           id={mode.id}
           name={mode.name}
-          contacts={mode.contacts.map((c: any) => ({
+          contacts={(mode.contacts ?? []).map((c: any) => ({
             id: c.id,
             name: c.username,
             url: 'none',
