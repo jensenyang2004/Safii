@@ -218,9 +218,8 @@ export default function HomeScreen() {
   // }, [user]);
 
   return (
-
     <SafeAreaView style={homeStyles.container}>
-        <ScrollView 
+      <ScrollView
         contentContainerStyle={{
           flexGrow: 1,
           paddingBottom: insets.bottom + 80, // Add extra padding for tab bar
@@ -229,97 +228,101 @@ export default function HomeScreen() {
         }}
         showsVerticalScrollIndicator={false}
       >
-      {/* <View style={homeStyles.container}> */}
-      <Pressable onPress={() => { }}>
-        {user?.avatarUrl ? (
-          <Image
-            source={{ uri: user.avatarUrl }}
-            style={homeStyles.avatar}
-          />
-        ) : (
-          <View style={[homeStyles.avatar, homeStyles.avatarPlaceholder]}>
-            <Text style={homeStyles.avatarPlaceholderText}>
-              {user?.displayName?.[0] || user?.username?.[0] || 'U'}
-            </Text>
-          </View>
-        )}
-      </Pressable>
+        {/* <View style={homeStyles.container}> */}
 
-      {/* for testiing onboarding, can be removed */}
-      {/* <Pressable onPress={() => { router.replace('/(onboarding)'); }} >
+        <View style={homeStyles.headerContainer}>
+          <Pressable onPress={() => { }}>
+            {user?.avatarUrl ? (
+              <Image
+                source={{ uri: user.avatarUrl }}
+                style={homeStyles.avatar}
+              />
+            ) : (
+              <View style={[homeStyles.avatar, homeStyles.avatarPlaceholder]}>
+                <Text style={homeStyles.avatarPlaceholderText}>
+                  {user?.displayName?.[0] || user?.username?.[0] || 'U'}
+                </Text>
+              </View>
+            )}
+          </Pressable>
+
+          {/* for testiing onboarding, can be removed */}
+          {/* <Pressable onPress={() => { router.replace('/(onboarding)'); }} >
 
         <Text>Edit Profile</Text>
       </Pressable> */}
 
-      <Text style={homeStyles.username}>
-        {user?.displayName || user?.username || user?.nickname || user?.email || 'Unknown User'}
-      </Text>
+          <Text style={homeStyles.username}>
+            {user?.displayName || user?.username || user?.nickname || user?.email || 'Unknown User'}
+          </Text>
 
-      <ProfilePhotoUploader />
-
-      {/* Settings content starts here */}
-      <View style={homeStyles.settingsSection}>
-        <View style={homeStyles.settingsHeader}>
-
-          <Text style={homeStyles.settingsTitle}>設定</Text>
-          <Text style={homeStyles.settingsSub}>目前的 Tracking 模式</Text>
+          <ProfilePhotoUploader />
         </View>
 
-        {settingsLoading ? (
-          <View style={homeStyles.settingsCenter}>
-            <ActivityIndicator size="large" color="#2563eb" />
-            <Text style={homeStyles.settingsDim}>載入中…</Text>
+        {/* Settings content starts here */}
+        <View style={homeStyles.settingsSection}>
+          <View style={homeStyles.settingsHeader}>
+
+            <Text style={homeStyles.settingsTitle}>設定</Text>
+            <Text style={homeStyles.settingsSub}>目前的 Tracking 模式</Text>
           </View>
-        ) : (
-          <>
-            {modes.length === 0 ? (
-              <View style={homeStyles.settingsEmpty}>
-                <Text style={homeStyles.settingsEmptyTitle}>尚未建立任何 Tracking 模式</Text>
-                <Text style={homeStyles.settingsDim}>點擊下方按鈕新增一個吧！</Text>
-              </View>
-            ) : (
-              <FlatList
-                data={modes}
-                keyExtractor={(item) => item.id}
-                renderItem={renderItem}
-                contentContainerStyle={[
-                  homeStyles.settingsListContent,
-                  { paddingBottom: insets.bottom + 90 },
+
+          {settingsLoading ? (
+            <View style={homeStyles.settingsCenter}>
+              <ActivityIndicator size="large" color="#2563eb" />
+              <Text style={homeStyles.settingsDim}>載入中…</Text>
+            </View>
+          ) : (
+            <>
+              {modes.length === 0 ? (
+                <View style={homeStyles.settingsEmpty}>
+                  <Text style={homeStyles.settingsEmptyTitle}>尚未建立任何 Tracking 模式</Text>
+                  <Text style={homeStyles.settingsDim}>點擊下方按鈕新增一個吧！</Text>
+                </View>
+              ) : (
+                <FlatList
+                  scrollEnabled={false}
+                  data={modes}
+                  keyExtractor={(item) => item.id}
+                  renderItem={renderItem}
+                  contentContainerStyle={[
+                    homeStyles.settingsListContent,
+                    { paddingBottom: insets.bottom + 90 },
+                  ]}
+                  refreshControl={
+                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+                  }
+                />
+              )}
+
+              <TouchableOpacity
+                style={[
+                  homeStyles.settingsPrimaryBtn,
+                  { bottom: insets.bottom + 12 },
                 ]}
-                refreshControl={
-                  <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-                }
-              />
-            )}
+                onPress={() => router.push('/tracking-mode/new')}
+                activeOpacity={0.8}
+              >
+                <Text style={homeStyles.settingsPrimaryText}>+ 建立 Tracking 模式</Text>
+              </TouchableOpacity>
+            </>
+          )}
+        </View>
+        {/* Settings content ends here */}
 
-            <TouchableOpacity
-              style={[
-                homeStyles.settingsPrimaryBtn,
-                { bottom: insets.bottom + 12 },
-              ]}
-              onPress={() => router.push('/tracking-mode/new')}
-              activeOpacity={0.8}
-            >
-              <Text style={homeStyles.settingsPrimaryText}>+ 建立 Tracking 模式</Text>
-            </TouchableOpacity>
-          </>
+        {loading ? (
+          <ActivityIndicator size="large" color="#1E40AF" />
+        ) : (
+          <Pressable
+            onPress={signOut}
+            style={[homeStyles.signOutButton, loading && homeStyles.disabledButton]}
+            disabled={loading}
+          >
+            <Text style={homeStyles.signOutText}>
+              Sign Out
+            </Text>
+          </Pressable>
         )}
-      </View>
-      {/* Settings content ends here */}
-
-      {loading ? (
-        <ActivityIndicator size="large" color="#1E40AF" />
-      ) : (
-        <Pressable
-          onPress={signOut}
-          style={[homeStyles.signOutButton, loading && homeStyles.disabledButton]}
-          disabled={loading}
-        >
-          <Text style={homeStyles.signOutText}>
-            Sign Out
-          </Text>
-        </Pressable>
-      )}
       </ScrollView>
     </SafeAreaView>
 
@@ -327,6 +330,10 @@ export default function HomeScreen() {
 }
 
 const homeStyles = StyleSheet.create({
+  headerContainer: {
+    paddingHorizontal: 20,
+    alignItems: 'center',
+  },
   container: {
     flex: 1,
     backgroundColor: 'white',
@@ -469,20 +476,22 @@ const homeStyles = StyleSheet.create({
     fontSize: 12,
   },
   settingsHeader: {
-    paddingLeft: 48, 
-    paddingRight: 16, 
-    paddingTop: 8, 
+    paddingLeft: 48,
+    paddingRight: 16,
+    paddingTop: 8,
     paddingBottom: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', position: 'relative'
   },
-  settingsTitle: { 
+  settingsTitle: {
     flex: 1,
-    fontSize: 22, 
-    fontWeight: '800', 
-    color: '#111827' },
-  settingsSub: { 
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#111827'
+  },
+  settingsSub: {
     flex: 1,
-    marginTop: 4, 
-    color: '#6b7280' },
+    marginTop: 4,
+    color: '#6b7280'
+  },
 
   settingsListContent: { paddingHorizontal: 16 },
 
