@@ -84,6 +84,12 @@
           "isAndroidBackgroundLocationEnabled": true
         }
       ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "The app accesses your photos to let you share them with your friends."
+        }
+      ],
       "expo-build-properties",
       "@react-native-firebase/app",
       "@react-native-firebase/auth",

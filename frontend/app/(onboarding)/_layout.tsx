@@ -12,7 +12,7 @@ export default function OnboardingLayout() {
         name="index"
         options={{
           headerShown: false,
-          title: '',
+          title: '', 
           headerTitle: '',
         }}
       />

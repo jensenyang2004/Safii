@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { View, Pressable, Text, Image, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { MediaTypeOptions } from 'expo-image-picker';
 import { storage, db } from '@/libs/firebase';
 import { ref, uploadBytesResumable, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { doc, updateDoc } from 'firebase/firestore';
@@ -25,8 +24,8 @@ export default function ProfilePhotoUploader() {
 
             // Launch image picker
             const result = await ImagePicker.launchImageLibraryAsync({
-                mediaTypes: [ImagePicker.MediaType.Images],
-                // mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                // mediaTypes: ImagePicker.MediaType.Images,
+                mediaTypes: ['images', 'videos'],
                 allowsEditing: true,
                 aspect: [1, 1],
                 quality: 0.7,
@@ -83,13 +82,14 @@ export default function ProfilePhotoUploader() {
             const blob = await response.blob();
 
             // Create simple path
-            const path = `test-uploads/image-${Date.now()}.jpg`;
+            const path = `users/${user.uid}/avatar.jpg`;
             const storageRef = ref(storage, path);
 
             console.log("Uploading to:", path);
 
-            // Simple upload
-            const snapshot = await uploadBytes(storageRef, blob);
+            // Simple upload with metadata
+            const metadata = { contentType: 'image/jpeg' };
+            const snapshot = await uploadBytes(storageRef, blob, metadata);
             console.log("Upload success!");
 
             const url = await getDownloadURL(snapshot.ref);
@@ -103,36 +103,12 @@ export default function ProfilePhotoUploader() {
             fetchUserInfo(user.uid);
             Alert.alert("Success!", "Photo uploaded");
 
-            // Create storage reference with explicit path
-            // const storageRef = ref(storage, `profile_photos/${user.uid}/profile.jpg`);
-            // console.log("Upload starting to path:", `profile_photos/${user.uid}/profile.jpg`);
-
-            // // Upload file
-            // const uploadTask = uploadBytesResumable(storageRef, blob);
-
-            // // Monitor upload
-            // uploadTask.on(
-            //     'state_changed',
-            //     (snapshot) => {
-            //         const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-            //         console.log(`Upload is ${progress}% complete`);
-            //     },
-            //     (error) => {
-            //         console.error("Upload failed details:", JSON.stringify(error));
-            //         Alert.alert("Upload failed", "Please check your internet connection and try again");
-            //         setUploading(false);
-            //     },
-            //     async () => {
-            //         // Upload complete
-            //         const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-            //         console.log("Upload successful, URL:", downloadURL);
-
-            //         // Rest of your code...
-            //     }
-            // );
         } catch (error) {
             console.error("Error in upload process:", error);
-            Alert.alert("Error", "Failed to prepare image for upload");
+            console.error("Error code:", error.code);
+            console.error("Error message:", error.message);
+            console.error("Error name:", error.name);
+            Alert.alert("Error", `Failed to upload image: ${error.message}`);
             setUploading(false);
         } finally {
             setUploading(false);
