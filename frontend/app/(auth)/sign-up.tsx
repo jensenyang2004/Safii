@@ -38,7 +38,7 @@ export default function SignUp() {
         uid: user.uid,
         phone: '',                // 如果有電話，可傳入
         email: user.email!,
-        nickname: username,
+        username: username,
         avatarUrl: '',            // 可後續讓使用者上傳
         gender: 'other',
         createdAt: serverTimestamp(),
@@ -125,7 +125,7 @@ export default function SignUp() {
 
           <TextInput
             style={styles.input}
-            placeholder="暱稱"
+            placeholder="使用者名稱"
             value={username}
             onChangeText={setUsername}
             autoCapitalize="none"
@@ -160,7 +160,7 @@ export default function SignUp() {
             )}
           </TouchableOpacity>
 
-          <TouchableOpacity
+          {/* <TouchableOpacity
             style={styles.googleButton}
             onPress={() => console.log('Sign up with Google')} // Replace with Google sign-up logic
             disabled={loading} // Disable the button while loading
@@ -170,7 +170,7 @@ export default function SignUp() {
             ) : (
               <Text style={styles.buttonText}>Sign Up with Google</Text>
             )}
-          </TouchableOpacity>
+          </TouchableOpacity> */}
 
         </View>
       </SafeAreaView>

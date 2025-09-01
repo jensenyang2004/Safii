@@ -435,6 +435,29 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
       Alert.alert('Error', 'User not authenticated.');
       return;
     }
+
+    // Request foreground permissions first
+    let { status: foregroundStatus } = await Location.requestForegroundPermissionsAsync();
+    if (foregroundStatus !== 'granted') {
+      Alert.alert(
+        "Permission Required",
+        "Location access is required for tracking to work.",
+        [{ text: "OK" }]
+      );
+      return;
+    }
+
+    // Then request background permissions
+    let { status: backgroundStatus } = await Location.requestBackgroundPermissionsAsync();
+    if (backgroundStatus !== 'granted') {
+      Alert.alert(
+        "Permission Required",
+        "Background location access is required for emergency tracking to work properly.",
+        [{ text: "OK" }]
+      );
+      return;
+    }
+
     try {
       const modeRef = doc(db, 'TrackingMode', modeId);
       await updateDoc(modeRef, { On: true });
@@ -450,7 +473,7 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
         return;
       }
 
-      const emergencyContactIds: string[] = activeMode.contacts.map((c: any) => String(c.id));
+      const emergencyContactIds: string[] = activeMode.emergencyContactIds || [];
 
       console.log('🚀 Starting tracking with pre-calculated timeline...');
       
