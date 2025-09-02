@@ -56,6 +56,8 @@ type TrackingContextType = {
   nextCheckInTime: number | null;
   createTrackingMode: (mode: TrackingMode) => Promise<void>;
   deleteTrackingMode: (modeId: string) => Promise<void>;
+  locationPermissionStatus: string | null;
+  setLocationPermissionStatus: React.Dispatch<React.SetStateAction<string | null>>;
 };
 
 const TrackingContext = createContext<TrackingContextType | null>(null);
@@ -198,6 +200,7 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
   const [isReportDue, setIsReportDue] = useState<boolean>(false);
   const [reportDeadline, setReportDeadline] = useState<number | null>(null);
   const [nextCheckInTime, setNextCheckInTime] = useState<number | null>(null);
+  const [locationPermissionStatus, setLocationPermissionStatus] = useState<string | null>(null);
 
   useEffect(() => {
     initializeSystem();
@@ -205,13 +208,23 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
   }, []);
 
   const initializeSystem = async () => {
+    if (!user?.uid) return;
     try {
-      const { status } = await Notifications.requestPermissionsAsync();
-      if (status !== 'granted') {
+      const { status: notificationStatus } = await Notifications.requestPermissionsAsync();
+      if (notificationStatus !== 'granted') {
         Alert.alert('Permission Required', 'Notifications are required for this safety system');
         return;
       }
       console.log('✅ Notification permissions granted.');
+
+      const userDocRef = doc(db, 'users', user.uid);
+      const userDocSnap = await getDoc(userDocRef);
+      if (userDocSnap.exists()) {
+        const userData = userDocSnap.data();
+        if (userData.locationPermission) {
+          setLocationPermissionStatus(userData.locationPermission);
+        }
+      }
 
       if (Platform.OS === 'android') {
         await Notifications.setNotificationChannelAsync('tracking', {
@@ -437,26 +450,32 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
     }
 
     // Request foreground permissions first
-    let { status: foregroundStatus } = await Location.requestForegroundPermissionsAsync();
-    if (foregroundStatus !== 'granted') {
-      Alert.alert(
-        "Permission Required",
-        "Location access is required for tracking to work.",
-        [{ text: "OK" }]
-      );
-      return;
-    }
+    // let { status: foregroundStatus } = await Location.requestForegroundPermissionsAsync ();
+    // console.log("Foreground permission status:", foregroundStatus);
+    // if (foregroundStatus === 'denied') {
+    // // if (foregroundStatus !== 'granted') {
+    //   Alert.alert(
+    //     "Permission Required!!!!",
+    //     "Location access is required for tracking to work.",
+    //     [{ text: "OK" }]
+    //   );
+    //   return;
+    // }
 
-    // Then request background permissions
-    let { status: backgroundStatus } = await Location.requestBackgroundPermissionsAsync();
-    if (backgroundStatus !== 'granted') {
-      Alert.alert(
-        "Permission Required",
-        "Background location access is required for emergency tracking to work properly.",
-        [{ text: "OK" }]
-      );
-      return;
-    }
+    // // Then request background permissions
+    // let { status: backgroundStatus } = await Location.requestBackgroundPermissionsAsync();
+    // setLocationPermissionStatus(backgroundStatus);
+    
+    // console.log("Background permission status:", backgroundStatus);
+    // if (backgroundStatus === 'denied') {
+    // // if (backgroundStatus !== 'granted') {
+    //   Alert.alert(
+    //     "Permission Required",
+    //     "Background location access is required for emergency tracking to work properly.",
+    //     [{ text: "OK" }]
+    //   );
+    //   return;
+    // }
 
     try {
       const modeRef = doc(db, 'TrackingMode', modeId);
@@ -760,7 +779,10 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
       reportDeadline,
       nextCheckInTime,
       createTrackingMode,
-      deleteTrackingMode
+      deleteTrackingMode,
+
+      locationPermissionStatus,
+      setLocationPermissionStatus
     }}>
       {children}
     </TrackingContext.Provider>
