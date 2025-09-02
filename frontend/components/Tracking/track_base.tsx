@@ -41,7 +41,7 @@ export default function TrackModeCard({ id, name, contacts, checkIntervalMinutes
   return (
     <View style={styles.container}>
       <TouchableOpacity style={styles.header} onPress={() => startTrackingMode(id, checkIntervalMinutes, defaultReductionMinutes)} activeOpacity={0.8}>
-        <Text style={styles.headerText}>開起{name}模式</Text>
+        <Text style={styles.headerText}>開啟{name}模式</Text>
       </TouchableOpacity>
       <Animated.View style={[styles.bottom, { height: expandedHeight }]}>
         <TouchableOpacity style={styles.bottomContent} onPress={handlePress} activeOpacity={0.8}>
