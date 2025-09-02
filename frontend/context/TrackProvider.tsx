@@ -132,6 +132,7 @@ defineTask(BACKGROUND_LOCATION_TASK,
     }
 
     const userId = await AsyncStorage.getItem(STORAGE_KEYS.CURRENT_USER_ID);
+    console.log('User ID from AsyncStorage in background task:', userId);
     if (!userId) {
       console.error("❌ Background task could not find user ID. Stopping.");
       await Location.stopLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
@@ -363,7 +364,8 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
     let currentTime = startTime;
     let currentSessionDuration = sessionDurationMs;
     
-    for (let strike = 0; strike < 3; strike++) {
+    for (let strike = 0; strike < 1; strike++) {
+    // for (let strike = 0; strike < 3; strike++) {
       const sessionEndTime = currentTime + currentSessionDuration;
       const reportDeadlineTime = sessionEndTime + reportDurationMs;
       timeline.push({
@@ -483,7 +485,10 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
 
       const sessionMs = sessionMinutes * 60 * 1000;
       const reductionMs = reductionMinutes * 60 * 1000;
-      const reportMs = 3 * 60 * 1000;
+      const reportMs = 3 * 1 * 1000;
+      // const sessionMs = sessionMinutes * 3 * 1000;
+      // const reductionMs = reductionMinutes * 3 * 1000;
+      // const reportMs = 3 * 3 * 1000;
       const startTime = Date.now();
 
       const activeMode = trackingModes.find(mode => mode.id === modeId);
@@ -535,6 +540,7 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
       await AsyncStorage.setItem(STORAGE_KEYS.INITIAL_SESSION_MINUTES, sessionMinutes.toString());
       await AsyncStorage.setItem(STORAGE_KEYS.INITIAL_REDUCTION_MINUTES, reductionMinutes.toString());
       await AsyncStorage.setItem(STORAGE_KEYS.CURRENT_USER_ID, user.uid);
+      console.log('User ID set in AsyncStorage:', user.uid);
       await AsyncStorage.setItem(STORAGE_KEYS.EMERGENCY_CONTACT_IDS, JSON.stringify(emergencyContactIds));
       
       setTimeline(calculatedTimeline);
@@ -588,9 +594,14 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
       const initialSessionMinutesStr = await AsyncStorage.getItem(STORAGE_KEYS.INITIAL_SESSION_MINUTES);
       const initialReductionMinutesStr = await AsyncStorage.getItem(STORAGE_KEYS.INITIAL_REDUCTION_MINUTES);
 
+      // const sessionMs = initialSessionMinutesStr ? parseInt(initialSessionMinutesStr) * 5 * 1000 : 30 * 5 * 1000;
+      // const reductionMs = initialReductionMinutesStr ? parseInt(initialReductionMinutesStr) * 5 * 1000 : 10 * 5 * 1000;
       const sessionMs = initialSessionMinutesStr ? parseInt(initialSessionMinutesStr) * 60 * 1000 : 30 * 60 * 1000;
       const reductionMs = initialReductionMinutesStr ? parseInt(initialReductionMinutesStr) * 60 * 1000 : 10 * 60 * 1000;
-      const reportMs = 3 * 60 * 1000;
+      // const reportMs = 3 * 60 * 1000;
+
+      const reportMs = 1 * 5 * 1000;
+
       const newStartTime = Date.now();
 
       console.log('🔄 Recalculating timeline from current time...');
