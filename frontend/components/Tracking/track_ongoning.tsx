@@ -21,7 +21,9 @@ const Card_ongoing = ({ trackingMode }: { trackingMode: TrackingMode }) => {
     if (nextCheckInTime) {
       const updateRemaining = () => {
         const now = Date.now();
+
         const timeLeft = Math.max(0, Math.ceil((nextCheckInTime - now) / 1000));
+        // const timeLeft = 20;
         setRemainingTime(timeLeft);
       };
 

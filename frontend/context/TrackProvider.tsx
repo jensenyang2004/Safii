@@ -54,10 +54,6 @@ type TrackingContextType = {
   isReportDue: boolean;
   reportDeadline: number | null;
   nextCheckInTime: number | null;
-  createTrackingMode: (mode: TrackingMode) => Promise<void>;
-  deleteTrackingMode: (modeId: string) => Promise<void>;
-  locationPermissionStatus: string | null;
-  setLocationPermissionStatus: React.Dispatch<React.SetStateAction<string | null>>;
 };
 
 const TrackingContext = createContext<TrackingContextType | null>(null);
@@ -132,7 +128,7 @@ defineTask(BACKGROUND_LOCATION_TASK,
     }
 
     const userId = await AsyncStorage.getItem(STORAGE_KEYS.CURRENT_USER_ID);
-    console.log('User ID from AsyncStorage in background task:', userId);
+    console.log("TrackProvider userId:", userId);
     if (!userId) {
       console.error("❌ Background task could not find user ID. Stopping.");
       await Location.stopLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
@@ -201,7 +197,6 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
   const [isReportDue, setIsReportDue] = useState<boolean>(false);
   const [reportDeadline, setReportDeadline] = useState<number | null>(null);
   const [nextCheckInTime, setNextCheckInTime] = useState<number | null>(null);
-  const [locationPermissionStatus, setLocationPermissionStatus] = useState<string | null>(null);
 
   useEffect(() => {
     initializeSystem();
@@ -209,23 +204,13 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
   }, []);
 
   const initializeSystem = async () => {
-    if (!user?.uid) return;
     try {
-      const { status: notificationStatus } = await Notifications.requestPermissionsAsync();
-      if (notificationStatus !== 'granted') {
+      const { status } = await Notifications.requestPermissionsAsync();
+      if (status !== 'granted') {
         Alert.alert('Permission Required', 'Notifications are required for this safety system');
         return;
       }
       console.log('✅ Notification permissions granted.');
-
-      const userDocRef = doc(db, 'users', user.uid);
-      const userDocSnap = await getDoc(userDocRef);
-      if (userDocSnap.exists()) {
-        const userData = userDocSnap.data();
-        if (userData.locationPermission) {
-          setLocationPermissionStatus(userData.locationPermission);
-        }
-      }
 
       if (Platform.OS === 'android') {
         await Notifications.setNotificationChannelAsync('tracking', {
@@ -364,8 +349,7 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
     let currentTime = startTime;
     let currentSessionDuration = sessionDurationMs;
     
-    for (let strike = 0; strike < 1; strike++) {
-    // for (let strike = 0; strike < 3; strike++) {
+    for (let strike = 0; strike < 3; strike++) {
       const sessionEndTime = currentTime + currentSessionDuration;
       const reportDeadlineTime = sessionEndTime + reportDurationMs;
       timeline.push({
@@ -450,45 +434,13 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
       Alert.alert('Error', 'User not authenticated.');
       return;
     }
-
-    // Request foreground permissions first
-    // let { status: foregroundStatus } = await Location.requestForegroundPermissionsAsync ();
-    // console.log("Foreground permission status:", foregroundStatus);
-    // if (foregroundStatus === 'denied') {
-    // // if (foregroundStatus !== 'granted') {
-    //   Alert.alert(
-    //     "Permission Required!!!!",
-    //     "Location access is required for tracking to work.",
-    //     [{ text: "OK" }]
-    //   );
-    //   return;
-    // }
-
-    // // Then request background permissions
-    // let { status: backgroundStatus } = await Location.requestBackgroundPermissionsAsync();
-    // setLocationPermissionStatus(backgroundStatus);
-    
-    // console.log("Background permission status:", backgroundStatus);
-    // if (backgroundStatus === 'denied') {
-    // // if (backgroundStatus !== 'granted') {
-    //   Alert.alert(
-    //     "Permission Required",
-    //     "Background location access is required for emergency tracking to work properly.",
-    //     [{ text: "OK" }]
-    //   );
-    //   return;
-    // }
-
     try {
       const modeRef = doc(db, 'TrackingMode', modeId);
       await updateDoc(modeRef, { On: true });
 
       const sessionMs = sessionMinutes * 60 * 1000;
       const reductionMs = reductionMinutes * 60 * 1000;
-      const reportMs = 3 * 1 * 1000;
-      // const sessionMs = sessionMinutes * 3 * 1000;
-      // const reductionMs = reductionMinutes * 3 * 1000;
-      // const reportMs = 3 * 3 * 1000;
+      const reportMs = 3 * 60 * 1000;
       const startTime = Date.now();
 
       const activeMode = trackingModes.find(mode => mode.id === modeId);
@@ -497,7 +449,7 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
         return;
       }
 
-      const emergencyContactIds: string[] = activeMode.emergencyContactIds || [];
+      const emergencyContactIds: string[] = activeMode.contacts.map((c: any) => String(c.id));
 
       console.log('🚀 Starting tracking with pre-calculated timeline...');
       
@@ -540,7 +492,6 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
       await AsyncStorage.setItem(STORAGE_KEYS.INITIAL_SESSION_MINUTES, sessionMinutes.toString());
       await AsyncStorage.setItem(STORAGE_KEYS.INITIAL_REDUCTION_MINUTES, reductionMinutes.toString());
       await AsyncStorage.setItem(STORAGE_KEYS.CURRENT_USER_ID, user.uid);
-      console.log('User ID set in AsyncStorage:', user.uid);
       await AsyncStorage.setItem(STORAGE_KEYS.EMERGENCY_CONTACT_IDS, JSON.stringify(emergencyContactIds));
       
       setTimeline(calculatedTimeline);
@@ -594,14 +545,9 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
       const initialSessionMinutesStr = await AsyncStorage.getItem(STORAGE_KEYS.INITIAL_SESSION_MINUTES);
       const initialReductionMinutesStr = await AsyncStorage.getItem(STORAGE_KEYS.INITIAL_REDUCTION_MINUTES);
 
-      // const sessionMs = initialSessionMinutesStr ? parseInt(initialSessionMinutesStr) * 5 * 1000 : 30 * 5 * 1000;
-      // const reductionMs = initialReductionMinutesStr ? parseInt(initialReductionMinutesStr) * 5 * 1000 : 10 * 5 * 1000;
       const sessionMs = initialSessionMinutesStr ? parseInt(initialSessionMinutesStr) * 60 * 1000 : 30 * 60 * 1000;
       const reductionMs = initialReductionMinutesStr ? parseInt(initialReductionMinutesStr) * 60 * 1000 : 10 * 60 * 1000;
-      // const reportMs = 3 * 60 * 1000;
-
-      const reportMs = 1 * 5 * 1000;
-
+      const reportMs = 3 * 60 * 1000;
       const newStartTime = Date.now();
 
       console.log('🔄 Recalculating timeline from current time...');
@@ -703,7 +649,14 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
         }
       }
 
-      await AsyncStorage.multiRemove(Object.values(STORAGE_KEYS));
+
+      const keys = Object.values(STORAGE_KEYS);
+      if (isEmergency) {
+        const keysToRemove = keys.filter(k => k !== STORAGE_KEYS.CURRENT_USER_ID);
+        await AsyncStorage.multiRemove(keysToRemove);
+      } else {
+        await AsyncStorage.multiRemove(keys);
+      }
       
       setIsTracking(false);
       setTrackingModeId(null);
@@ -720,24 +673,6 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
     }
   };
 
-  const createTrackingMode = async (mode: Omit<TrackingMode, 'id'>) => {
-    try {
-      const docRef = await addDoc(collection(db, 'TrackingMode'), mode); // Use addDoc to create a new document
-      setTrackingModes((prevModes) => [...prevModes, { id: docRef.id, ...mode }]); // Update state with the new mode
-    } catch (error) {
-      console.error('Failed to create tracking mode:', error);
-      throw error;
-    }
-  };
-
-  const deleteTrackingMode = async (modeId: string) => {
-    try {
-      await deleteDoc(doc(db, 'TrackingMode', modeId)); // Delete from Firebase
-      setTrackingModes((prevModes) => prevModes.filter((mode) => mode.id !== modeId)); // Update state
-    } catch (error) {
-      console.error('Failed to delete tracking mode:', error);
-    }
-  };
 
   const fetchTrackingModesWithContacts = async (userId: string) => {
     try {
@@ -789,11 +724,6 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
       isReportDue,
       reportDeadline,
       nextCheckInTime,
-      createTrackingMode,
-      deleteTrackingMode,
-
-      locationPermissionStatus,
-      setLocationPermissionStatus
     }}>
       {children}
     </TrackingContext.Provider>
