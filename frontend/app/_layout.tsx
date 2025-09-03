@@ -13,6 +13,7 @@ import { Text, ActivityIndicator, View } from 'react-native';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { AuthProvider, useAuth } from '@/context/AuthProvider';
 import { TrackingProvider } from '@/context/TrackProvider';
+import { NotificationProvider } from '@/context/NotificationProvider';
 import '@/global.css';
 import * as SecureStore from 'expo-secure-store'; // 導入 SecureStore
 
@@ -30,9 +31,7 @@ export default function RootLayout() {
 
   const [onboardingComplete, setOnboardingComplete] = useState<boolean | null>(null); // 新增狀態
   const segments = useSegments(); // Get the current segments
-
-  const isSettingsPage = segments.includes('(modals)') && segments.includes('settings'); // Check if it's the settings page
-
+  
   useEffect(() => {
     async function checkOnboardingStatus() {
       const status = await SecureStore.getItemAsync(ONBOARDING_COMPLETED_KEY);
@@ -60,10 +59,12 @@ export default function RootLayout() {
     <AuthProvider>
       <FriendProvider>
         <TrackingProvider>
-          <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-            <RootLayoutNav />
-            <StatusBar style="auto" />
-          </ThemeProvider>
+          <NotificationProvider>
+            <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+              <RootLayoutNav />
+              <StatusBar style="auto" />
+            </ThemeProvider>
+          </NotificationProvider>
         </TrackingProvider>
       </FriendProvider>
     </AuthProvider>
