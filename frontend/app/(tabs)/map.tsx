@@ -1,3 +1,5 @@
+// app/(tabs)/map.tsx
+
 import {
   View,
   StyleSheet,
