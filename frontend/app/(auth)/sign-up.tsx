@@ -19,6 +19,10 @@ export default function SignUp() {
   const [username, setUsername] = useState('');
 
   const handleSignUp = async () => {
+    if (!email || !password || !username || !confirmPassword) {
+        Alert.alert('錯誤', '請填寫所有欄位');
+        return;
+    }
     if (password !== confirmPassword) {
       Alert.alert('錯誤', '密碼與確認密碼不符');
       return;
@@ -69,7 +73,7 @@ export default function SignUp() {
             Alert.alert('註冊失敗', '此電子郵件已經註冊。');
             break;
           case 'auth/invalid-email':
-            Alert.alert('註冊失敗', '請輸入有效的電子郵件地。');
+            Alert.alert('註冊失敗', '請輸入有效的電子郵件地址。');
             break;
           case 'auth/weak-password':
             Alert.alert('註冊失敗', '密碼強度不足，請使用 6 個以上字元。');
@@ -86,16 +90,11 @@ export default function SignUp() {
 
   return (
     <>
-      {/* <Stack.Screen
-        options={{
-          animation: 'slide_from_left',
-          presentation: 'modal',
-        }}
-      /> */}
       <Stack.Screen
         options={{
           animation: 'slide_from_right',
           presentation: 'card',
+          headerShown: false,
         }}
       />
 
@@ -103,50 +102,62 @@ export default function SignUp() {
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => {
-            router.replace({
-              pathname: '/(auth)/sign-in',
-            });
+            if (router.canGoBack()) {
+                router.back();
+            } else {
+                router.replace('/(auth)/sign-in');
+            }
           }}
-        // onPress={() => router.replace('/(auth)/sign-in')}
         >
-          <AntDesign name="arrowleft" size={24} color="black" />
+          <AntDesign name="arrowleft" size={28} color="#F18C8E" />
         </TouchableOpacity>
         <View style={styles.formContainer}>
-          <Text style={styles.title}>Create Account</Text>
+          <Text style={styles.title}>建立帳號</Text>
 
-          <TextInput
-            style={styles.input}
-            placeholder="Email"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-          />
+          <View style={styles.inputWrapper}>
+            <TextInput
+              style={styles.input}
+              placeholder="電子郵件"
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              placeholderTextColor="#A9A9A9"
+            />
+          </View>
 
-          <TextInput
-            style={styles.input}
-            placeholder="使用者名稱"
-            value={username}
-            onChangeText={setUsername}
-            autoCapitalize="none"
-          />
+          <View style={styles.inputWrapper}>
+            <TextInput
+              style={styles.input}
+              placeholder="使用者名稱"
+              value={username}
+              onChangeText={setUsername}
+              autoCapitalize="none"
+              placeholderTextColor="#A9A9A9"
+            />
+          </View>
 
-          <TextInput
-            style={styles.input}
-            placeholder="密碼"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-          />
+          <View style={styles.inputWrapper}>
+            <TextInput
+              style={styles.input}
+              placeholder="密碼"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              placeholderTextColor="#A9A9A9"
+            />
+          </View>
 
-
-          <TextInput
-            style={styles.input}
-            placeholder="確認密碼"
-            value={confirmPassword}
-            onChangeText={setConfirmPassword}
-            secureTextEntry
-          />
+          <View style={styles.inputWrapper}>
+            <TextInput
+              style={styles.input}
+              placeholder="確認密碼"
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              secureTextEntry
+              placeholderTextColor="#A9A9A9"
+            />
+          </View>
 
           <TouchableOpacity
             style={[styles.button, loading && styles.buttonDisabled]}
@@ -159,79 +170,72 @@ export default function SignUp() {
               <Text style={styles.buttonText}>註冊</Text>
             )}
           </TouchableOpacity>
-
-          {/* <TouchableOpacity
-            style={styles.googleButton}
-            onPress={() => console.log('Sign up with Google')} // Replace with Google sign-up logic
-            disabled={loading} // Disable the button while loading
-          >
-            {loading ? (
-              <ActivityIndicator color="white" /> // Show loading indicator
-            ) : (
-              <Text style={styles.buttonText}>Sign Up with Google</Text>
-            )}
-          </TouchableOpacity> */}
-
         </View>
       </SafeAreaView>
     </>
-
   )
 }
 
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  formContainer: {
-    flex: 1,
-    padding: 20,
-    justifyContent: 'center',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 30,
-    textAlign: 'center',
-  },
-  input: {
-    height: 50,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    paddingHorizontal: 15,
-    marginBottom: 15,
-    fontSize: 16,
-  },
-  button: {
-    backgroundColor: '#007AFF',
-    height: 50,
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 20,
-  },
-  buttonDisabled: { opacity: 0.6 },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  backButton: {
-    position: 'absolute',
-    top: 50,
-    left: 20,
-    zIndex: 1,
-    padding: 10,
-  },
-  googleButton: {
-    backgroundColor: '#DB4437',
-    height: 50,
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 20,
-  },
+    container: {
+        flex: 1,
+        backgroundColor: '#FFF6F0',
+    },
+    formContainer: {
+        flex: 1,
+        padding: 24,
+        justifyContent: 'center',
+    },
+    backButton: {
+        position: 'absolute',
+        top: 60,
+        left: 24,
+        zIndex: 1,
+        padding: 10,
+    },
+    title: {
+        fontSize: 32,
+        fontWeight: 'bold',
+        marginBottom: 40,
+        textAlign: 'center',
+        color: '#333',
+    },
+    inputWrapper: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: 20,
+        marginBottom: 20,
+        shadowColor: '#000',
+        shadowOpacity: 0.08,
+        shadowRadius: 8,
+        shadowOffset: { width: 0, height: 4 },
+        elevation: 5,
+    },
+    input: {
+        height: 55,
+        paddingHorizontal: 20,
+        fontSize: 16,
+        color: '#333',
+    },
+    button: {
+        backgroundColor: '#F18C8E',
+        borderRadius: 20,
+        paddingVertical: 18,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginTop: 10,
+        shadowColor: '#F18C8E',
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        shadowOffset: { width: 0, height: 4 },
+        elevation: 5,
+    },
+    buttonDisabled: { 
+        opacity: 0.6 
+    },
+    buttonText: {
+        color: '#fff',
+        fontSize: 18,
+        fontWeight: 'bold',
+    },
 })

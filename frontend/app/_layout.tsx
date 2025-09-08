@@ -1,11 +1,9 @@
-// app/_layout.tsx
-
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
-import { Slot, Stack, router, useSegments } from 'expo-router'; // 確保導入 router 和 useSegments
-import { hideAsync } from 'expo-splash-screen';
+import { Stack, router, useSegments } from 'expo-router';
+import { hideAsync, preventAutoHideAsync } from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import React, { useEffect, useState } from 'react'; // 導入 useState
+import React, { useEffect, useState } from 'react';
 import 'react-native-reanimated';
 import { FriendProvider } from '../context/FriendProvider';
 
@@ -15,13 +13,13 @@ import { AuthProvider, useAuth } from '@/context/AuthProvider';
 import { TrackingProvider } from '@/context/TrackProvider';
 import { NotificationProvider } from '@/context/NotificationProvider';
 import '@/global.css';
-import * as SecureStore from 'expo-secure-store'; // 導入 SecureStore
+import * as SecureStore from 'expo-secure-store';
+import { usePermissions } from '../hooks/usePermissions';
 
-const ONBOARDING_COMPLETED_KEY = 'onboarding_completed'; // 與 OnboardingScreen 中使用的鍵相同
+const ONBOARDING_COMPLETED_KEY = 'onboarding_completed';
 
-// SplashScreen.preventAutoHideAsync(); // 保持這行或根據需要調整
-
-
+// Prevent the splash screen from auto-hiding before asset loading is complete.
+preventAutoHideAsync();
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
@@ -29,30 +27,14 @@ export default function RootLayout() {
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
   });
 
-  const [onboardingComplete, setOnboardingComplete] = useState<boolean | null>(null); // 新增狀態
-  const segments = useSegments(); // Get the current segments
-  
   useEffect(() => {
-    async function checkOnboardingStatus() {
-      const status = await SecureStore.getItemAsync(ONBOARDING_COMPLETED_KEY);
-      setOnboardingComplete(status === 'true');
-    }
-    checkOnboardingStatus();
-  }, []);
-
-  useEffect(() => {
-    if (loaded && onboardingComplete !== null) { // 確保字體和 Onboarding 狀態都已加載
+    if (loaded) {
       hideAsync();
     }
-  }, [loaded, onboardingComplete]); // 依賴新增的 onboardingComplete 狀態
+  }, [loaded]);
 
-  if (!loaded || onboardingComplete === null) { // 在加載完成前顯示加載指示器
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#1E40AF" />
-        <Text>Loading app...</Text>
-      </View>
-    );
+  if (!loaded) {
+    return null;
   }
 
   return (
@@ -72,16 +54,58 @@ export default function RootLayout() {
 }
 
 function RootLayoutNav() {
-  const { user, loading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
+  const [onboardingComplete, setOnboardingComplete] = useState<boolean | null>(null);
+  const { allPermissionsGranted, isLoading: permissionsLoading } = usePermissions();
+  const segments = useSegments();
 
-  const isAuthenticated = user !== null;
+  useEffect(() => {
+    async function checkOnboardingStatus() {
+      const status = await SecureStore.getItemAsync(ONBOARDING_COMPLETED_KEY);
+      setOnboardingComplete(status === 'true');
+    }
+    checkOnboardingStatus();
+  }, []);
 
-  if (loading) return (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-      <ActivityIndicator size="large" color="#1E40AF" />
-      <Text>Loading user...</Text>
-    </View>
-  );
+  useEffect(() => {
+    const inAuthGroup = segments[0] === '(auth)';
+    const inOnboardingGroup = segments[0] === '(onboarding)';
+
+    // Wait until auth, onboarding, and permissions status are loaded
+    if (authLoading || onboardingComplete === null || permissionsLoading) {
+      return;
+    }
+
+    if (!user) {
+      // User is not signed in, redirect to sign-in screen.
+      if (!inAuthGroup) {
+        router.replace('/(auth)/sign-in');
+      }
+    } else { // User is signed in
+      // If onboarding is not complete OR permissions are missing, go to onboarding.
+      if (!onboardingComplete || !allPermissionsGranted) {
+        if (!inOnboardingGroup) {
+          router.replace('/(onboarding)');
+        }
+      } else {
+        // User is fully authenticated, onboarded, and has permissions.
+        // If they are on a page in the auth or onboarding group, redirect to home.
+        if (inAuthGroup || inOnboardingGroup) {
+          router.replace('/(tabs)/home');
+        }
+      }
+    }
+  }, [user, onboardingComplete, allPermissionsGranted, segments, authLoading, permissionsLoading]);
+
+  // Show a loading screen while we check all statuses
+  if (authLoading || onboardingComplete === null || permissionsLoading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color="#1E40AF" />
+        <Text>Loading session...</Text>
+      </View>
+    );
+  }
 
   return (
     <Stack>
@@ -90,36 +114,5 @@ function RootLayoutNav() {
       <Stack.Screen name="(modals)" options={{ headerShown: false }} />
       <Stack.Screen name="(onboarding)" options={{ headerShown: false }} />
     </Stack>
-    
-    // <Stack>
-    //   {isAuthenticated ? (
-    //     <>
-    //       {/* <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-    //       <Stack.Screen name="(modals)" options={{ headerShown: false }} />
-    //       <Stack.Screen
-    //         name="(tabs)/settings"
-    //         options={
-    //           {
-    //             presentation: 'modal',
-    //             animation: 'slide_from_right',
-    //             headerShown: false,
-    //           }
-    //         }
-    //       />
-    //       <Stack.Screen
-    //         name="interactive-call"
-    //         options={{
-    //           headerShown: false,
-    //           presentation: 'fullScreenModal',
-    //           animation: 'fade',
-    //           gestureEnabled: true,
-    //           gestureDirection: 'vertical',
-    //         }}
-    //       /> */}
-    //     </>
-    //   ) : (
-    //     <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-    //   )}
-    // </Stack>
   );
 }

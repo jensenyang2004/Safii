@@ -718,8 +718,58 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
   };
 
   useEffect(() => {
+
     if (user?.uid) {
       fetchTrackingModesWithContacts(user.uid);
+    } else {
+      // User has signed out, so we need to perform a full cleanup.
+      const signOutCleanup = async () => {
+        console.log('Auth state changed: User signed out. Cleaning up all tracking tasks and data.');
+
+        // 1. Stop the background location task unconditionally
+        if (await Location.hasStartedLocationUpdatesAsync(BACKGROUND_LOCATION_TASK)) {
+          await Location.stopLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
+          console.log('✅ Background location tracking stopped due to sign-out.');
+        }
+
+        // 2. Cancel all scheduled notifications
+        await Notifications.cancelAllScheduledNotificationsAsync();
+        console.log('🧹 Cancelled all scheduled notifications due to sign-out.');
+
+        // 3. Deactivate the 'dead man's switch' in Firestore
+        const trackingDocId = await AsyncStorage.getItem(STORAGE_KEYS.ACTIVE_TRACKING_DOC_ID);
+        if (trackingDocId) {
+          const trackingDocRef = doc(db, 'active_tracking', trackingDocId);
+          try {
+            await updateDoc(trackingDocRef, {
+              isActive: false,
+              stoppedAt: serverTimestamp(),
+              overallStatus: 'cancelled_by_sign_out'
+            });
+            console.log("✅ Dead man's switch deactivated in Firestore for sign-out.");
+          } catch(e) {
+            console.error("Failed to update tracking doc on sign-out", e)
+          }
+        }
+
+        // 4. Clear all tracking-related data from AsyncStorage
+        const keys = Object.values(STORAGE_KEYS);
+        await AsyncStorage.multiRemove(keys);
+        console.log('🧹 Cleared all tracking data from storage due to sign-out.');
+
+        // 5. Reset the context's state
+        setIsTracking(false);
+        setTrackingModeId(null);
+        setTimeline([]);
+        setCurrentStrike(0);
+        setIsReportDue(false);
+        setReportDeadline(null);
+        setNextCheckInTime(null);
+        setTrackingModes([]); // Clear tracking modes as well
+        console.log('🛑 Tracking context state reset due to sign-out.');
+      };
+
+      signOutCleanup();
     }
   }, [user]);
 
