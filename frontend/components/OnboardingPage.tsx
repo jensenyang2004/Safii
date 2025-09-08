@@ -1,13 +1,16 @@
 import React from 'react';
 import { View, Text, StyleSheet, Dimensions, TouchableOpacity } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const { width } = Dimensions.get('window');
 
 interface OnboardingPageProps {
   title: string;
   description: string;
-  onPress?: () => void; // Optional for "Get Started" button
+  onPress?: () => void;
   buttonText?: string;
+  backgroundColor: string[];
+  disabled?: boolean; // New disabled prop
 }
 
 const OnboardingPage: React.FC<OnboardingPageProps> = ({
@@ -15,17 +18,25 @@ const OnboardingPage: React.FC<OnboardingPageProps> = ({
   description,
   onPress,
   buttonText,
+  backgroundColor,
+  disabled,
 }) => {
   return (
-    <View style={styles.container}>
+    <LinearGradient colors={backgroundColor} style={styles.container}>
       <Text style={styles.title}>{title}</Text>
       <Text style={styles.description}>{description}</Text>
-      {onPress && buttonText && (
-        <TouchableOpacity style={styles.button} onPress={onPress}>
-          <Text style={styles.buttonText}>{buttonText}</Text>
+      {buttonText && ( // Render button if text is present, not tied to onPress
+        <TouchableOpacity
+          style={[styles.button, disabled && styles.disabledButton]}
+          onPress={onPress}
+          disabled={disabled}
+        >
+          <Text style={[styles.buttonText, disabled && styles.disabledButtonText]}>
+            {buttonText}
+          </Text>
         </TouchableOpacity>
       )}
-    </View>
+    </LinearGradient>
   );
 };
 
@@ -36,7 +47,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 20,
-    backgroundColor: '#333', // A simple background color
   },
   title: {
     fontSize: 28,
@@ -62,7 +72,13 @@ const styles = StyleSheet.create({
   buttonText: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#333', // Match background
+    color: '#333',
+  },
+  disabledButton: {
+    backgroundColor: '#a9a9a9',
+  },
+  disabledButtonText: {
+    color: '#696969',
   },
 });
 

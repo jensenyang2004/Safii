@@ -1,53 +1,97 @@
-import React, { useRef, useState } from 'react';
-import { View, Text, StyleSheet, Dimensions, TouchableOpacity } from 'react-native';
+import React, { useRef, useState, useEffect } from 'react';
+import { View, StyleSheet, Dimensions, TouchableOpacity, Linking } from 'react-native';
 import PagerView from 'react-native-pager-view';
-import OnboardingPage from '../../components/OnboardingPage'; // Adjust path
+import OnboardingPage from '../../components/OnboardingPage';
 import { router } from 'expo-router';
-import * as SecureStore from 'expo-secure-store'; // Using SecureStore for sensitive flag
+import * as SecureStore from 'expo-secure-store';
 import { AntDesign } from '@expo/vector-icons';
+import * as Notifications from 'expo-notifications';
+import * as Location from 'expo-location';
+import { usePermissions } from '../../hooks/usePermissions';
 
 const { width } = Dimensions.get('window');
-
 const ONBOARDING_COMPLETED_KEY = 'onboarding_completed';
 
 export default function OnboardingScreen() {
   const pagerRef = useRef<PagerView>(null);
   const [activeIndex, setActiveIndex] = useState(0);
 
+  const { 
+    notificationStatus, 
+    locationStatus, 
+    allPermissionsGranted, 
+    checkPermissions 
+  } = usePermissions();
+
+
+  const requestNotificationPermission = async () => {
+    await Notifications.requestPermissionsAsync();
+    checkPermissions(); // Re-check permissions to update the global state
+  };
+
+  const requestLocationPermission = async () => {
+    await Location.requestBackgroundPermissionsAsync();
+    checkPermissions(); // Re-check permissions to update the global state
+  };
+
+  const openAppSettings = () => {
+    Linking.openSettings();
+  };
+
   const handleOnboardingComplete = async () => {
-    await SecureStore.setItemAsync(ONBOARDING_COMPLETED_KEY, 'true');
-    router.replace('/(auth)/sign-in'); // Navigate to your sign-in or main app route
+    if (allPermissionsGranted) {
+      await SecureStore.setItemAsync(ONBOARDING_COMPLETED_KEY, 'true');
+      router.replace('/(auth)/sign-in');
+    }
   };
 
   const pages = [
     {
       title: '歡迎來到 Safii',
       description: '您的個人安全守護者，讓您與親友保持聯繫，確保安全。',
-      backgroundColor: ['#6200EE', '#BB86FC'], // 紫色漸變
+      backgroundColor: ['#6200EE', '#BB86FC'],
     },
     {
       title: '即時追蹤與通知',
       description: '在緊急情況下，Safii 會自動通知您的緊急聯絡人，並分享您的即時位置。',
-      backgroundColor: ['#03DAC6', '#018786'], // 青色漸變
+      backgroundColor: ['#03DAC6', '#018786'],
+    },
+    {
+      title: '開啟通知權限',
+      description: notificationStatus === 'granted'
+        ? '通知權限已開啟！'
+        : (notificationStatus === 'denied'
+          ? '通知權限是必要的，以便我們在您需要幫助時發送安全警報。請在設定中啟用權限。'
+          : '為了發送安全警報與提醒，請允許 Safii 發送通知。'),
+      backgroundColor: ['#CF6679', '#B00020'],
+      buttonText: notificationStatus === 'granted' ? '✓ 已經開啟' : (notificationStatus === 'denied' ? '開啟設定' : '允許通知'),
+      onPress: notificationStatus === 'denied' ? openAppSettings : requestNotificationPermission,
+      disabled: notificationStatus === 'granted',
     },
     {
       title: '開啟位置權限',
-      description: '為了您的安全，請務必開啟「永遠允許」位置權限，即使應用程式在背景也能追蹤。',
-      backgroundColor: ['#CF6679', '#B00020'], // 紅色漸變
-    },
-    {
-      title: '開啟位置權限',
-      description: '以隨時掌握與親友維持安全聯繫',
-      backgroundColor: ['#1E40AF', '#3B82F6'], // 藍色漸變
+      description: locationStatus === 'granted'
+        ? '位置權限已開啟！'
+        : (locationStatus === 'denied'
+          ? '「永遠允許」位置權限是 Safii 的核心功能，確保即使 App 在背景運作也能保護您的安全。'
+          : '為了在您需要時分享您的位置，請務必選擇「永遠允許」位置權限。'),
+      backgroundColor: ['#1E40AF', '#3B82F6'],
+      buttonText: locationStatus === 'granted' ? '✓ 已經開啟' : (locationStatus === 'denied' ? '開啟設定' : '允許位置權限'),
+      onPress: locationStatus === 'denied' ? openAppSettings : requestLocationPermission,
+      disabled: locationStatus === 'granted',
     },
     {
       title: '準備就緒！',
       description: '現在您已了解 Safii 的基本功能，讓我們開始使用吧！',
-      backgroundColor: ['#3700B3', '#6200EE'], // 深紫色漸變
+      backgroundColor: ['#3700B3', '#6200EE'],
       buttonText: '開始使用',
       onPress: handleOnboardingComplete,
+      disabled: !allPermissionsGranted,
     },
   ];
+
+  const isPermissionPage = activeIndex === 2 || activeIndex === 3;
+  const isCurrentPermissionGranted = (activeIndex === 2 && notificationStatus === 'granted') || (activeIndex === 3 && locationStatus === 'granted');
 
   return (
     <View style={styles.container}>
@@ -56,12 +100,16 @@ export default function OnboardingScreen() {
         initialPage={0}
         ref={pagerRef}
         onPageSelected={(e) => setActiveIndex(e.nativeEvent.position)}
+        scrollEnabled={!isPermissionPage || isCurrentPermissionGranted}
       >
         {pages.map((page, index) => (
-          <View key={index} style={styles.page}>
-            <OnboardingPage {...page} />
-          </View>
-        ))}
+            <View key={index} style={styles.page}>
+              <OnboardingPage
+                {...page}
+              />
+            </View>
+          )
+        )}
       </PagerView>
 
       {activeIndex > 0 && (
@@ -72,8 +120,7 @@ export default function OnboardingScreen() {
           <AntDesign name="arrowleft" size={24} color="white" />
         </TouchableOpacity>
       )}
-
-      {activeIndex < pages.length - 1 && (
+      {activeIndex < pages.length - 1 && (!isPermissionPage || isCurrentPermissionGranted) && (
         <TouchableOpacity
           style={[styles.arrow, styles.rightArrow]}
           onPress={() => pagerRef.current?.setPage(activeIndex + 1)}
