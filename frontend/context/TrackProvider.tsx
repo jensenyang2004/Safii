@@ -47,6 +47,8 @@ type TrackingContextType = {
   startTrackingMode: (modeId: any, sessionMinutes: number, reductionMinutes: number) => Promise<void>;
   stopTrackingMode: () => Promise<void>;
   reportSafety: () => Promise<void>;
+  createTrackingMode: (newMode: Omit<TrackingMode, 'id' | 'userId' | 'On'>) => Promise<void>;
+  deleteTrackingMode: (modeId: string) => Promise<void>;
   isTracking: boolean;
   trackingModeId: string | null;
   timeline: TimelineEvent[];
@@ -710,6 +712,40 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
     }
   }, [user]);
 
+  const createTrackingMode = async (newMode: Omit<TrackingMode, 'id' | 'userId' | 'On'>) => {
+    if (!user?.uid) {
+      Alert.alert('Error', 'User not authenticated.');
+      return;
+    }
+    try {
+      const trackingModeCollection = collection(db, 'TrackingMode');
+      await addDoc(trackingModeCollection, {
+        ...newMode,
+        userId: user.uid,
+        On: false,
+      });
+      // Refetch tracking modes to update the list
+      fetchTrackingModesWithContacts(user.uid);
+    } catch (error) {
+      console.error('Error creating tracking mode:', error);
+      Alert.alert('Error', 'Failed to create tracking mode.');
+    }
+  };
+
+  const deleteTrackingMode = async (modeId: string) => {
+    try {
+      const modeRef = doc(db, 'TrackingMode', modeId);
+      await deleteDoc(modeRef);
+      // Refetch tracking modes to update the list
+      if (user?.uid) {
+        fetchTrackingModesWithContacts(user.uid);
+      }
+    } catch (error) {
+      console.error('Error deleting tracking mode:', error);
+      Alert.alert('Error', 'Failed to delete tracking mode.');
+    }
+  };
+
   return (
     <TrackingContext.Provider value={{
       trackingModes,
@@ -717,6 +753,8 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
       startTrackingMode,
       stopTrackingMode,
       reportSafety,
+      createTrackingMode, // Expose the new function
+      deleteTrackingMode, // Expose the delete function
       isTracking,
       trackingModeId,
       timeline,
