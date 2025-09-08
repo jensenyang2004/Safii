@@ -21,7 +21,10 @@
         ],
         "NSLocationWhenInUseUsageDescription": "This app needs access to location when open to track your location in emergencies.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "This app needs access to location when in background for emergency tracking.",
-        "NSLocationAlwaysUsageDescription": "This app needs access to location when in background for emergency tracking."
+        "NSLocationAlwaysUsageDescription": "This app needs access to location when in background for emergency tracking.",
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true
+        }
       }
     },
     "android": {
