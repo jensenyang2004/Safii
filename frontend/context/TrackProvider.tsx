@@ -326,19 +326,30 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
       interval = setInterval(() => {
         const now = Date.now();
         if (now >= nextCheckInTime) {
-          loadAndReconcileState(); 
+          console.log('Foreground timer: Session ended. Triggering report due state.');
+          const currentEvent = timeline.find(event => event.type === 'session_end' && event.time === nextCheckInTime);
+          if (currentEvent && currentEvent.deadline) {
+            AsyncStorage.setItem(STORAGE_KEYS.REPORT_DEADLINE, currentEvent.deadline.toString())
+              .then(() => {
+                setReportDeadline(currentEvent.deadline);
+                setIsReportDue(true);
+              });
+          } else {
+            loadAndReconcileState();
+          }
         }
       }, 1000);
     } else if (isTracking && isReportDue && reportDeadline) {
       interval = setInterval(() => {
         const now = Date.now();
         if (now >= reportDeadline) {
+          console.log('Foreground timer: Report deadline missed. Reconciling state.');
           loadAndReconcileState();
         }
       }, 1000);
     }
     return () => clearInterval(interval);
-  }, [isTracking, isReportDue, nextCheckInTime, reportDeadline]);
+  }, [isTracking, isReportDue, nextCheckInTime, reportDeadline, timeline]);
 
 
   const calculateFullTimeline = ( 

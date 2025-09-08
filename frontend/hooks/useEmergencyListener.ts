@@ -36,9 +36,14 @@ export const useEmergencyListener = () => {
     const unsubscribe = onSnapshot(q, async (querySnapshot) => {
       setIsLoading(true);
       const now = Timestamp.now();
+      const oneDayAgo = Timestamp.fromMillis(now.toMillis() - (24 * 60 * 60 * 1000));
+
       const activeEmergencyDocs = querySnapshot.docs.filter(doc => {
         const session = doc.data();
-        return now > session.emergencyActivationTime;
+        // Emergency must be active (activation time is in the past) but not older than a day
+        return session.emergencyActivationTime && 
+               session.emergencyActivationTime < now && 
+               session.emergencyActivationTime > oneDayAgo;
       });
 
       const currentEmergencyIds = new Set(activeEmergencyDocs.map(d => d.id));
