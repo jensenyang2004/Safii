@@ -256,7 +256,7 @@ export default function HomeScreen() {
             {user?.displayName || user?.username || user?.nickname || user?.email || 'Unknown User'}
           </Text>
 
-          <ProfilePhotoUploader />
+          {/* <ProfilePhotoUploader /> */}
         </View>
 
         {/* Settings content starts here */}

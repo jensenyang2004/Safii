@@ -18,7 +18,8 @@ export default function OnboardingScreen() {
 
   const { 
     notificationStatus, 
-    locationStatus, 
+    backgroundLocationStatus, 
+    foregroundLocationStatus, 
     allPermissionsGranted, 
     checkPermissions 
   } = usePermissions();
@@ -30,7 +31,10 @@ export default function OnboardingScreen() {
   };
 
   const requestLocationPermission = async () => {
-    await Location.requestBackgroundPermissionsAsync();
+    const { status: foregroundStatus } = await Location.requestForegroundPermissionsAsync();
+    if (foregroundStatus === 'granted') {
+      await Location.requestBackgroundPermissionsAsync();
+    }
     checkPermissions(); // Re-check permissions to update the global state
   };
 
@@ -70,15 +74,15 @@ export default function OnboardingScreen() {
     },
     {
       title: '開啟位置權限',
-      description: locationStatus === 'granted'
+      description: backgroundLocationStatus === 'granted'
         ? '位置權限已開啟！'
-        : (locationStatus === 'denied'
+        : (backgroundLocationStatus === 'denied'
           ? '「永遠允許」位置權限是 Safii 的核心功能，確保即使 App 在背景運作也能保護您的安全。'
           : '為了在您需要時分享您的位置，請務必選擇「永遠允許」位置權限。'),
       backgroundColor: ['#1E40AF', '#3B82F6'],
-      buttonText: locationStatus === 'granted' ? '✓ 已經開啟' : (locationStatus === 'denied' ? '開啟設定' : '允許位置權限'),
-      onPress: locationStatus === 'denied' ? openAppSettings : requestLocationPermission,
-      disabled: locationStatus === 'granted',
+      buttonText: backgroundLocationStatus === 'granted' ? '✓ 已經開啟' : (backgroundLocationStatus === 'denied' ? '開啟設定' : '允許位置權限'),
+      onPress: backgroundLocationStatus === 'denied' ? openAppSettings : requestLocationPermission,
+      disabled: backgroundLocationStatus === 'granted',
     },
     {
       title: '準備就緒！',
@@ -91,7 +95,7 @@ export default function OnboardingScreen() {
   ];
 
   const isPermissionPage = activeIndex === 2 || activeIndex === 3;
-  const isCurrentPermissionGranted = (activeIndex === 2 && notificationStatus === 'granted') || (activeIndex === 3 && locationStatus === 'granted');
+  const isCurrentPermissionGranted = (activeIndex === 2 && notificationStatus === 'granted') || (activeIndex === 3 && (foregroundLocationStatus === 'granted' || backgroundLocationStatus === 'granted'));
 
   return (
     <View style={styles.container}>

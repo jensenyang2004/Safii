@@ -8,6 +8,7 @@ interface TrackingMode {
   name: string;
   checkIntervalMinutes: number;
   contacts: any[];
+  unresponsiveThreshold: number;
 }
 
 const Card_ongoing = ({ trackingMode }: { trackingMode: TrackingMode }) => {
@@ -42,7 +43,7 @@ const Card_ongoing = ({ trackingMode }: { trackingMode: TrackingMode }) => {
 
   const StrikeDots = () => (
     <View style={styles.strikeContainer}>
-      {[...Array(3)].map((_, i) => (
+      {[...Array(trackingMode?.unresponsiveThreshold || 3)].map((_, i) => (
         <View
           key={i}
           style={[

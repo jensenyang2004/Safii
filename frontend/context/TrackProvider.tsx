@@ -1,6 +1,6 @@
 // context/TrackingContext.tsx
 import React, { createContext, useState, useEffect, useContext } from 'react';
-import { collection, getDocs, doc, getDoc, updateDoc, query, where, addDoc, setDoc, Timestamp, serverTimestamp, deleteDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, updateDoc, query, where, addDoc, setDoc, Timestamp, serverTimestamp, deleteDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/libs/firebase';
 import * as TaskManager from 'expo-task-manager';
 import * as Location from 'expo-location';
@@ -9,6 +9,7 @@ import { defineTask } from 'expo-task-manager';
 import { Alert, AppState, Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { useAuth } from './AuthProvider';
+import { usePermissions } from '../hooks/usePermissions'; // ADDED
 
 const STORAGE_KEYS = {
   TIMELINE: 'calculated_timeline',
@@ -124,6 +125,42 @@ const requestBackgroundPermissions = async () => {
   return true;
 };
 
+// NEW REUSABLE FUNCTION
+const updateLocationInFirestore = async (location: Location.LocationObject, userId: string) => {
+  if (!userId) {
+    console.error("❌ updateLocationInFirestore: could not find user ID.");
+    return;
+  }
+  try {
+    const { latitude, longitude } = location.coords;
+    const updateTime = new Date(location.timestamp);
+
+    console.log('📍 Location Update:', { latitude, longitude, timestamp: updateTime.toISOString() });
+    
+    const userDocRef = doc(db, 'users', userId);
+    await setDoc(userDocRef, {}, { merge: true });
+
+    const locationData = {
+      lat: latitude,
+      long: longitude,
+      updateTime: Timestamp.fromDate(updateTime),
+    };
+
+    const realTimeRef = doc(db, 'users', userId, 'real_time_location', 'current');
+    await setDoc(realTimeRef, locationData, { merge: true });
+
+    const historyRef = collection(db, 'users', userId, 'location_history');
+    await addDoc(historyRef, locationData);
+
+    console.log(`✅ Successfully updated location for user ${userId}`);
+
+  } catch (dbError) {
+    console.error("❌ Failed to write location to Firebase:", dbError);
+  }
+};
+
+
+// UPDATED defineTask
 defineTask(BACKGROUND_LOCATION_TASK,
   async ({ data, error }: TaskManager.TaskManagerTaskBody<{ locations: Location.LocationObject[] } | undefined>) => {
     if (error) {
@@ -138,44 +175,14 @@ defineTask(BACKGROUND_LOCATION_TASK,
     }
 
     const userId = await AsyncStorage.getItem(STORAGE_KEYS.CURRENT_USER_ID);
-    console.log("TrackProvider userId:", userId);
     if (!userId) {
       console.error("❌ Background task could not find user ID. Stopping.");
       await Location.stopLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
       return;
     }
 
-    if (data && data.locations) {
-      const { locations } = data;
-      const currentLocation = locations[0];
-      if (currentLocation) {
-        const { latitude, longitude } = currentLocation.coords;
-        const updateTime = new Date(currentLocation.timestamp);
-
-        console.log('📍 Background Location Update:', { latitude, longitude, timestamp: updateTime.toISOString() });
-        
-        try {
-          const userDocRef = doc(db, 'users', userId);
-          await setDoc(userDocRef, {}, { merge: true });
-
-          const locationData = {
-            lat: latitude,
-            long: longitude,
-            updateTime: Timestamp.fromDate(updateTime),
-          };
-
-          const realTimeRef = doc(db, 'users', userId, 'real_time_location', 'current');
-          await setDoc(realTimeRef, locationData, { merge: true });
-
-          const historyRef = collection(db, 'users', userId, 'location_history');
-          await addDoc(historyRef, locationData);
-
-          console.log(`✅ Successfully updated location for user ${userId}`);
-
-        } catch (dbError) {
-          console.error("❌ Failed to write location to Firebase:", dbError);
-        }
-      }
+    if (data && data.locations && data.locations[0]) {
+      await updateLocationInFirestore(data.locations[0], userId);
     }
   });
 
@@ -197,6 +204,7 @@ type TrackingMode = {
 
 export const TrackingProvider = ({ children }: { children: React.ReactNode }) => {
   const { user } = useAuth();
+  const { backgroundLocationStatus, foregroundLocationStatus } = usePermissions(); // ADDED
   const [trackingModes, setTrackingModes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isTracking, setIsTracking] = useState<boolean>(false);
@@ -208,6 +216,7 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
   const [reportDeadline, setReportDeadline] = useState<number | null>(null);
   const [nextCheckInTime, setNextCheckInTime] = useState<number | null>(null);
   const [isInfoSent, setIsInfoSent] = useState<boolean>(false);
+  const [foregroundWatcher, setForegroundWatcher] = useState<Location.LocationSubscription | null>(null); // ADDED
 
   useEffect(() => {
     initializeSystem();
@@ -401,7 +410,8 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
         time: reportDeadlineTime,
         type: 'missed_report',
         strike: strike + 1,
-        description: `Missed report ${strike + 1} - ${strike < strikeThreshold - 1 ? 'Start next session' : 'EMERGENCY!'}`
+        description: `Missed report ${strike + 1} - ${strike < strikeThreshold - 1 ? 'Start next session' : 'EMERGENCY!'}`,
+        strikeThreshold: strikeThreshold
       });
 
       currentTime = reportDeadlineTime;
@@ -425,12 +435,12 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
         title = `⏰ Session ${event.strike + 1} Complete`;
         body = 'Please report your safety within 3 minutes';
       } else if (event.type === 'missed_report') {
-        if (event.strike < (event.strikeThreshold || 3)) {
+        if (event.strike < (event.strikeThreshold ?? 3)) {
           title = `❌ Missed Report ${event.strike}`;
-          body = `Starting next session (${event.strike}/${event.strikeThreshold || 3} strikes)`;
+          body = `Starting next session (${event.strike}/${event.strikeThreshold ?? 3} strikes)`;
         } else {
           title = '🆘 EMERGENCY ACTIVATION';
-          body = `Failed to respond ${event.strikeThreshold || 3} times - Emergency contacts being notified`;
+          body = `Failed to respond ${event.strikeThreshold ?? 3} times - Emergency contacts being notified`;
         }
       } else {
         title = 'Safety Alert';
@@ -548,18 +558,38 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
       
       console.log('✅ Tracking started with full timeline pre-calculated');
 
-      await Location.startLocationUpdatesAsync(BACKGROUND_LOCATION_TASK, {
-        accuracy: Location.Accuracy.Balanced,
-        timeInterval: 5000,
-        distanceInterval: 50,
-        showsBackgroundLocationIndicator: true,
-        deferredUpdatesInterval: 30000,
-        pausesUpdatesAutomatically: false,
-        foregroundService: {
-          notificationTitle: 'Tracking',
-          notificationBody: 'Tracking your location...',
-        },
-      });
+      // NEW CONDITIONAL LOGIC
+      if (backgroundLocationStatus === 'granted') {
+        console.log('✅ Background permission granted. Starting background location task.');
+        await Location.startLocationUpdatesAsync(BACKGROUND_LOCATION_TASK, {
+          accuracy: Location.Accuracy.Balanced,
+          timeInterval: 5000,
+          distanceInterval: 50,
+          showsBackgroundLocationIndicator: true,
+          deferredUpdatesInterval: 30000,
+          pausesUpdatesAutomatically: false,
+          foregroundService: {
+            notificationTitle: 'Tracking',
+            notificationBody: 'Tracking your location...',
+          },
+        });
+      } else if (foregroundLocationStatus === 'granted') {
+        console.log('✅ Foreground permission granted. Starting foreground location watcher.');
+        const watcher = await Location.watchPositionAsync(
+          {
+            accuracy: Location.Accuracy.Balanced,
+            timeInterval: 5000,
+            distanceInterval: 50,
+          },
+          (location) => {
+            updateLocationInFirestore(location, user.uid);
+          }
+        );
+        setForegroundWatcher(watcher);
+      } else {
+        console.warn('⚠️ No location permissions granted. Location tracking will not start.');
+        Alert.alert("Permission Required", "Location access is required for tracking to function.");
+      }
 
     } catch (error) {
       console.error('❌ Error starting tracking:', error);
@@ -668,6 +698,11 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
           await Location.stopLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
           console.log('✅ Background location tracking stopped for safe shutdown.');
         }
+        if (foregroundWatcher) {
+          foregroundWatcher.remove();
+          setForegroundWatcher(null);
+          console.log('✅ Foreground location watcher stopped for safe shutdown.');
+        }
         if (modeId) {
           const modeRef = doc(db, 'TrackingMode', modeId);
           await updateDoc(modeRef, { On: false });
@@ -717,12 +752,16 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
 
 
   const fetchTrackingModesWithContacts = async (userId: string) => {
-    try {
-      const colRef = query(collection(db, 'TrackingMode'), where('userId', '==', userId));
-      const snapshot = await getDocs(colRef);
+    setLoading(true); // Ensure loading state is set
+    const colRef = query(collection(db, 'TrackingMode'), where('userId', '==', userId));
 
+    console.log(`[TrackProvider] Setting up onSnapshot for TrackingMode for userId: ${userId}`); // ADDED LOG
+
+    // Use onSnapshot for real-time updates
+    const unsubscribe = onSnapshot(colRef, async (querySnapshot) => {
+      console.log(`[TrackProvider] onSnapshot callback fired. Docs count: ${querySnapshot.docs.length}, Empty: ${querySnapshot.empty}`); // ADDED LOG
       const data = await Promise.all(
-        snapshot.docs.map(async (docSnap) => {
+        querySnapshot.docs.map(async (docSnap) => {
           const trackingData = docSnap.data();
           const contacts = await Promise.all(
             (trackingData.emergencyContactIds || []).map(async (id: string) => {
@@ -737,28 +776,49 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
           };
         })
       );
+      console.log(`[TrackProvider] Processed data:`, data); // ADDED LOG
       setTrackingModes(data);
       setLoading(false);
-    } catch (error) {
-      console.error('Error fetching tracking modes with contacts:', error);
+    }, (error) => {
+      console.error('[TrackProvider] Error listening to tracking modes:', error); // MODIFIED LOG
       setTrackingModes([]);
       setLoading(false);
-    }
+    });
+
+    return unsubscribe; // Return the unsubscribe function
   };
 
   useEffect(() => {
+    let unsubscribeFromTrackingModes: (() => void) | undefined;
 
     if (user?.uid) {
-      fetchTrackingModesWithContacts(user.uid);
+      // Call the async function and store its unsubscribe result
+      const setupListener = async () => {
+        unsubscribeFromTrackingModes = await fetchTrackingModesWithContacts(user.uid);
+      };
+      setupListener();
     } else {
       // User has signed out, so we need to perform a full cleanup.
       const signOutCleanup = async () => {
         console.log('Auth state changed: User signed out. Cleaning up all tracking tasks and data.');
 
+        // Unsubscribe from tracking modes listener if it exists
+        if (unsubscribeFromTrackingModes) {
+          unsubscribeFromTrackingModes();
+          unsubscribeFromTrackingModes = undefined; // Clear it
+          console.log('🧹 Unsubscribed from tracking modes listener.');
+        }
+
         // 1. Stop the background location task unconditionally
         if (await Location.hasStartedLocationUpdatesAsync(BACKGROUND_LOCATION_TASK)) {
           await Location.stopLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
           console.log('✅ Background location tracking stopped due to sign-out.');
+        }
+        // Stop foreground watcher
+        if (foregroundWatcher) {
+          foregroundWatcher.remove();
+          setForegroundWatcher(null);
+          console.log('✅ Foreground location watcher stopped due to sign-out.');
         }
 
         // 2. Cancel all scheduled notifications
@@ -800,6 +860,14 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
 
       signOutCleanup();
     }
+
+    // Cleanup function for the useEffect
+    return () => {
+      if (unsubscribeFromTrackingModes) {
+        unsubscribeFromTrackingModes();
+        console.log('🧹 Unsubscribed from tracking modes listener on unmount/dependency change.');
+      }
+    };
   }, [user]);
 
   const createTrackingMode = async (newMode: Omit<TrackingMode, 'id' | 'userId' | 'On'>) => {
@@ -815,7 +883,7 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
         On: false,
       });
       // Refetch tracking modes to update the list
-      fetchTrackingModesWithContacts(user.uid);
+      // No need to call fetchTrackingModesWithContacts here, onSnapshot will handle it
     } catch (error) {
       console.error('Error creating tracking mode:', error);
       Alert.alert('Error', 'Failed to create tracking mode.');
@@ -827,9 +895,7 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
       const modeRef = doc(db, 'TrackingMode', modeId);
       await deleteDoc(modeRef);
       // Refetch tracking modes to update the list
-      if (user?.uid) {
-        fetchTrackingModesWithContacts(user.uid);
-      }
+      // No need to call fetchTrackingModesWithContacts here, onSnapshot will handle it
     } catch (error) {
       console.error('Error deleting tracking mode:', error);
       Alert.alert('Error', 'Failed to delete tracking mode.');
