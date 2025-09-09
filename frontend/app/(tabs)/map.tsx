@@ -1,5 +1,4 @@
-// app/(tabs)/map.tsx
-
+import { MaterialIcons } from '@expo/vector-icons';
 import {
   View,
   StyleSheet,
@@ -26,6 +25,8 @@ import { useEmergencyListener } from '@/hooks/useEmergencyListener';
 import EmergencyList from '@/components/Emergency/EmergencyList';
 import EmergencyInfoModal from '@/components/Emergency/EmergencyInfoModal';
 import { useAuth } from '@/context/AuthProvider';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';  
+import LocationSentCard from '@/components/Tracking/LocationSentCard';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -42,10 +43,12 @@ export default function Map() {
     longitudeDelta: 0.0421,
   });
 
-  const { trackingModes, isTracking, trackingModeId, isReportDue } = useTracking();
+  const { trackingModes, isTracking, trackingModeId, isReportDue, isInfoSent, setIsInfoSent } = useTracking();
   const { emergencyData: emergencies } = useEmergencyListener();
   const [showToolCard, setShowToolCard] = useState(false);
   const [selectedEmergency, setSelectedEmergency] = useState(null);
+  const [carouselHeight, setCarouselHeight] = useState(0);
+  const tabBarHeight = useBottomTabBarHeight();        
 
   const mapRef = useRef<MapView>(null);
   const flatListRef = useRef<FlatList>(null);
@@ -54,7 +57,7 @@ export default function Map() {
   const auth = useAuth();
   const currentUserId = auth.currentUser?.uid;
 
-  const styles = createStyles();
+  const styles = createStyles(carouselHeight, tabBarHeight);   
 
   useEffect(() => {
     (async () => {
@@ -123,7 +126,8 @@ export default function Map() {
     }
   };
 
-  let carouselData: any[] = [{ id: 'search', component: <SearchBar /> }];
+  let carouselData: any[] = [];
+  // let carouselData: any[] = [{ id: 'search', component: <SearchBar /> }];
 
   if (isTracking && trackingModeId) {
     const activeMode = trackingModes.find(mode => mode.id === trackingModeId);
@@ -159,6 +163,10 @@ export default function Map() {
     carouselData.push(...modeCards);
   }
 
+  const handleDismissLocationSentCard = () => {
+    setIsInfoSent(false);
+  };
+
   return (
     <View style={styles.container}>
       <MapView
@@ -167,6 +175,9 @@ export default function Map() {
         initialRegion={location}
         showsUserLocation={true}
         mapType="standard"
+        showsCompass={true} 
+        compassOffset={{ x: -8, y: 50 }}    
+        // compassOffset={{ x: 80, y: -100 }}        
       >
         {emergencies && emergencies.map(emergency => (
           <Marker
@@ -198,18 +209,23 @@ export default function Map() {
 
       {/* Recenter Button */}
       <Pressable style={styles.recenterButton} onPress={recenterMap}>
-        <Text style={styles.recenterButtonText}>🎯</Text>
+        <MaterialIcons name="my-location" size={24} color="black" />
       </Pressable>
 
       {/* Don't show carousel if there is an emergency */}
-      {!showToolCard && <MapCarousel data={carouselData} />}
+      {!showToolCard && <MapCarousel data={carouselData} onLayout={(event) => setCarouselHeight(event.nativeEvent.layout.height)} />}
 
       {showToolCard && <ToolCard showBottomBar={true} />}
+
+      {isInfoSent && <LocationSentCard onDismiss={handleDismissLocationSentCard} />}
+      {/* {isInfoSent && <LocationSentCard onDismiss={handleDismissLocationSentCard} />} */}
     </View>
   );
 }
 
-function createStyles() {
+// function createStyles(carouselHeight: number) {
+function createStyles(carouselHeight: number, tabBarHeight: number) {               
+  // const tabBarHeight = 55; // Estimated tab bar height
   return StyleSheet.create({
     container: {
       ...StyleSheet.absoluteFillObject,
@@ -235,7 +251,7 @@ function createStyles() {
     },
     recenterButton: {
       position: 'absolute',
-      bottom: 250, // Adjust to be above the carousel
+      bottom: carouselHeight + tabBarHeight + 20, // Adjust to be above the carousel and tab bar
       right: 20,
       backgroundColor: 'rgba(255,255,255,0.9)',
       width: 50,
