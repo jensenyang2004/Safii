@@ -24,9 +24,11 @@ export const sendPushNotification = async (expoPushToken: string, message: strin
     },
     body: JSON.stringify({
       to: expoPushToken,
-      sound: 'default',
+      sound: 'siren.wav', // Use a custom sound file
       title: 'Location Info Received',
       body: message,
+      priority: 'high', // For Android
+      channelId: 'location-alerts', // Custom channel for Android
     }),
   });
 
@@ -50,6 +52,14 @@ export const registerForPushNotificationsAsync = async () => {
       name: 'default',
       importance: Notifications.AndroidImportance.MAX,
       vibrationPattern: [0, 250, 250, 250],
+      lightColor: '#FF231F7C',
+    });
+    // Create the channel for location alerts with custom sound
+    await Notifications.setNotificationChannelAsync('location-alerts', {
+      name: 'Location Alerts',
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 500, 250, 500],
+      sound: 'siren.wav', // Associate the sound with the channel
       lightColor: '#FF231F7C',
     });
   }
@@ -109,3 +119,57 @@ export async function saveTokenToFirestore(token: string) {
     console.log('saveTokenToFirestore: User or token is missing. User:', user, 'Token:', token);
   }
 }
+
+
+export const scheduleEmergencyNotification = async (contactName: string, delayInSeconds: number) => {
+  const notificationId = await Notifications.scheduleNotificationAsync({
+    content: {
+      title: "Emergency Alert",
+      body: `Your friend, ${contactName}, may be in trouble. Please check on them.`,
+      sound: 'siren.wav', // Assuming you have a siren.mp3 file in your assets
+      vibration: [0, 500, 500, 500, 500, 500], // A more insistent vibration pattern
+      priority: Notifications.AndroidNotificationPriority.HIGH,
+    },
+    trigger: {
+      seconds: delayInSeconds,
+    },
+  });
+  return notificationId;
+};
+
+export const cancelNotification = async (notificationId: string) => {
+  await Notifications.cancelScheduledNotificationAsync(notificationId);
+};
+
+export const sendEmergencyNotification = async (expoPushToken: string, message: string) => {
+  const response = await fetch('https://exp.host/--/api/v2/push/send', {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      to: expoPushToken,
+      sound: 'siren.wav', // Use a custom sound file
+      title: 'Emergency Alert!',
+      body: message,
+      priority: 'high', // For Android
+      channelId: 'emergency-alerts', // Custom channel for Android
+    }),
+  });
+
+  return response.json();
+};
+
+// You should also create the channel on the device
+export const createEmergencyNotificationChannel = async () => {
+  if (Platform.OS === 'android') {
+    await Notifications.setNotificationChannelAsync('emergency-alerts', {
+      name: 'Emergency Alerts',
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 500, 250, 500],
+      sound: 'siren.wav', // Associate the sound with the channel
+      lightColor: '#FF231F7C',
+    });
+  }
+};
