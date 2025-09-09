@@ -217,18 +217,7 @@ export default function Map() {
 
       {showToolCard && <ToolCard showBottomBar={true} />}
 
-      {true && (() => {
-        // Temporarily set isInfoSent to true for testing tab bar hiding
-        // This block will be removed once testing is complete and isInfoSent is used for conditional rendering
-        if (!isInfoSent) {
-          setIsInfoSent(true);
-        }
-        return (
-          <View style={StyleSheet.absoluteFillObject} className="z-[9999]" pointerEvents="box-none">
-            <LocationSentCard onDismiss={handleDismissLocationSentCard} />
-          </View>
-        );
-      })()}
+      {isInfoSent && <LocationSentCard onDismiss={handleDismissLocationSentCard} />}
       {/* {isInfoSent && <LocationSentCard onDismiss={handleDismissLocationSentCard} />} */}
     </View>
   );

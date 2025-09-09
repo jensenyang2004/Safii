@@ -45,7 +45,7 @@ type TrackingContextType = {
   trackingModes: any[];
   loading: boolean;
   startTrackingMode: (modeId: any, sessionMinutes: number, reductionMinutes: number) => Promise<void>;
-  stopTrackingMode: () => Promise<void>;
+  stopTrackingMode: (options?: { isEmergency: boolean }) => Promise<void>;
   reportSafety: () => Promise<void>;
   createTrackingMode: (newMode: Omit<TrackingMode, 'id' | 'userId' | 'On'>) => Promise<void>;
   deleteTrackingMode: (modeId: string) => Promise<void>;
@@ -56,6 +56,8 @@ type TrackingContextType = {
   isReportDue: boolean;
   reportDeadline: number | null;
   nextCheckInTime: number | null;
+  isInfoSent: boolean;
+  setIsInfoSent: React.Dispatch<React.SetStateAction<boolean>>;
 };
 
 const TrackingContext = createContext<TrackingContextType | null>(null);
@@ -199,6 +201,7 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
   const [isReportDue, setIsReportDue] = useState<boolean>(false);
   const [reportDeadline, setReportDeadline] = useState<number | null>(null);
   const [nextCheckInTime, setNextCheckInTime] = useState<number | null>(null);
+  const [isInfoSent, setIsInfoSent] = useState<boolean>(false);
 
   useEffect(() => {
     initializeSystem();
@@ -823,6 +826,8 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
       isReportDue,
       reportDeadline,
       nextCheckInTime,
+      isInfoSent,
+      setIsInfoSent,
     }}>
       {children}
     </TrackingContext.Provider>
