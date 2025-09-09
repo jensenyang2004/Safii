@@ -74,7 +74,13 @@ export default function TabLayout() {
               ),
             }}
           />
-
+          <Tabs.Screen
+            name="contact"
+            options={{
+              // Hide this route entirely from the tab bar and deep links
+              href: null,
+            }}
+          />
         </Tabs>
       </View>
     </>
