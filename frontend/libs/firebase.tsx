@@ -27,7 +27,7 @@ export const auth = initializeAuth(app, {
   persistence: getReactNativePersistence(ReactNativeAsyncStorage)
 });
 
-export const storage = getStorage(app, 'gs://safii-90f1d.appspot.com');
+export const storage = getStorage(app, 'gs://safii-90f1d.firebasestorage.app');
 export const db = getFirestore(app)
 // export const storage = getStorage(app)
 

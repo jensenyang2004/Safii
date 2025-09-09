@@ -56,7 +56,11 @@ export default function RootLayout() {
 function RootLayoutNav() {
   const { user, loading: authLoading } = useAuth();
   const [onboardingComplete, setOnboardingComplete] = useState<boolean | null>(null);
-  const { allPermissionsGranted, isLoading: permissionsLoading } = usePermissions();
+  const { 
+    notificationStatus, 
+    foregroundLocationStatus, 
+    isLoading: permissionsLoading 
+  } = usePermissions();
   const segments = useSegments();
 
   useEffect(() => {
@@ -82,8 +86,9 @@ function RootLayoutNav() {
         router.replace('/(auth)/sign-in');
       }
     } else { // User is signed in
+      const hasRequiredPermissions = notificationStatus === 'granted' && foregroundLocationStatus === 'granted';
       // If onboarding is not complete OR permissions are missing, go to onboarding.
-      if (!onboardingComplete || !allPermissionsGranted) {
+      if (!onboardingComplete || !hasRequiredPermissions) {
         if (!inOnboardingGroup) {
           router.replace('/(onboarding)');
         }
@@ -95,7 +100,7 @@ function RootLayoutNav() {
         }
       }
     }
-  }, [user, onboardingComplete, allPermissionsGranted, segments, authLoading, permissionsLoading]);
+  }, [user, onboardingComplete, notificationStatus, foregroundLocationStatus, segments, authLoading, permissionsLoading]);
 
   // Show a loading screen while we check all statuses
   if (authLoading || onboardingComplete === null || permissionsLoading) {

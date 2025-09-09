@@ -6,7 +6,8 @@ import * as Location from 'expo-location';
 export function usePermissions() {
   const [isLoading, setIsLoading] = useState(true);
   const [notificationStatus, setNotificationStatus] = useState<'granted' | 'denied' | 'idle'>('idle');
-  const [locationStatus, setLocationStatus] = useState<'granted' | 'denied' | 'idle'>('idle');
+  const [backgroundLocationStatus, setBackgroundLocationStatus] = useState<'granted' | 'denied' | 'idle'>('idle');
+  const [foregroundLocationStatus, setForegroundLocationStatus] = useState<'granted' | 'denied' | 'idle'>('idle');
 
   const checkPermissions = async () => {
     setIsLoading(true);
@@ -18,21 +19,25 @@ export function usePermissions() {
       setNotificationStatus(notifStatus.canAskAgain ? 'idle' : 'denied');
     }
 
-    // Check Location Permission
-    const locStatus = await Location.getBackgroundPermissionsAsync();
-    console.log('locStatus', locStatus);
-    let isGranted = false;
+    // Check Background Location Permission (Always Allow)
+    const backgroundLocStatus = await Location.getBackgroundPermissionsAsync();
+    console.log('backgroundLocStatus', backgroundLocStatus);
+    let isBackgroundGranted = false;
     if (Platform.OS === 'ios') {
-      isGranted = locStatus.scope === 'always';
+      isBackgroundGranted = backgroundLocStatus.scope === 'always';
     } else if (Platform.OS === 'android') {
-      isGranted = locStatus.granted;
+      isBackgroundGranted = backgroundLocStatus.granted;
     }
+    setBackgroundLocationStatus(isBackgroundGranted ? 'granted' : (backgroundLocStatus.canAskAgain ? 'idle' : 'denied'));
 
-    if (isGranted) {
-      setLocationStatus('granted');
-    } else {
-      setLocationStatus(locStatus.canAskAgain ? 'idle' : 'denied');
-    }
+    // Check Foreground Location Permission (When In Use)
+    const foregroundLocStatus = await Location.getForegroundPermissionsAsync();
+    setForegroundLocationStatus(
+      foregroundLocStatus.granted || backgroundLocStatus.scope === 'whenInUse'
+        ? 'granted'
+        : (foregroundLocStatus.canAskAgain ? 'idle' : 'denied')
+    );
+
     setIsLoading(false);
   };
 
@@ -51,12 +56,14 @@ export function usePermissions() {
     };
   }, []);
 
-  const allPermissionsGranted = notificationStatus === 'granted' && locationStatus === 'granted';
+  // Redefine allPermissionsGranted to mean notification granted AND at least foreground location granted
+  const allPermissionsGranted = notificationStatus === 'granted' && (foregroundLocationStatus === 'granted' || backgroundLocationStatus === 'granted');
 
   return {
     isLoading,
     notificationStatus,
-    locationStatus,
+    backgroundLocationStatus,
+    foregroundLocationStatus,
     allPermissionsGranted,
     checkPermissions,
   };

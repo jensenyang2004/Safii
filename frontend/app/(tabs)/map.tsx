@@ -5,6 +5,8 @@ import {
   Dimensions,
   FlatList,
   Pressable,
+  ActivityIndicator, // ADDED
+  Text, // ADDED
 } from 'react-native';
 import React, { useEffect, useState, useRef } from 'react';
 import MapView, { Marker } from 'react-native-maps';
@@ -32,12 +34,7 @@ const SIDE_PADDING = (screenWidth - CARD_WIDTH) / 2;
 const SNAP_INTERVAL = CARD_WIDTH + SPACING;
 
 export default function Map() {
-  const [location, setLocation] = useState({
-    latitude: 23,
-    longitude: 120.2,
-    latitudeDelta: 0.0922,
-    longitudeDelta: 0.0421,
-  });
+  const [location, setLocation] = useState(null); // CHANGED to null
 
   const { trackingModes, isTracking, trackingModeId, isReportDue, isInfoSent } = useTracking();
   const { emergencyData: emergencies } = useEmergencyListener();
@@ -70,6 +67,13 @@ export default function Map() {
         });
       } else {
         console.log('Location permission not granted');
+        // Optionally, set a default location or show an error message
+        setLocation({
+          latitude: 23, // Fallback to a default if permission not granted
+          longitude: 120.2,
+          latitudeDelta: 0.0922,
+          longitudeDelta: 0.0421,
+        });
       }
     })();
   }, []);
@@ -176,6 +180,15 @@ export default function Map() {
     setShowLocationSentCard(false);
   };
 
+  if (!location) { // CONDITIONAL RENDERING
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#0000ff" />
+        <Text>Getting your location...</Text>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <MapView
@@ -277,6 +290,11 @@ function createStyles(bottomComponentHeight: number, tabBarHeight: number) {
         bottom: tabBarHeight + 10, // Add 10px margin above tab bar
         left: 0,
         right: 0,
-    }
+    },
+    loadingContainer: { // ADDED
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
   });
 }
