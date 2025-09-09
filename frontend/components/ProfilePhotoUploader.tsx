@@ -66,55 +66,49 @@ export default function ProfilePhotoUploader() {
         }
     };
 
-    const uploadImage = async (uri: string) => {
-        if (!user?.uid) {
-            Alert.alert("Error", "You must be logged in to upload a profile picture");
-            return;
-        }
+    const uploadImage = async (uri: string, mimeType?: string) => {
+    if (!user?.uid) {
+        Alert.alert("Error", "You must be logged in to upload a profile picture");
+        return;
+    }
 
-        setUploading(true);
+    setUploading(true);
 
-        try {
-            console.log("Starting upload process...");
+    try {
+        console.log("Starting upload process...");
 
-            // Convert to blob
-            const response = await fetch(uri);
-            const blob = await response.blob();
+        // Convert URI → Blob
+        const response = await fetch(uri);
+        const blob = await response.blob();
 
-            // Create simple path
-            const path = `users/${user.uid}/avatar.jpg`;
-            const storageRef = ref(storage, path);
+        // Path in Firebase
+        const path = `users/${user.uid}/avatar_${Date.now()}`;
+        const storageRef = ref(storage, path);
 
-            console.log("Uploading to:", path);
+        // Pick correct mime type (fallback to jpeg)
+        const metadata = { contentType: mimeType || 'image/jpeg' };
 
-            // Simple upload with metadata
-            const metadata = { contentType: 'image/jpeg' };
-            const snapshot = await uploadBytes(storageRef, blob, metadata);
-            console.log("Upload success!");
+        // Upload
+        const snapshot = await uploadBytes(storageRef, blob, metadata);
+        console.log("Upload success!");
 
-            const url = await getDownloadURL(snapshot.ref);
-            console.log("Download URL:", url);
+        const url = await getDownloadURL(snapshot.ref);
+        console.log("Download URL:", url);
 
-            // Update user
-            await updateDoc(doc(db, "users", user.uid), {
-                avatarUrl: url
-            });
+        // Save to Firestore
+        await updateDoc(doc(db, "users", user.uid), {
+        avatarUrl: url
+        });
 
-            fetchUserInfo(user.uid);
-            Alert.alert("Success!", "Photo uploaded");
-
-        } catch (error) {
-            console.error("Error in upload process:", error);
-            console.error("Error code:", error.code);
-            console.error("Error message:", error.message);
-            console.error("Error name:", error.name);
-            Alert.alert("Error", `Failed to upload image: ${error.message}`);
-            setUploading(false);
-        } finally {
-            setUploading(false);
-        }
+        fetchUserInfo(user.uid);
+        Alert.alert("Success!", "Photo uploaded");
+    } catch (error: any) {
+        console.error("Upload error:", JSON.stringify(error, null, 2));
+        Alert.alert("Error", `Failed to upload image: ${error.message || "Unknown error"}`);
+    } finally {
+        setUploading(false);
+    }
     };
-
     return (
         <View style={styles.container}>
             {uploading ? (
