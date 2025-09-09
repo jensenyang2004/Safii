@@ -255,18 +255,20 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
         const unresponsiveThresholdStr = await AsyncStorage.getItem(STORAGE_KEYS.UNRESPONSIVE_THRESHOLD);
         const strikeThreshold = unresponsiveThresholdStr ? parseInt(unresponsiveThresholdStr) : 3; // Default to 3
 
-        if (finalEvent && now > finalEvent.time && finalEvent.type === 'missed_report' && finalEvent.strike === strikeThreshold) {
-          console.log('🚨 Emergency period has passed. Cleaning up local state.');
-          await stopTrackingMode({ isEmergency: true });
-          return;
-        }
-
         // Check if current time has passed the final event time to display LocationSentCard
         if (finalEvent && now > finalEvent.time) {
           setIsInfoSent(true);
         } else {
           setIsInfoSent(false);
         }
+
+
+        if (finalEvent && now > finalEvent.time && finalEvent.type === 'missed_report' && finalEvent.strike === strikeThreshold) {
+          console.log('🚨 Emergency period has passed. Cleaning up local state.');
+          await stopTrackingMode({ isEmergency: true });
+          return;
+        }
+
 
         let currentStrikeCount = 0;
         for (const event of timeline) {
