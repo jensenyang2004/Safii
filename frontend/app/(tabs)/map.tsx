@@ -4,8 +4,6 @@ import {
   StyleSheet,
   Dimensions,
   FlatList,
-  TouchableOpacity,
-  Text,
   Pressable,
 } from 'react-native';
 import React, { useEffect, useState, useRef } from 'react';
@@ -17,7 +15,6 @@ import {
 import TrackModeCard from '@/components/Tracking/track_base';
 import Card_ongoing from '@/components/Tracking/track_ongoning';
 import ReportSafetyCard from '@/components/Tracking/ReportSafetyCard';
-import SearchBar from '@/components/Map/search_bar';
 import MapCarousel from '@/components/Map/carousel';
 import ToolCard from '@/components/Safety_tools/tools_card';
 import { useTracking } from '@/context/TrackProvider';
@@ -25,10 +22,9 @@ import { useEmergencyListener } from '@/hooks/useEmergencyListener';
 import EmergencyList from '@/components/Emergency/EmergencyList';
 import EmergencyInfoModal from '@/components/Emergency/EmergencyInfoModal';
 import { useAuth } from '@/context/AuthProvider';
-import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';  
 import LocationSentCard from '@/components/Tracking/LocationSentCard';
 
-const { width: screenWidth } = Dimensions.get('window');
+const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 const CARD_WIDTH = screenWidth * 0.8;
 const SPACING = screenWidth * 0.03;
@@ -43,12 +39,14 @@ export default function Map() {
     longitudeDelta: 0.0421,
   });
 
-  const { trackingModes, isTracking, trackingModeId, isReportDue, isInfoSent, setIsInfoSent } = useTracking();
+  const { trackingModes, isTracking, trackingModeId, isReportDue, isInfoSent } = useTracking();
   const { emergencyData: emergencies } = useEmergencyListener();
   const [showToolCard, setShowToolCard] = useState(false);
   const [selectedEmergency, setSelectedEmergency] = useState(null);
-  const [carouselHeight, setCarouselHeight] = useState(0);
-  const tabBarHeight = useBottomTabBarHeight();        
+  const [bottomComponentHeight, setBottomComponentHeight] = useState(0);
+  const [showLocationSentCard, setShowLocationSentCard] = useState(false); // New state
+  
+  const tabBarHeight = screenHeight * 0.12; 
 
   const mapRef = useRef<MapView>(null);
   const flatListRef = useRef<FlatList>(null);
@@ -57,7 +55,7 @@ export default function Map() {
   const auth = useAuth();
   const currentUserId = auth.currentUser?.uid;
 
-  const styles = createStyles(carouselHeight, tabBarHeight);   
+  const styles = createStyles(bottomComponentHeight, tabBarHeight);   
 
   useEffect(() => {
     (async () => {
@@ -77,20 +75,18 @@ export default function Map() {
   }, []);
 
   useEffect(() => {
-    // When a specific emergency is selected, focus on it
     if (selectedEmergency && mapRef.current) {
       const newRegion = {
         latitude: selectedEmergency.lat,
         longitude: selectedEmergency.long,
-        latitudeDelta: 0.01, // Zoom level
-        longitudeDelta: 0.01, // Zoom level
+        latitudeDelta: 0.01,
+        longitudeDelta: 0.01,
       };
       mapRef.current.animateToRegion(newRegion, 1000);
     }
   }, [selectedEmergency]);
 
   useEffect(() => {
-    // When the list of emergencies first appears, focus on the first one
     if (emergencies && emergencies.length > 0 && !selectedEmergency && mapRef.current) {
       const firstEmergency = emergencies[0];
       const newRegion = {
@@ -127,7 +123,6 @@ export default function Map() {
   };
 
   let carouselData: any[] = [];
-  // let carouselData: any[] = [{ id: 'search', component: <SearchBar /> }];
 
   if (isTracking && trackingModeId) {
     const activeMode = trackingModes.find(mode => mode.id === trackingModeId);
@@ -163,8 +158,21 @@ export default function Map() {
     carouselData.push(...modeCards);
   }
 
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (isInfoSent) { // If tracking provider says info is sent
+      setShowLocationSentCard(true); // Show the card
+      timer = setTimeout(() => {
+        setShowLocationSentCard(false); // Hide after 10 seconds
+      }, 10000); // 10 seconds
+    }
+    return () => {
+      clearTimeout(timer); // Clean up the timer if component unmounts or isInfoSent changes
+    };
+  }, [isInfoSent]);
+
   const handleDismissLocationSentCard = () => {
-    setIsInfoSent(false);
+    setShowLocationSentCard(false);
   };
 
   return (
@@ -177,7 +185,6 @@ export default function Map() {
         mapType="standard"
         showsCompass={true} 
         compassOffset={{ x: -8, y: 50 }}    
-        // compassOffset={{ x: 80, y: -100 }}        
       >
         {emergencies && emergencies.map(emergency => (
           <Marker
@@ -197,35 +204,29 @@ export default function Map() {
       <EmergencyList emergencies={emergencies} onSelectEmergency={setSelectedEmergency} />
       <EmergencyInfoModal emergency={selectedEmergency} onClose={() => setSelectedEmergency(null)} />
 
-      {/* Toggle Button */}
-      <TouchableOpacity
-        style={styles.toggleButton}
+      {/*temporarily disable tool toggle button for the beta 0.1 version*/}
+      {/*<Pressable
+        style={styles.toolToggleButton}
         onPress={() => setShowToolCard(prev => !prev)}
       >
-        <Text style={styles.toggleButtonText}>
-          {showToolCard ? 'Show Modes' : 'Show Tools'}
-        </Text>
-      </TouchableOpacity>
+        <MaterialIcons name={showToolCard ? "map" : "apps"} size={24} color="black" />
+      </Pressable>*/}
 
-      {/* Recenter Button */}
       <Pressable style={styles.recenterButton} onPress={recenterMap}>
         <MaterialIcons name="my-location" size={24} color="black" />
       </Pressable>
 
-      {/* Don't show carousel if there is an emergency */}
-      {!showToolCard && <MapCarousel data={carouselData} onLayout={(event) => setCarouselHeight(event.nativeEvent.layout.height)} />}
+      <View style={styles.bottomComponentContainer} onLayout={(event) => setBottomComponentHeight(event.nativeEvent.layout.height)}>
+        {!showToolCard && <MapCarousel data={carouselData} />}
+        {showToolCard && <ToolCard showBottomBar={true} />}
+      </View>
 
-      {showToolCard && <ToolCard showBottomBar={true} />}
-
-      {isInfoSent && <LocationSentCard onDismiss={handleDismissLocationSentCard} />}
-      {/* {isInfoSent && <LocationSentCard onDismiss={handleDismissLocationSentCard} />} */}
+      {showLocationSentCard && <LocationSentCard onDismiss={handleDismissLocationSentCard} />}
     </View>
   );
 }
 
-// function createStyles(carouselHeight: number) {
-function createStyles(carouselHeight: number, tabBarHeight: number) {               
-  // const tabBarHeight = 55; // Estimated tab bar height
+function createStyles(bottomComponentHeight: number, tabBarHeight: number) {               
   return StyleSheet.create({
     container: {
       ...StyleSheet.absoluteFillObject,
@@ -234,24 +235,9 @@ function createStyles(carouselHeight: number, tabBarHeight: number) {
       width: '100%',
       height: '100%',
     },
-    toggleButton: {
+    toolToggleButton: {
       position: 'absolute',
-      top: 70, // Adjust this for reachable height (avoid top bar)
-      right: 20,
-      backgroundColor: 'rgba(0,0,0,0.6)',
-      paddingHorizontal: 12,
-      paddingVertical: 8,
-      borderRadius: 10,
-      zIndex: 999,
-    },
-    toggleButtonText: {
-      color: 'white',
-      fontSize: 14,
-      fontWeight: 'bold',
-    },
-    recenterButton: {
-      position: 'absolute',
-      bottom: carouselHeight + tabBarHeight + 20, // Adjust to be above the carousel and tab bar
+      bottom: bottomComponentHeight + tabBarHeight + 30 + 50 + 10, // Increased spacing
       right: 20,
       backgroundColor: 'rgba(255,255,255,0.9)',
       width: 50,
@@ -264,9 +250,30 @@ function createStyles(carouselHeight: number, tabBarHeight: number) {
       shadowOpacity: 0.2,
       shadowRadius: 2,
       elevation: 3,
+      zIndex: 1,
     },
-    recenterButtonText: {
-      fontSize: 24,
+    recenterButton: {
+      position: 'absolute',
+      bottom: bottomComponentHeight + tabBarHeight + 220, // Increased spacing
+      right: 20,
+      backgroundColor: 'rgba(255,255,255,0.9)',
+      width: 50,
+      height: 50,
+      borderRadius: 25,
+      justifyContent: 'center',
+      alignItems: 'center',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.2,
+      shadowRadius: 2,
+      elevation: 3,
+      zIndex: 1,
     },
+    bottomComponentContainer: {
+        position: 'absolute',
+        bottom: tabBarHeight + 10, // Add 10px margin above tab bar
+        left: 0,
+        right: 0,
+    }
   });
 }

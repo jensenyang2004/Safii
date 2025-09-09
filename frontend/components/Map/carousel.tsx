@@ -21,25 +21,23 @@ export default function MapCarousel({ data }: MapCarouselProps) {
   const flatListRef = useRef<FlatList>(null);
 
   return (
-    <View style={{ position: 'absolute', bottom: '12%' }}>
-      <FlatList
-        ref={flatListRef}
-        data={data}
-        renderItem={({ item }) => (
-          <View style={{ width: CARD_WIDTH }}>
-            {item.component}
-          </View>
-        )}
-        keyExtractor={(item) => item.id}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        snapToInterval={SNAP_INTERVAL}
-        decelerationRate="fast"
-        contentContainerStyle={{
-          paddingHorizontal: SIDE_PADDING,
-        }}
-        ItemSeparatorComponent={() => <View style={{ width: SPACING }} />}
-      />
-    </View>
+    <FlatList
+      ref={flatListRef}
+      data={data}
+      renderItem={({ item }) => (
+        <View style={{ width: CARD_WIDTH }}>
+          {item.component}
+        </View>
+      )}
+      keyExtractor={(item) => item.id}
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      snapToInterval={SNAP_INTERVAL}
+      decelerationRate="fast"
+      contentContainerStyle={{
+        paddingHorizontal: SIDE_PADDING,
+      }}
+      ItemSeparatorComponent={() => <View style={{ width: SPACING }} />}
+    />
   );
 }
