@@ -62,7 +62,7 @@ app/(auth)/sign-up-y.tsx
 
 # dependencies
 node_modules/
-
+functions/
 # Expo
 .expo/
 dist/
