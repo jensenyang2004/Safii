@@ -222,7 +222,9 @@ export default function Map() {
         {showToolCard && <ToolCard showBottomBar={true} />}
       </View>
 
-      {showLocationSentCard && <LocationSentCard onDismiss={handleDismissLocationSentCard} />}
+      {true && <LocationSentCard onDismiss={handleDismissLocationSentCard} />}
+      {/* {showLocationSentCard && <LocationSentCard onDismiss={handleDismissLocationSentCard} />} */}
+
     </View>
   );
 }
