@@ -31,11 +31,10 @@ const ReportSafetyCard = () => {
   return (
     <View style={styles.card}>
       <View style={styles.header}>
-        <Text style={styles.headerText}>Time to Check In!</Text>
-        <Text style={styles.subText}>You have {formatTime(remainingTime)} to report your safety.</Text>
+        <Text style={styles.subText}>請在 {formatTime(remainingTime)} 內回報安全</Text>
       </View>
       <TouchableOpacity style={styles.reportButton} onPress={reportSafety}>
-        <Text style={styles.reportButtonText}>Report Safety</Text>
+        <Text style={styles.reportButtonText}>回報安全</Text>
       </TouchableOpacity>
     </View>
   );
@@ -43,16 +42,14 @@ const ReportSafetyCard = () => {
 
 const styles = StyleSheet.create({
     card: {
-        width: 320,
         borderRadius: 20,
-        backgroundColor: '#fff',
+        backgroundColor: '#F8F1EC',
         shadowColor: '#000',
         shadowOpacity: 0.1,
         shadowRadius: 10,
         shadowOffset: { width: 0, height: 4 },
         elevation: 5,
         padding: 20,
-        margin: 10,
         alignItems: 'center',
       },
       header: {

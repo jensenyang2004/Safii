@@ -3,8 +3,6 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTracking } from '@/context/TrackProvider';
 
-const CARD_WIDTH = 320;
-
 interface TrackingMode {
   id: string;
   name: string;
@@ -21,9 +19,7 @@ const Card_ongoing = ({ trackingMode }: { trackingMode: TrackingMode }) => {
     if (nextCheckInTime) {
       const updateRemaining = () => {
         const now = Date.now();
-
         const timeLeft = Math.max(0, Math.ceil((nextCheckInTime - now) / 1000));
-        // const timeLeft = 20;
         setRemainingTime(timeLeft);
       };
 
@@ -41,36 +37,44 @@ const Card_ongoing = ({ trackingMode }: { trackingMode: TrackingMode }) => {
     return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Calculate progress based on the current session's duration
-  // This would require knowing the current session's total duration, which isn't directly available here.
-  // For now, we'll just show the countdown.
-  const progressPercentage = 100; // Placeholder, as actual progress bar logic is complex without session duration
+  const totalDuration = trackingMode.checkIntervalMinutes * 60;
+  const progressPercentage = totalDuration > 0 ? (remainingTime / totalDuration) * 100 : 0;
+
+  const StrikeDots = () => (
+    <View style={styles.strikeContainer}>
+      {[...Array(3)].map((_, i) => (
+        <View
+          key={i}
+          style={[
+            styles.strikeDot,
+            { backgroundColor: i < currentStrike ? '#FF6347' : '#E0E0E0' },
+          ]}
+        />
+      ))}
+    </View>
+  );
 
   return (
     <View style={styles.card}>
-      <View style={styles.adContainer}>
-        {/* Ad content goes here */}
+      <View style={styles.header}>
+        <Text style={styles.statusText}>正在進行 {trackingMode?.name ?? '模式'}...</Text>
+        <StrikeDots />
       </View>
 
-      <View style={styles.infoRow}>
-        <View style={styles.statusContainer}>
-          <Text style={styles.statusText}>正在進行 {trackingMode?.name ?? '模式'}...</Text>
-          <Text style={styles.strikeText}>Strikes: {currentStrike}/3</Text>
-          <View style={styles.progressBarContainer}>
-            <View style={[styles.progressBar, { width: `${progressPercentage}%` }]} />
-          </View>
-        </View>
-
+      <View style={styles.timerContainer}>
         <Text style={styles.timeText}>{formatTime(remainingTime)}</Text>
-        <TouchableOpacity style={styles.iconBox} onPress={stopTrackingMode}>
-          <Ionicons name="stop-circle-outline" size={24} color="#fff" />
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.contactRow}>
         <Text style={styles.contactText}>
           監護人數: {trackingMode?.contacts?.length ?? 0}
         </Text>
+      </View>
+
+      <View style={styles.footer}>
+        <View style={styles.progressBarContainer}>
+          <View style={[styles.progressBar, { width: `${progressPercentage}%` }]} />
+        </View>
+        <TouchableOpacity style={styles.stopButton} onPress={stopTrackingMode}>
+          <Ionicons name="stop" size={20} color="#fff" />
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -78,79 +82,75 @@ const Card_ongoing = ({ trackingMode }: { trackingMode: TrackingMode }) => {
 
 const styles = StyleSheet.create({
   card: {
-    width: CARD_WIDTH,
     borderRadius: 20,
-    backgroundColor: '#fff',
+    backgroundColor: '#F8F1EC',
     shadowColor: '#000',
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.1,
     shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
-    padding: 0,
-    overflow: 'hidden',
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 5,
+    padding: 20,
+    margin: 10,
   },
-  adContainer: {
-    width: '100%',
-    height: 120,
-    backgroundColor: '#e6eaf3',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  infoRow: {
+  header: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 18,
-    paddingTop: 16,
-    paddingBottom: 12,
-    backgroundColor: '#f7f7f7',
-  },
-  statusContainer: {
-    flex: 1,
-    marginRight: 10,
+    marginBottom: 15,
   },
   statusText: {
-    color: '#5a6b7b',
-    fontSize: 16,
-    fontWeight: '500',
-    marginBottom: 8,
+    color: '#15223F',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  strikeContainer: {
+    flexDirection: 'row',
+  },
+  strikeDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginLeft: 5,
+  },
+  timerContainer: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  timeText: {
+    fontSize: 40,
+    fontWeight: 'bold',
+    color: '#15223F',
+  },
+  contactText: {
+    color: '#15223F',
+    fontSize: 14,
+    marginTop: 5,
+  },
+  footer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 36,
   },
   progressBarContainer: {
-    height: 6,
-    backgroundColor: '#e0e0e0',
-    borderRadius: 3,
+    flex: 1,
+    height: '100%',
+    backgroundColor: '#E0E0E0',
+    borderRadius: 18,
     overflow: 'hidden',
+    marginRight: 15,
   },
   progressBar: {
     height: '100%',
-    backgroundColor: '#2a3e5c',
-    borderRadius: 3,
+    backgroundColor: '#15223F',
+    borderRadius: 18,
   },
-  timeText: {
-    fontSize: 16,
-    color: '#5a6b7b',
-    marginRight: 12,
-    fontWeight: '600',
-  },
-  iconBox: {
+  stopButton: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#2a3e5c',
+    backgroundColor: '#15223F',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  contactRow: {
-    alignItems: 'center',
-    paddingBottom: 12,
-    backgroundColor: '#f7f7f7',
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
-  },
-  contactText: {
-    color: '#5a6b7b',
-    fontSize: 13,
   },
 });
 

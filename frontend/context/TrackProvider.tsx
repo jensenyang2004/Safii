@@ -23,6 +23,7 @@ const STORAGE_KEYS = {
   CURRENT_USER_ID: 'current_user_id', // For background task
   EMERGENCY_CONTACT_IDS: 'emergency_contact_ids', // For emergency handler
   ACTIVE_TRACKING_DOC_ID: 'active_tracking_doc_id', // For the random doc ID
+  UNRESPONSIVE_THRESHOLD: 'unresponsive_threshold', // New key for unresponsive threshold
 };
 
 // Types
@@ -32,6 +33,7 @@ interface TimelineEvent {
   strike: number;
   description: string;
   deadline?: number;
+  strikeThreshold?: number;
 }
 
 interface NotificationData {
@@ -39,6 +41,7 @@ interface NotificationData {
   strike: number;
   eventTime: number;
   deadline?: number;
+  strikeThreshold?: number;
 }
 
 type TrackingContextType = {
@@ -69,7 +72,7 @@ Notifications.setNotificationHandler({
     console.log('📱 Notification received:', notification.request.content.title);
     const data = notification.request.content.data as unknown as NotificationData;
 
-    if (data?.type === 'missed_report' && data.strike === 3) {
+    if (data?.type === 'missed_report' && data.strike === (data.strikeThreshold || 3)) {
       console.log('🚨 FINAL STRIKE NOTIFICATION RECEIVED! Emergency is handled by contact-side listener.');
       // Clean up local state, but leave Firestore doc active.
       await stopTrackingMode({ isEmergency: true });
@@ -104,6 +107,9 @@ const handleMissedReport = async (strike: number): Promise<void> => {
     console.error('Error handling missed report:', error);
   }
 };
+
+// Forward declaration for stopTrackingMode
+let stopTrackingMode: (options?: { isEmergency: boolean }) => Promise<void>;
 
 const requestBackgroundPermissions = async () => {
   const { status: backgroundStatus } = await Location.requestBackgroundPermissionsAsync();
@@ -246,10 +252,20 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
         const now = Date.now();
         
         const finalEvent = timeline[timeline.length - 1];
-        if (finalEvent && now > finalEvent.time && finalEvent.type === 'missed_report' && finalEvent.strike === 3) {
+        const unresponsiveThresholdStr = await AsyncStorage.getItem(STORAGE_KEYS.UNRESPONSIVE_THRESHOLD);
+        const strikeThreshold = unresponsiveThresholdStr ? parseInt(unresponsiveThresholdStr) : 3; // Default to 3
+
+        if (finalEvent && now > finalEvent.time && finalEvent.type === 'missed_report' && finalEvent.strike === strikeThreshold) {
           console.log('🚨 Emergency period has passed. Cleaning up local state.');
           await stopTrackingMode({ isEmergency: true });
           return;
+        }
+
+        // Check if current time has passed the final event time to display LocationSentCard
+        if (finalEvent && now > finalEvent.time) {
+          setIsInfoSent(true);
+        } else {
+          setIsInfoSent(false);
         }
 
         let currentStrikeCount = 0;
@@ -302,6 +318,7 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
         setReportDeadline(null);
         setNextCheckInTime(null);
         setTrackingModeId(null);
+        setIsInfoSent(false); // Ensure it's false if not active
       }
     } catch (error) {
       console.error('Error loading and reconciling state:', error);
@@ -359,13 +376,14 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
     startTime: number, 
     sessionDurationMs: number, 
     reportDurationMs: number, 
-    reductionMs: number 
+    reductionMs: number,
+    strikeThreshold: number 
   ): TimelineEvent[] => {
     const timeline: TimelineEvent[] = [];
     let currentTime = startTime;
     let currentSessionDuration = sessionDurationMs;
     
-    for (let strike = 0; strike < 3; strike++) {
+    for (let strike = 0; strike < strikeThreshold; strike++) {
       const sessionEndTime = currentTime + currentSessionDuration;
       const reportDeadlineTime = sessionEndTime + reportDurationMs;
       timeline.push({
@@ -374,13 +392,14 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
         strike: strike,
         description: `Session ${strike + 1} ends - Report safety required`,
         deadline: reportDeadlineTime,
+        strikeThreshold: strikeThreshold,
       });
 
       timeline.push({
         time: reportDeadlineTime,
         type: 'missed_report',
         strike: strike + 1,
-        description: `Missed report ${strike + 1} - ${strike < 2 ? 'Start next session' : 'EMERGENCY!'}`
+        description: `Missed report ${strike + 1} - ${strike < strikeThreshold - 1 ? 'Start next session' : 'EMERGENCY!'}`
       });
 
       currentTime = reportDeadlineTime;
@@ -404,12 +423,12 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
         title = `⏰ Session ${event.strike + 1} Complete`;
         body = 'Please report your safety within 3 minutes';
       } else if (event.type === 'missed_report') {
-        if (event.strike < 3) {
+        if (event.strike < (event.strikeThreshold || 3)) {
           title = `❌ Missed Report ${event.strike}`;
-          body = `Starting next session (${event.strike}/3 strikes)`;
+          body = `Starting next session (${event.strike}/${event.strikeThreshold || 3} strikes)`;
         } else {
           title = '🆘 EMERGENCY ACTIVATION';
-          body = 'Failed to respond 3 times - Emergency contacts being notified';
+          body = `Failed to respond ${event.strikeThreshold || 3} times - Emergency contacts being notified`;
         }
       } else {
         title = 'Safety Alert';
@@ -429,6 +448,7 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
             strike: event.strike,
             eventTime: event.time,
             deadline: event.deadline,
+            strikeThreshold: event.strikeThreshold,
           }
         },
         trigger: {
@@ -466,10 +486,11 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
       }
 
       const emergencyContactIds: string[] = activeMode.contacts.map((c: any) => String(c.id));
+      const strikeThreshold = activeMode.unresponsiveThreshold; // Get the value from the DB
 
       console.log('🚀 Starting tracking with pre-calculated timeline...');
       
-      const calculatedTimeline = calculateFullTimeline(startTime, sessionMs, reportMs, reductionMs);
+      const calculatedTimeline = calculateFullTimeline(startTime, sessionMs, reportMs, reductionMs, strikeThreshold);
       const notificationIds = await scheduleAllNotifications(calculatedTimeline);
       
       const finalEvent = calculatedTimeline[calculatedTimeline.length - 1];
@@ -509,6 +530,7 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
       await AsyncStorage.setItem(STORAGE_KEYS.INITIAL_REDUCTION_MINUTES, reductionMinutes.toString());
       await AsyncStorage.setItem(STORAGE_KEYS.CURRENT_USER_ID, user.uid);
       await AsyncStorage.setItem(STORAGE_KEYS.EMERGENCY_CONTACT_IDS, JSON.stringify(emergencyContactIds));
+      await AsyncStorage.setItem(STORAGE_KEYS.UNRESPONSIVE_THRESHOLD, strikeThreshold.toString());
       
       setTimeline(calculatedTimeline);
       setIsTracking(true);
@@ -560,14 +582,16 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
 
       const initialSessionMinutesStr = await AsyncStorage.getItem(STORAGE_KEYS.INITIAL_SESSION_MINUTES);
       const initialReductionMinutesStr = await AsyncStorage.getItem(STORAGE_KEYS.INITIAL_REDUCTION_MINUTES);
+      const unresponsiveThresholdStr = await AsyncStorage.getItem(STORAGE_KEYS.UNRESPONSIVE_THRESHOLD); // Retrieve threshold
 
       const sessionMs = initialSessionMinutesStr ? parseInt(initialSessionMinutesStr) * 60 * 1000 : 30 * 60 * 1000;
       const reductionMs = initialReductionMinutesStr ? parseInt(initialReductionMinutesStr) * 60 * 1000 : 10 * 60 * 1000;
       const reportMs = 3 * 60 * 1000;
       const newStartTime = Date.now();
+      const strikeThreshold = unresponsiveThresholdStr ? parseInt(unresponsiveThresholdStr) : 3; // Default to 3 if not found
 
       console.log('🔄 Recalculating timeline from current time...');
-      const newTimeline = calculateFullTimeline(newStartTime, sessionMs, reportMs, reductionMs);
+      const newTimeline = calculateFullTimeline(newStartTime, sessionMs, reportMs, reductionMs, strikeThreshold);
       const newNotificationIds = await scheduleAllNotifications(newTimeline);
       
       const newFinalEvent = newTimeline[newTimeline.length - 1];
@@ -619,7 +643,7 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
     }
   };
 
-  const stopTrackingMode = async (options?: { isEmergency: boolean }) => {
+  stopTrackingMode = async (options?: { isEmergency: boolean }) => {
     if (!user?.uid) return;
 
     const isEmergency = options?.isEmergency ?? false;

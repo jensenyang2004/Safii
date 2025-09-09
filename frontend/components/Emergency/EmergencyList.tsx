@@ -8,13 +8,13 @@ const EmergencyList = ({ emergencies, onSelectEmergency }) => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Active Emergencies</Text>
+      <Text style={styles.title}>進行中的求助訊息</Text>
       <FlatList
         data={emergencies}
         keyExtractor={(item) => item.emergencyDocId}
         renderItem={({ item }) => (
           <TouchableOpacity style={styles.item} onPress={() => onSelectEmergency(item)}>
-            <Text style={styles.itemText}>🆘 {item.trackedUserName}</Text>
+            <Text style={styles.itemText}>{item.trackedUserName}</Text>
           </TouchableOpacity>
         )}
       />
@@ -27,15 +27,15 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 120,
     left: 10,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    borderRadius: 8,
-    padding: 10,
+    backgroundColor: '#F8F1EC',
+    borderRadius: 20,
+    padding: 20,
     width: 200,
     maxHeight: 250,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 5 },
     elevation: 5,
     zIndex: 1000,
   },
