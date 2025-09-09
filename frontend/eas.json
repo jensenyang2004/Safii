@@ -4,6 +4,12 @@
       "developmentClient": true,
       "distribution": "internal"
     },
+    "preview": {
+      "distribution": "internal"
+    },
+    "production": {
+      "distribution": "store"
+    },
     "development-simulator": {
       "developmentClient": true,
       "distribution": "internal",
