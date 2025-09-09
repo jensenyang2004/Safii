@@ -110,7 +110,12 @@
       "@react-native-firebase/app",
       "@react-native-firebase/auth",
       "expo-secure-store",
-      "expo-notifications"
+      [
+        "expo-notifications",
+        {
+          "sounds": ["./assets/sounds/siren.wav"]
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

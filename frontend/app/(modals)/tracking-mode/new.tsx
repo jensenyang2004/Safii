@@ -179,7 +179,7 @@ export default function CreateTrackingModeScreen() {
                 </View>
             </View>
 
-            <View style={styles.inline}>
+            {/* <View style={styles.inline}>
                 <View style={[styles.inlineItem, { flex: 1.2 }]}>
                     <Text style={styles.labelSmall}>星期</Text>
                     <TextInput
@@ -198,12 +198,11 @@ export default function CreateTrackingModeScreen() {
                         placeholder="19:00"
                     />
                 </View>
-            </View>
+            </View> */}
 
-            {/* 之後可做：挑選聯絡人頁（multi-select），回填 emergencyContactIds */}
-            <TouchableOpacity onPress={() => handleCreateAndPickContacts(user.uid, formValues)}>
+            {/* <TouchableOpacity onPress={() => handleCreateAndPickContacts(user.uid, formValues)}>
                 <Text>建立並選擇聯絡人</Text>
-            </TouchableOpacity>
+            </TouchableOpacity> */}
             <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
                 <Text style={styles.saveText}>儲存</Text>
             </TouchableOpacity>
