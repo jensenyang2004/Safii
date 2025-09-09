@@ -399,7 +399,8 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
         time: reportDeadlineTime,
         type: 'missed_report',
         strike: strike + 1,
-        description: `Missed report ${strike + 1} - ${strike < strikeThreshold - 1 ? 'Start next session' : 'EMERGENCY!'}`
+        description: `Missed report ${strike + 1} - ${strike < strikeThreshold - 1 ? 'Start next session' : 'EMERGENCY!'}`,
+        strikeThreshold: strikeThreshold
       });
 
       currentTime = reportDeadlineTime;
@@ -423,12 +424,12 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
         title = `⏰ Session ${event.strike + 1} Complete`;
         body = 'Please report your safety within 3 minutes';
       } else if (event.type === 'missed_report') {
-        if (event.strike < (event.strikeThreshold || 3)) {
+        if (event.strike < (event.strikeThreshold ?? 3)) {
           title = `❌ Missed Report ${event.strike}`;
-          body = `Starting next session (${event.strike}/${event.strikeThreshold || 3} strikes)`;
+          body = `Starting next session (${event.strike}/${event.strikeThreshold ?? 3} strikes)`;
         } else {
           title = '🆘 EMERGENCY ACTIVATION';
-          body = `Failed to respond ${event.strikeThreshold || 3} times - Emergency contacts being notified`;
+          body = `Failed to respond ${event.strikeThreshold ?? 3} times - Emergency contacts being notified`;
         }
       } else {
         title = 'Safety Alert';
