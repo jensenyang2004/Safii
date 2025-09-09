@@ -162,6 +162,7 @@ export default function Map() {
     let timer: NodeJS.Timeout;
     if (isInfoSent) { // If tracking provider says info is sent
       setShowLocationSentCard(true); // Show the card
+      console.log('showLocationSentCard has been set to true');
       timer = setTimeout(() => {
         setShowLocationSentCard(false); // Hide after 10 seconds
       }, 10000); // 10 seconds
