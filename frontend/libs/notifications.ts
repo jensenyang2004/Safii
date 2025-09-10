@@ -126,7 +126,7 @@ export const scheduleEmergencyNotification = async (contactName: string, delayIn
     content: {
       title: "Emergency Alert",
       body: `Your friend, ${contactName}, may be in trouble. Please check on them.`,
-      sound: 'siren.wav', // Assuming you have a siren.mp3 file in your assets
+      sound: 'siren.wav', // Assuming you have a siren.wav file in your assets
       vibration: [0, 500, 500, 500, 500, 500], // A more insistent vibration pattern
       priority: Notifications.AndroidNotificationPriority.HIGH,
     },
