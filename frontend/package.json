@@ -89,7 +89,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.28.0",
-    "@react-native-community/cli": "latest",
+    "@react-native-community/cli": "20.0.1",
     "@types/jest": "^30.0.0",
     "@types/nodemailer": "^6.4.17",
     "@types/react": "~19.0.10",
@@ -107,5 +107,9 @@
     "typescript": "~5.8.3"
   },
   "private": true,
-  "packageManager": "yarn@1.22.15+sha512.033a040f18f6e7a04e4bf8ea0d7037a63ca19a2e054410543206284c7238108b7612144492f1f4b283d512d9c3f8340825f53947d6ca85c6751fd97cccf59ea0"
+  "packageManager": "yarn@1.22.15+sha512.033a040f18f6e7a04e4bf8ea0d7037a63ca19a2e054410543206284c7238108b7612144492f1f4b283d512d9c3f8340825f53947d6ca85c6751fd97cccf59ea0",
+  "resolutions": {
+    "wrap-ansi": "6.2.0",
+    "string-width": "^4.1.0"
+  }
 }
