@@ -99,21 +99,21 @@ export default function FriendsScreen() {
         <FontAwesome5 name="user-minus" size={16} color="#EF4444" />
       </Pressable>
 
-      <Pressable
+      {/* <Pressable
         style={styles.sendLocationButton}
         onPress={() => {
           const auth = getAuth();
           const currentUserId = auth.currentUser?.uid;
 
           if (!currentUserId) {
-            Alert.alert('Error', 'You must be logged in to send location info.');
+            Alert.alert('錯誤', '你需要登入才能發送位置資訊');
             return;
           }
           sendLocationInfo(item.userId, currentUserId);
         }}
       >
-        <Text style={styles.actionButtonText}>Send Location</Text>
-      </Pressable>
+        <Text style={styles.actionButtonText}>發送位置</Text>
+      </Pressable> */}
     </View>
   );
 
@@ -136,14 +136,14 @@ export default function FriendsScreen() {
           style={[styles.actionButton, styles.acceptButton]}
           onPress={() => acceptFriendRequest(item.id)}
         >
-          <Text style={styles.actionButtonText}>Accept</Text>
+          <Text style={styles.actionButtonText}>接受</Text>
         </Pressable>
 
         <Pressable
           style={[styles.actionButton, styles.rejectButton]}
           onPress={() => rejectFriendRequest(item.id)}
         >
-          <Text style={styles.actionButtonText}>Decline</Text>
+          <Text style={styles.actionButtonText}>拒絕</Text>
         </Pressable>
       </View>
     </View>
@@ -162,15 +162,15 @@ export default function FriendsScreen() {
       )}
 
       <View style={styles.friendInfo}>
-        <Text style={styles.friendName}>{item.toName || 'Unknown User'}</Text>
-        <Text style={styles.requestStatus}>Pending</Text>
+        <Text style={styles.friendName}>{item.toName || '未知用戶'}</Text>
+        <Text style={styles.requestStatus}>待處理</Text>
       </View>
 
       <Pressable
         style={styles.cancelButton}
         onPress={() => cancelFriendRequest(item.id)}
       >
-        <Text style={styles.actionButtonText}>Cancel</Text>
+        <Text style={styles.actionButtonText}>取消</Text>
       </Pressable>
     </View>
   );
@@ -191,7 +191,7 @@ export default function FriendsScreen() {
             style={styles.cancelButton} // Use this red style instead of alreadySentButton
             onPress={() => showCancelRequestDialog(existingRequest.id)}
           >
-            <Text style={styles.actionButtonText}>Cancel</Text>
+            <Text style={styles.actionButtonText}>取消</Text>
           </Pressable>
         ) : (
           <Pressable
@@ -246,7 +246,7 @@ export default function FriendsScreen() {
   const requestLocationPermission = async () => {
     const { status } = await requestForegroundPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission Denied', 'Location permission is required to send location info.');
+      Alert.alert('權限被拒絕', '需要位置權限才能發送位置資訊');
       return false;
     }
     return true;
@@ -259,14 +259,14 @@ export default function FriendsScreen() {
       const realTimeLocationSnapshot = await getDoc(realTimeLocationRef);
 
       if (!realTimeLocationSnapshot.exists) {
-        Alert.alert('Error', 'Real-time location data not found.');
+        Alert.alert('錯誤', '找不到即時位置數據');
         return;
       }
 
       const locationData = realTimeLocationSnapshot.data() as LocationData;
 
       if (!locationData || !locationData.lat || !locationData.long || !locationData.updateTime) {
-        Alert.alert('Error', 'Invalid location data.');
+        Alert.alert('錯誤', '無效的位置數據');
         console.log('Invalid location data:', locationData);
         return;
       }
@@ -285,10 +285,10 @@ export default function FriendsScreen() {
 
       await setDoc(locationSharingRef, locationSharingData);
 
-      Alert.alert('Success', 'Location sharing initiated successfully.');
+      Alert.alert('成功', '成功發起位置分享');
     } catch (error) {
       console.error('Error initiating location sharing:', error);
-      Alert.alert('Error', 'Failed to initiate location sharing.');
+      Alert.alert('錯誤', '發起位置分享失敗');
     }
   };
 
@@ -301,7 +301,7 @@ export default function FriendsScreen() {
             onPress={() => setActiveTab('friends')}
           >
             <Text style={[styles.tabText, activeTab === 'friends' && styles.activeTabText]}>
-              Friends ({friends.length})
+              朋友 ({friends.length})
             </Text>
           </Pressable>
 
@@ -310,7 +310,7 @@ export default function FriendsScreen() {
             onPress={() => setActiveTab('requests')}
           >
             <Text style={[styles.tabText, activeTab === 'requests' && styles.activeTabText]}>
-              Requests ({incomingRequests.length})
+              交友請求 ({incomingRequests.length})
             </Text>
           </Pressable>
 
@@ -319,7 +319,7 @@ export default function FriendsScreen() {
             onPress={() => setActiveTab('search')}
           >
             <Text style={[styles.tabText, activeTab === 'search' && styles.activeTabText]}>
-              Add Friends
+              新增朋友
             </Text>
           </Pressable>
         </View>
@@ -329,7 +329,7 @@ export default function FriendsScreen() {
             <View style={styles.searchContainer}>
               <TextInput
                 style={styles.searchInput}
-                placeholder="Search for users..."
+                placeholder="搜索用戶..."
                 value={searchQuery}
                 onChangeText={setSearchQuery}
                 autoCapitalize="none"
@@ -350,7 +350,7 @@ export default function FriendsScreen() {
                 renderItem={renderFriend}
                 keyExtractor={item => item.userId}
                 ListEmptyComponent={
-                  <Text style={styles.emptyText}>You don't have any friends yet</Text>
+                  <Text style={styles.emptyText}>你還沒有任何朋友</Text>
                 }
               />
             )}
@@ -359,29 +359,29 @@ export default function FriendsScreen() {
               <View>
                 {/* Add this header with refresh button */}
                 <View style={styles.header}>
-                  <Text style={styles.sectionTitle}>Friend Requests</Text>
+                  <Text style={styles.sectionTitle}>交友請求</Text>
                   <Pressable onPress={refreshFriendData} style={styles.refreshButton}>
                     <FontAwesome5 name="sync" size={16} color="#1E40AF" />
                   </Pressable>
                 </View>
 
-                <Text style={styles.sectionTitle}>Requests You've Received</Text>
+                <Text style={styles.sectionTitle}>你收到的請求</Text>
                 <FlatList
                   data={incomingRequests}
                   renderItem={renderRequest}
                   keyExtractor={item => item.id}
                   ListEmptyComponent={
-                    <Text style={styles.emptyText}>No pending friend requests</Text>
+                    <Text style={styles.emptyText}>沒有待處理的交友請求</Text>
                   }
                 />
 
-                <Text style={styles.sectionTitle}>Requests You've Sent</Text>
+                <Text style={styles.sectionTitle}>你送出的請求</Text>
                 <FlatList
                   data={outgoingRequests}
                   renderItem={renderOutgoingRequest}
                   keyExtractor={item => item.id}
                   ListEmptyComponent={
-                    <Text style={styles.emptyText}>You haven't sent any friend requests</Text>
+                    <Text style={styles.emptyText}>你還沒有送出任何交友請求</Text>
                   }
                 />
               </View>
@@ -400,8 +400,8 @@ export default function FriendsScreen() {
                     ListEmptyComponent={
                       <Text style={styles.emptyText}>
                         {searchQuery.length > 0
-                          ? "No users found matching your search"
-                          : "Search for users to add as friends"}
+                          ? "找不到符合你搜索的用戶"
+                          : "搜索用戶以新增為朋友"}
                       </Text>
                     }
                   />
