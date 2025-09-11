@@ -10,13 +10,12 @@
     "production": {
       "distribution": "store"
     },
-    "build": {
-        "testflight": {
-          "ios": {
-            "distribution": "store"
-          }
-        }
+    "testflight": {
+      "ios": {
+        "distribution": "store"
+      }
     },
+
     "development-simulator": {
       "developmentClient": true,
       "distribution": "internal",
