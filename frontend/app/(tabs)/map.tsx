@@ -270,7 +270,7 @@ function createStyles(bottomComponentHeight: number, tabBarHeight: number) {
     },
     recenterButton: {
       position: 'absolute',
-      bottom: bottomComponentHeight + tabBarHeight + 220, // Increased spacing
+      bottom: bottomComponentHeight + tabBarHeight + 20, // Increased spacing
       right: 20,
       backgroundColor: 'rgba(255,255,255,0.9)',
       width: 50,

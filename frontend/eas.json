@@ -16,6 +16,13 @@
       "ios": {
         "simulator": true
       }
+    },
+    "testflight": {
+      "releaseChannel": "testflight",
+      "distribution": "internal",
+      "ios": {
+        "resourceClass": "m-medium"
+      }
     }
   }
 }

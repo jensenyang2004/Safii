@@ -25,7 +25,7 @@ export const sendPushNotification = async (expoPushToken: string, message: strin
     body: JSON.stringify({
       to: expoPushToken,
       sound: 'siren.wav', // Use a custom sound file
-      title: 'Location Info Received',
+      title: '收到位置資訊',
       body: message,
       priority: 'high', // For Android
       channelId: 'location-alerts', // Custom channel for Android
@@ -56,7 +56,7 @@ export const registerForPushNotificationsAsync = async () => {
     });
     // Create the channel for location alerts with custom sound
     await Notifications.setNotificationChannelAsync('location-alerts', {
-      name: 'Location Alerts',
+      name: '位置警報',
       importance: Notifications.AndroidImportance.MAX,
       vibrationPattern: [0, 500, 250, 500],
       sound: 'siren.wav', // Associate the sound with the channel
@@ -74,14 +74,14 @@ export const registerForPushNotificationsAsync = async () => {
     }
     console.log('Final permission status:', finalStatus);
     if (finalStatus !== 'granted') {
-      handleRegistrationError('Permission not granted to get push token for push notification!');
+      handleRegistrationError('未授予獲取推播通知的推播權杖的權限！');
       return;
     }
 
     // Get projectId from Constants
     const projectId = Constants?.expoConfig?.extra?.eas?.projectId ?? Constants?.easConfig?.projectId;
     if (!projectId) {
-      handleRegistrationError('Project ID not found in app.json or eas.json');
+      handleRegistrationError('在 app.json 或 eas.json 中找不到專案 ID');
       return;
     }
     
@@ -98,7 +98,7 @@ export const registerForPushNotificationsAsync = async () => {
 
     return token;
   } else {
-    handleRegistrationError('Must use physical device for push notifications');
+    handleRegistrationError('必須使用實體裝置才能推播通知');
   }
 };
 
@@ -124,8 +124,8 @@ export async function saveTokenToFirestore(token: string) {
 export const scheduleEmergencyNotification = async (contactName: string, delayInSeconds: number) => {
   const notificationId = await Notifications.scheduleNotificationAsync({
     content: {
-      title: "Emergency Alert",
-      body: `Your friend, ${contactName}, may be in trouble. Please check on them.`,
+      title: "緊急警報",
+      body: `你的朋友，${contactName}，可能遇到了麻煩。請關心他們。`,
       sound: 'siren.wav', // Assuming you have a siren.wav file in your assets
       vibration: [0, 500, 500, 500, 500, 500], // A more insistent vibration pattern
       priority: Notifications.AndroidNotificationPriority.HIGH,
@@ -151,7 +151,7 @@ export const sendEmergencyNotification = async (expoPushToken: string, message: 
     body: JSON.stringify({
       to: expoPushToken,
       sound: 'siren.wav', // Use a custom sound file
-      title: 'Emergency Alert!',
+      title: '緊急警報！',
       body: message,
       priority: 'high', // For Android
       channelId: 'emergency-alerts', // Custom channel for Android
@@ -165,7 +165,7 @@ export const sendEmergencyNotification = async (expoPushToken: string, message: 
 export const createEmergencyNotificationChannel = async () => {
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync('emergency-alerts', {
-      name: 'Emergency Alerts',
+      name: '緊急警報',
       importance: Notifications.AndroidImportance.MAX,
       vibrationPattern: [0, 500, 250, 500],
       sound: 'siren.wav', // Associate the sound with the channel

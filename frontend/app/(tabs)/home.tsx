@@ -171,10 +171,10 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
 
-        <View style={homeStyles.settingsRow}>
+        {/* <View style={homeStyles.settingsRow}>
           <Text style={homeStyles.settingsLabel}>排程</Text>
           <Text style={homeStyles.settingsValue}>{days} · {time}</Text>
-        </View>
+        </View> */}
 
         <View style={homeStyles.settingsRow}>
           <Text style={homeStyles.settingsLabel}>檢查間隔</Text>
