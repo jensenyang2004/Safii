@@ -121,12 +121,12 @@ export default function CreateTrackingModeScreen() {
     return (
         <SafeAreaView style={styles.safe}>
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => router.back()} style={{ position: 'absolute', left: 16, top: 8 }}>
-                    <Ionicons name="arrow-back" size={24} color="#111827" />
+                <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+                    <Ionicons name="arrow-back" size={24} color="#F18C8E" />
                 </TouchableOpacity>
                 <Text style={styles.title}>建立 Tracking 模式</Text>
-                <Text style={styles.sub}>填寫模式名稱與基本參數</Text>
             </View>
+            <Text style={styles.sub}>填寫模式名稱與基本參數</Text>
 
             <View style={styles.section}>
                 <Text style={styles.label}>模式名稱</Text>
@@ -211,29 +211,48 @@ export default function CreateTrackingModeScreen() {
 }
 
 const styles = StyleSheet.create({
-    safe: { flex: 1, backgroundColor: '#f9fafb', paddingHorizontal: 16 },
-    header: { paddingTop: 8, paddingBottom: 12, paddingLeft: 48 }, // Adjusted paddingLeft
-    title: { fontSize: 20, fontWeight: '700', color: '#111827' },
-    sub: { marginTop: 4, color: '#6b7280' },
+    safe: { flex: 1, backgroundColor: '#F8F1EC', paddingHorizontal: 16 },
+    header: { 
+        paddingTop: 8, 
+        paddingBottom: 12, 
+        flexDirection: 'row', 
+        alignItems: 'center', 
+        justifyContent: 'center', 
+        position: 'relative' 
+    }, 
+    backButton: {
+        position: 'absolute',
+        left: 0,
+        top: 8,
+        padding: 10,
+    },
+    title: { 
+        fontSize: 20, 
+        fontWeight: '700', 
+        color: '#000',
+        textAlign: 'center',
+        flex: 1,
+    },
+    sub: { marginTop: 4, color: '#888', textAlign: 'center' },
 
     section: { marginTop: 12 },
-    label: { fontSize: 14, fontWeight: '600', color: '#374151', marginBottom: 6 },
-    labelSmall: { fontSize: 12, fontWeight: '600', color: '#6b7280', marginBottom: 6 },
+    label: { fontSize: 14, fontWeight: '600', color: '#444', marginBottom: 6 },
+    labelSmall: { fontSize: 12, fontWeight: '600', color: '#888', marginBottom: 6 },
     input: {
-        backgroundColor: '#fff',
-        borderRadius: 10,
+        backgroundColor: '#F8F1EC',
+        borderRadius: 16,
         borderWidth: 1,
-        borderColor: '#e5e7eb',
+        borderColor: '#F18C8E',
         paddingHorizontal: 12,
         paddingVertical: 10,
     },
 
     row: {
         marginTop: 12,
-        backgroundColor: '#fff',
-        borderRadius: 10,
+        backgroundColor: '#F8F1EC',
+        borderRadius: 16,
         borderWidth: 1,
-        borderColor: '#e5e7eb',
+        borderColor: '#F18C8E',
         paddingHorizontal: 12,
         paddingVertical: 12,
         flexDirection: 'row',
@@ -246,8 +265,8 @@ const styles = StyleSheet.create({
 
     saveBtn: {
         marginTop: 20,
-        backgroundColor: '#2563eb',
-        borderRadius: 12,
+        backgroundColor: '#F18C8E',
+        borderRadius: 16,
         paddingVertical: 14,
         alignItems: 'center',
     },

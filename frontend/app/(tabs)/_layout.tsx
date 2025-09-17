@@ -18,7 +18,7 @@ export default function TabLayout() {
           screenOptions={{
             headerShown: false,
 
-            tabBarActiveTintColor: Colors.MAINRED,
+            tabBarActiveTintColor: '#F18C8E',
             tabBarItemStyle: {
               justifyContent: 'center',
               alignItems: 'center',
@@ -33,9 +33,9 @@ export default function TabLayout() {
               position: 'absolute',
               bottom: '2%',
               borderRadius: 38,
-              backgroundColor: Colors.PRIMARY,
+              backgroundColor: '#F8F1EC',
               elevation: 5,
-              shadowColor: '#000',
+              shadowColor: '#F18C8E',
               shadowOffset: { width: 0, height: 2 },
               shadowOpacity: 0.1,
               shadowRadius: 8,

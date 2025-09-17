@@ -183,7 +183,7 @@ export default function Map() {
   if (!location) { // CONDITIONAL RENDERING
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#0000ff" />
+        <ActivityIndicator size="large" color="#F18C8E" />
         <Text>Getting your location...</Text>
       </View>
     );
@@ -255,13 +255,13 @@ function createStyles(bottomComponentHeight: number, tabBarHeight: number) {
       position: 'absolute',
       bottom: bottomComponentHeight + tabBarHeight + 30 + 50 + 10, // Increased spacing
       right: 20,
-      backgroundColor: 'rgba(255,255,255,0.9)',
+      backgroundColor: 'rgba(248, 241, 236, 0.9)',
       width: 50,
       height: 50,
       borderRadius: 25,
       justifyContent: 'center',
       alignItems: 'center',
-      shadowColor: '#000',
+      shadowColor: '#F18C8E',
       shadowOffset: { width: 0, height: 1 },
       shadowOpacity: 0.2,
       shadowRadius: 2,
@@ -272,13 +272,13 @@ function createStyles(bottomComponentHeight: number, tabBarHeight: number) {
       position: 'absolute',
       bottom: bottomComponentHeight + tabBarHeight + 20, // Increased spacing
       right: 20,
-      backgroundColor: 'rgba(255,255,255,0.9)',
+      backgroundColor: 'rgba(248, 241, 236, 0.9)',
       width: 50,
       height: 50,
       borderRadius: 25,
       justifyContent: 'center',
       alignItems: 'center',
-      shadowColor: '#000',
+      shadowColor: '#F18C8E',
       shadowOffset: { width: 0, height: 1 },
       shadowOpacity: 0.2,
       shadowRadius: 2,

@@ -96,7 +96,7 @@ export default function FriendsScreen() {
         style={styles.removeButton}
         onPress={() => removeFriend(item.userId)}
       >
-        <FontAwesome5 name="user-minus" size={16} color="#EF4444" />
+        <FontAwesome5 name="user-minus" size={16} color="#F18C8E" />
       </Pressable>
 
       {/* <Pressable
@@ -198,7 +198,7 @@ export default function FriendsScreen() {
             style={styles.addButton}
             onPress={() => handleSendRequest(item.id)}
           >
-            <FontAwesome5 name="user-plus" size={16} color="#1E40AF" />
+            <FontAwesome5 name="user-plus" size={16} color="#F18C8E" />
           </Pressable>
         )}
       </View>
@@ -341,7 +341,7 @@ export default function FriendsScreen() {
         )}
 
         {loading ? (
-          <ActivityIndicator size="large" color="#1E40AF" style={styles.loader} />
+          <ActivityIndicator size="large" color="#F18C8E" style={styles.loader} />
         ) : (
           <>
             {activeTab === 'friends' && (
@@ -361,7 +361,7 @@ export default function FriendsScreen() {
                 <View style={styles.header}>
                   <Text style={styles.sectionTitle}>交友請求</Text>
                   <Pressable onPress={refreshFriendData} style={styles.refreshButton}>
-                    <FontAwesome5 name="sync" size={16} color="#1E40AF" />
+                    <FontAwesome5 name="sync" size={16} color="#F18C8E" />
                   </Pressable>
                 </View>
 
@@ -390,7 +390,7 @@ export default function FriendsScreen() {
             {activeTab === 'search' && (
               <>
                 {searching ? (
-                  <ActivityIndicator size="small" color="#1E40AF" style={styles.loader} />
+                  <ActivityIndicator size="small" color="#F18C8E" style={styles.loader} />
                 ) : (
                   // <></>
                   <FlatList
@@ -419,13 +419,13 @@ export default function FriendsScreen() {
 const styles = StyleSheet.create({
 
   alreadySentButton: {
-    backgroundColor: '#E5E7EB',
+    backgroundColor: '#E5E5E5',
     paddingHorizontal: 12,
     paddingVertical: 8,
-    borderRadius: 6,
+    borderRadius: 16,
   },
   alreadySentText: {
-    color: '#6B7280',
+    color: '#888',
     fontSize: 14,
     fontWeight: '500',
   },
@@ -438,23 +438,23 @@ const styles = StyleSheet.create({
   refreshButton: {
     padding: 8,
     borderRadius: 20,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#F8F1EC',
   },
   safeArea: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F8F1EC',
   },
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F8F1EC',
     padding: 16,
   },
   tabBar: {
     flexDirection: 'row',
     marginBottom: 16,
-    borderRadius: 8,
+    borderRadius: 16,
     overflow: 'hidden',
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#F8F1EC',
   },
   tabButton: {
     flex: 1,
@@ -462,14 +462,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   activeTab: {
-    backgroundColor: '#1E40AF',
+    backgroundColor: '#F18C8E',
   },
   tabText: {
     fontWeight: '500',
-    color: '#4B5563',
+    color: '#888',
   },
   activeTabText: {
-    color: '#FFFFFF',
+    color: '#fff',
   },
   searchContainer: {
     flexDirection: 'row',
@@ -478,21 +478,21 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 8,
+    borderColor: '#F18C8E',
+    borderRadius: 16,
     padding: 10,
     marginRight: 8,
   },
   searchButton: {
-    backgroundColor: '#1E40AF',
-    borderRadius: 8,
+    backgroundColor: '#F18C8E',
+    borderRadius: 16,
     padding: 12,
     justifyContent: 'center',
     alignItems: 'center',
   },
 
   sendLocationButton: {
-    backgroundColor: '#1E40AF',
+    backgroundColor: '#F18C8E',
     padding: 8,
     borderRadius: 5,
     marginLeft: 10,
@@ -506,7 +506,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: '#F18C8E',
   },
   avatar: {
     width: 50,
@@ -514,14 +514,14 @@ const styles = StyleSheet.create({
     borderRadius: 25,
   },
   avatarPlaceholder: {
-    backgroundColor: '#E5E7EB',
+    backgroundColor: '#E5E5E5',
     justifyContent: 'center',
     alignItems: 'center',
   },
   avatarText: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#6B7280',
+    color: '#444',
   },
   friendInfo: {
     flex: 1,
@@ -537,14 +537,14 @@ const styles = StyleSheet.create({
   actionButton: {
     paddingVertical: 8,
     paddingHorizontal: 12,
-    borderRadius: 6,
+    borderRadius: 16,
     marginLeft: 8,
   },
   acceptButton: {
-    backgroundColor: '#10B981',
+    backgroundColor: '#BFD3C1',
   },
   rejectButton: {
-    backgroundColor: '#EF4444',
+    backgroundColor: '#F18C8E',
   },
   actionButtonText: {
     color: '#FFFFFF',
@@ -562,7 +562,7 @@ const styles = StyleSheet.create({
   emptyText: {
     textAlign: 'center',
     marginTop: 40,
-    color: '#6B7280',
+    color: '#888',
     fontSize: 16,
   },
   sectionTitle: {
@@ -570,17 +570,17 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginTop: 20,
     marginBottom: 12,
-    color: '#1F2937',
+    color: '#000',
   },
   cancelButton: {
-    backgroundColor: '#EF4444',
+    backgroundColor: '#F18C8E',
     paddingVertical: 8,
     paddingHorizontal: 12,
-    borderRadius: 6,
+    borderRadius: 16,
   },
   requestStatus: {
     fontSize: 14,
-    color: '#6B7280',
+    color: '#888',
     marginTop: 4,
   },
 });

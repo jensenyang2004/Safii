@@ -269,7 +269,7 @@ export default function HomeScreen() {
 
           {settingsLoading ? (
             <View style={homeStyles.settingsCenter}>
-              <ActivityIndicator size="large" color="#2563eb" />
+              <ActivityIndicator size="large" color="#F18C8E" />
               <Text style={homeStyles.settingsDim}>載入中…</Text>
             </View>
           ) : (
@@ -311,7 +311,7 @@ export default function HomeScreen() {
         {/* Settings content ends here */}
 
         {loading ? (
-          <ActivityIndicator size="large" color="#1E40AF" />
+          <ActivityIndicator size="large" color="#F18C8E" />
         ) : (
           <Pressable
             onPress={signOut}
@@ -336,7 +336,7 @@ const homeStyles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    backgroundColor: 'white',
+    backgroundColor: '#F8F1EC',
     // justifyContent: 'center',
     // alignItems: 'center',
     // padding: 20,
@@ -348,72 +348,42 @@ const homeStyles = StyleSheet.create({
     marginBottom: 16,
     marginTop: 16,
     borderWidth: 3,
-    borderColor: '#1E40AF',
+    borderColor: '#F18C8E',
   },
   avatarPlaceholder: {
-    backgroundColor: '#E5E7EB',
+    backgroundColor: '#E5E5E5',
     justifyContent: 'center',
     alignItems: 'center',
   },
   avatarPlaceholderText: {
     fontSize: 48,
-    color: '#6B7280',
+    color: '#444',
     fontWeight: 'bold',
   },
   editOverlay: {
     position: 'absolute',
     bottom: 0,
     right: 0,
-    backgroundColor: '#1E40AF',
+    backgroundColor: '#F18C8E',
     width: 36,
     height: 36,
     borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: 'white',
-  },
-  avatar: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    marginBottom: 16,
-    borderWidth: 3,
-    borderColor: '#1E40AF',
-  },
-  avatarPlaceholder: {
-    backgroundColor: '#E5E7EB',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  avatarPlaceholderText: {
-    fontSize: 48,
-    color: '#6B7280',
-    fontWeight: 'bold',
-  },
-  editOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    backgroundColor: '#1E40AF',
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: 'white',
+    borderColor: '#F8F1EC',
   },
   username: {
     fontSize: 24,
     fontWeight: 'bold',
     marginBottom: 24,
+    color: '#000',
   },
   signOutButton: {
-    backgroundColor: '#1E40AF',
+    backgroundColor: '#F18C8E',
     paddingHorizontal: 16,
     paddingVertical: 10,
-    borderRadius: 6,
+    borderRadius: 16,
     marginBottom: 24,
   },
   signOutText: {
@@ -426,13 +396,13 @@ const homeStyles = StyleSheet.create({
   },
   disabledButton: {
     opacity: 0.5,
-    backgroundColor: '#8B9AC0', // Lighter blue for disabled state
+    backgroundColor: '#F18C8E', // Lighter blue for disabled state
   },
   callButton: {
-    backgroundColor: '#059669',
+    backgroundColor: '#BFD3C1',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderRadius: 6,
+    borderRadius: 16,
   },
   callButtonText: {
     color: 'white',
@@ -460,7 +430,7 @@ const homeStyles = StyleSheet.create({
   settingsSection: {
     flex: 1,
     width: '100%',
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#F8F1EC',
     paddingTop: 20, // Adjust as needed
   },
   settingsDeleteBtn: {
@@ -468,10 +438,10 @@ const homeStyles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 8,
-    backgroundColor: '#fee2e2', // 淺紅
+    backgroundColor: 'rgba(241, 140, 142, 0.5)', // 淺紅
   },
   settingsDeleteBtnText: {
-    color: '#b91c1c', // 深紅
+    color: '#fff', // 深紅
     fontWeight: '700',
     fontSize: 12,
   },
@@ -485,50 +455,50 @@ const homeStyles = StyleSheet.create({
     flex: 1,
     fontSize: 22,
     fontWeight: '800',
-    color: '#111827'
+    color: '#000'
   },
   settingsSub: {
     flex: 1,
     marginTop: 4,
-    color: '#6b7280'
+    color: '#888'
   },
 
   settingsListContent: { paddingHorizontal: 16 },
 
   settingsCard: {
-    backgroundColor: '#fff', borderRadius: 14, padding: 14, marginBottom: 12,
-    borderWidth: 1, borderColor: '#e5e7eb',
+    backgroundColor: '#F8F1EC', borderRadius: 20, padding: 14, marginBottom: 12,
+    borderWidth: 1, borderColor: '#F18C8E',
   },
   settingsCardHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-  settingsCardTitle: { flex: 1, fontSize: 16, fontWeight: '700', color: '#111827' },
+  settingsCardTitle: { flex: 1, fontSize: 16, fontWeight: '700', color: '#000' },
   settingsBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
-  settingsBadgeOn: { backgroundColor: '#dcfce7' },
-  settingsBadgeOff: { backgroundColor: '#f3f4f6' },
-  settingsBadgeText: { color: '#111827', fontWeight: '600', fontSize: 12 },
+  settingsBadgeOn: { backgroundColor: '#BFD3C1' },
+  settingsBadgeOff: { backgroundColor: '#E5E5E5' },
+  settingsBadgeText: { color: '#444', fontWeight: '600', fontSize: 12 },
 
   settingsRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6 },
-  settingsLabel: { color: '#6b7280' },
-  settingsValue: { color: '#111827', fontWeight: '600' },
+  settingsLabel: { color: '#888' },
+  settingsValue: { color: '#444', fontWeight: '600' },
 
   settingsSmallBtn: {
-    backgroundColor: '#2563EB', paddingVertical: 10, paddingHorizontal: 12,
-    borderRadius: 10, marginRight: 8,
+    backgroundColor: '#F18C8E', paddingVertical: 10, paddingHorizontal: 12,
+    borderRadius: 16, marginRight: 8,
   },
   settingsSmallBtnText: { color: '#fff', fontWeight: '700' },
 
   settingsPrimaryBtn: {
     position: 'absolute', left: 16, right: 16,
-    backgroundColor: '#2563eb', borderRadius: 12,
+    backgroundColor: '#F18C8E', borderRadius: 16,
     paddingVertical: 14, alignItems: 'center',
-    shadowColor: '#2563eb', shadowOpacity: 0.25, shadowRadius: 8,
+    shadowColor: '#F18C8E', shadowOpacity: 0.25, shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 }, elevation: 3,
   },
   settingsPrimaryText: { color: '#fff', fontWeight: '800', fontSize: 16 },
 
   settingsCenter: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   settingsEmpty: { alignItems: 'center', marginTop: 24, paddingHorizontal: 16 },
-  settingsEmptyTitle: { fontSize: 16, fontWeight: '700', color: '#111827', marginBottom: 6 },
-  settingsDim: { color: '#6b7280' },
+  settingsEmptyTitle: { fontSize: 16, fontWeight: '700', color: '#000', marginBottom: 6 },
+  settingsDim: { color: '#888' },
 });
 
 

@@ -50,20 +50,22 @@ export default function ContactsScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#fff',
+        backgroundColor: '#F8F1EC',
         padding: 20,
     },
     header: {
         fontSize: 24,
         fontWeight: 'bold',
         marginBottom: 16,
+        color: '#000',
     },
     item: {
         padding: 16,
-        borderBottomColor: '#eee',
+        borderBottomColor: '#F18C8E',
         borderBottomWidth: 1,
     },
     name: {
         fontSize: 18,
+        color: '#444',
     },
 })

@@ -10,6 +10,8 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
+      "useFrameworks": "static",
+      "buildReactNativeFromSource": true,
       "supportsTablet": true,
       "bundleIdentifier": "com.nightbase.firebase",
       "googleServicesFile": "./GoogleService-Info.plist",
@@ -113,9 +115,13 @@
       [
         "expo-notifications",
         {
-          "sounds": ["./assets/sounds/siren.wav"]
+          "sounds": [
+            "./assets/sounds/siren.wav"
+          ]
         }
-      ]
+      ],
+      "expo-font",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true
