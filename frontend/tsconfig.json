@@ -1,6 +1,7 @@
 {
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
+    "useUnknownInCatchVariables": false,
     "strict": true,
     "jsx": "react-native",                  // ⬅️ Required to handle JSX (tsx files)
     "moduleResolution": "bundler",         // ⬅️ Helps resolve node_modules and aliases
