@@ -75,6 +75,14 @@ export default function TabLayout() {
             }}
           />
           <Tabs.Screen
+            name="gemini-call"
+            options={{
+              tabBarIcon: ({ color }) => (
+                <MaterialIcons name="call" size={24} color={color} />
+              ),
+            }}
+          />
+          <Tabs.Screen
             name="contact"
             options={{
               // Hide this route entirely from the tab bar and deep links

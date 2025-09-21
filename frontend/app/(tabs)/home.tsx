@@ -7,7 +7,7 @@ import { router, useRootNavigationState } from 'expo-router';
 import { useAuth } from '@/context/AuthProvider';
 import '@/global.css';
 import ProfilePhotoUploader from '@/components/ProfilePhotoUploader';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { doc, deleteDoc, collection, query, where, orderBy, onSnapshot, getDocs } from 'firebase/firestore';
 import { db } from '@/libs/firebase';
