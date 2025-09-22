@@ -31,6 +31,7 @@ type LiveServerMessage = {
       }[];
     };
     generationComplete?: boolean;
+    turnComplete?: boolean;
   };
   usageMetadata?: any;
 };
@@ -177,7 +178,7 @@ const CallingModal = () => {
 
         ws.onerror = (error) => {
           console.error('WebSocket Error:', error);
-          setStatus(`Connection error: ${error.message}`);
+          setStatus('Connection error occurred');
         };
 
         ws.onclose = (event) => {

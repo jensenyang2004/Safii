@@ -5,6 +5,26 @@ module.exports = function (api) {
       ["babel-preset-expo", { jsxImportSource: "nativewind" }],
       "nativewind/babel",
     ],
-    plugins: ["transform-inline-environment-variables"],
+    plugins: [
+      "expo-router/babel",
+      [
+        "module-resolver",
+        {
+          root: ["./"],
+          alias: {
+            "@": "./",
+          },
+          extensions: [
+            ".ios.ts",
+            ".android.ts",
+            ".ts",
+            ".tsx",
+            ".json",
+            ".js",
+            ".jsx",
+          ],
+        },
+      ],
+    ],
   };
 };

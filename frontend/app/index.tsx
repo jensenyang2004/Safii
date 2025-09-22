@@ -2,7 +2,6 @@
 
 import { Redirect } from "expo-router";
 
-import '@/global.css';
 
 
 

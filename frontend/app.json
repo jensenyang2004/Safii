@@ -113,9 +113,13 @@
       [
         "expo-notifications",
         {
-          "sounds": ["./assets/sounds/siren.wav"]
+          "sounds": [
+            "./assets/sounds/siren.wav"
+          ]
         }
-      ]
+      ],
+      "expo-font",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true
