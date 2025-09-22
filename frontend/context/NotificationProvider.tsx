@@ -38,6 +38,7 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
     const navigation = useNavigation<NavigationParams>();
 
     useEffect(() => {
+
         if (user) {
             registerForPushNotificationsAsync().then(token => {
                 if (token) {

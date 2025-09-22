@@ -8,11 +8,10 @@ import 'react-native-reanimated';
 import { FriendProvider } from '../context/FriendProvider';
 
 import { Text, ActivityIndicator, View } from 'react-native';
-import { useColorScheme } from '@/hooks/useColorScheme';
+import { useColorScheme } from '../hooks/useColorScheme';
 import { AuthProvider, useAuth } from '@/context/AuthProvider';
 import { TrackingProvider } from '@/context/TrackProvider';
-import { NotificationProvider } from '@/context/NotificationProvider';
-import '@/global.css';
+import { NotificationProvider } from '../context/NotificationProvider';
 import * as SecureStore from 'expo-secure-store';
 import { usePermissions } from '../hooks/usePermissions';
 

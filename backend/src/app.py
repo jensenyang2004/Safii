@@ -1,52 +1,63 @@
-from flask import Flask, request, jsonify, send_from_directory
-import whisper
-from TTS.api import TTS
-import soundfile as sf
+#!/usr/bin/env python
+from flask import Flask, jsonify
+from flask_cors import CORS
 import os
-import requests
+import logging
+from google import genai
+from google.genai import types
+from dotenv import load_dotenv
+from datetime import datetime, timedelta, timezone
 
+# --- Basic Configuration ---
+logging.basicConfig(level=logging.INFO)
+load_dotenv() # Load environment variables from .env file
+
+# --- Flask App Initialization ---
 app = Flask(__name__)
-app.config['UPLOAD_FOLDER'] = '.'
-app.config['STATIC_FOLDER'] = 'static'
+CORS(app) # Enable CORS for all routes
 
-# Load models once
-whisper_model = whisper.load_model("small")
-tts_model = TTS(model_name="tts_models/en/ljspeech/tacotron2-DDC")
+# --- Gemini API Setup ---
+api_key = os.getenv("GEMINI_API_KEY")
+if not api_key:
+    raise ValueError("GEMINI_API_KEY not found in environment variables or .env file.")
 
-# --- Route: Transcribe user audio ---
-@app.route("/transcribe", methods=["POST"])
-def transcribe_audio():
-    audio = request.files["audio"]
-    audio.save("input.wav")
-    result = whisper_model.transcribe("input.wav")
-    return jsonify({"text": result["text"]})
+# Initialize the client using http_options as per the documentation
+client = genai.Client(api_key=api_key, http_options={"api_version": "v1alpha"})
 
-# --- Route: Generate LLM reply (via Ollama) ---
-@app.route("/chat", methods=["POST"])
-def chat():
-    prompt = request.json["prompt"]
-    # history = request.json.get("history", [])
+# --- Model Configuration ---
+# Note: The model used for the token must match the model used by the client
+MODEL = "gemini-2.0-flash-live-001"
 
-    # Call Ollama server
-    response = requests.post(
-        "http://localhost:11434/api/generate",
-        json={"model": "llama2", "prompt": prompt, "stream": False}
-    )
-    reply = response.json().get("response", "").strip()
-    return jsonify({"reply": reply})
+@app.route('/session', methods=['GET'])
+def create_session_token():
+    """Creates and returns a short-lived auth token for the Gemini Live API."""
+    try:
+        # Define token constraints, combining info from both examples
+        expire_time = datetime.now(timezone.utc) + timedelta(hours=1)
 
-# --- Route: Convert reply to speech with Coqui ---
-@app.route("/speak", methods=["POST"])
-def synthesize():
-    text = request.json["text"]
-    output_path = os.path.join(app.config['STATIC_FOLDER'], "output.wav")
-    tts_model.tts_to_file(text=text, file_path=output_path)
-    return jsonify({"audio_url": "http://<your-ip>:5000/static/output.wav"})
+        token_config = {
+            "uses": 10,
+            "expire_time": expire_time.isoformat(),
+            "new_session_expire_time": expire_time.isoformat(),
+            "live_connect_constraints": {
+                "model": MODEL,
+                "config": {
+                    "response_modalities": [types.Modality.AUDIO],
+                    "system_instruction": "You are a friendly woman calling your friend, who is an office worker that loves badminton. You are already at 'The Local Cafe' waiting for her. Start the conversation by greeting her and asking for her ETA.",
+                }
+            }
+        }
 
-# --- Serve static TTS audio ---
-@app.route("/static/<path:filename>")
-def serve_static(filename):
-    return send_from_directory(app.config['STATIC_FOLDER'], filename)
+        # The method is auth_tokens.create
+        token_response = client.auth_tokens.create(config=token_config)
+
+        # Per the documentation, the value to use is in the .name attribute
+        return jsonify({"token": token_response.name})
+
+    except Exception as e:
+        logging.error(f"Error creating session token: {e}")
+        return jsonify({"error": "Failed to create session token"}), 500
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    logging.info("Starting Flask server on 0.0.0.0:5010")
+    app.run(host="0.0.0.0", port=5010)

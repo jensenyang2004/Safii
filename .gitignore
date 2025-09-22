@@ -1,0 +1,53 @@
+# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+
+# dependencies
+node_modules/
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Native
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Metro
+.metro-health-check*
+
+# debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# macOS
+.DS_Store
+*.pem
+
+# local env files
+.env*.local
+.env
+# typescript
+*.tsbuildinfo
+
+app-example
+
+# Auth sensitive files
+app/(auth)/config.ts
+app/(auth)/*.config.ts
+app/(auth)/*.secret.ts
+app/(auth)/*.dev.tsx
+app/(auth)/*.local.ts
+app/(auth)/*.test.ts
+app/(auth)/.env*
+app/(auth)/mailer.tsx
+app/(auth)/phone-auth.tsx
+app/(auth)/phone-auth-manual.tsx
+app/(auth)/sign-in-google.tsx
+app/(auth)/sign-in-x.tsx
+app/(auth)/sign-up-y.tsx
