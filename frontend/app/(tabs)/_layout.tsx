@@ -33,8 +33,9 @@ export default function TabLayout() {
             tabBarItemStyle: {
               justifyContent: 'center',
               alignItems: 'center',
-              height: 60,
+              height: '100%',
               flex: 1,
+              paddingTop: '6%', // This will push the icon down
             },
             tabBarLabelStyle: {
               display: 'none',
@@ -57,14 +58,14 @@ export default function TabLayout() {
               shadowRadius: 10,
 
               // Add white inner top shadow/highlight
-              borderTopWidth: 5,
-              borderLeftWidth: 4,
-              borderRightWidth: 2,
-              borderBottomWidth: 2,
-              borderLeftColor: 'rgba(255, 255, 255, 0.9)',
-              borderTopColor: 'rgba(255, 255, 255, 0.85)',
-              borderBottomColor: 'rgba(255, 255, 255, 0.5)',
-              borderRightColor: 'rgba(255, 255, 255, 0.5)',
+              // borderTopWidth: 5,
+              // borderLeftWidth: 4,
+              // borderRightWidth: 2,
+              // borderBottomWidth: 2,
+              // borderLeftColor: 'rgba(255, 255, 255, 0.9)',
+              // borderTopColor: 'rgba(255, 255, 255, 0.85)',
+              // borderBottomColor: 'rgba(255, 255, 255, 0.5)',
+              // borderRightColor: 'rgba(255, 255, 255, 0.5)',
             },
           }}
         >
@@ -73,11 +74,11 @@ export default function TabLayout() {
             options={{
               tabBarIcon: ({ color, focused }) => (
                 <View style={{ 
-                  height: 45, 
-                  width: 70, 
+                  height: 60, 
+                  width: 80, 
                   justifyContent: 'center', 
                   alignItems: 'center', 
-                  borderRadius: 20, 
+                  borderRadius: 30, 
                   backgroundColor: focused ? 'rgba(0,0,0,0.08)' : 'transparent' 
                 }}>
                   <FontAwesome5 name="map-marked-alt" size={24} color={color} />
@@ -90,11 +91,11 @@ export default function TabLayout() {
             options={{
               tabBarIcon: ({ color, focused }) => (
                 <View style={{ 
-                  height: 45, 
-                  width: 70, 
+                  height: 60, 
+                  width: 80, 
                   justifyContent: 'center', 
                   alignItems: 'center', 
-                  borderRadius: 20, 
+                  borderRadius: 30, 
                   backgroundColor: focused ? 'rgba(0,0,0,0.08)' : 'transparent' 
                 }}>
                   <FontAwesome name="home" size={24} color={color} />
@@ -107,11 +108,11 @@ export default function TabLayout() {
             options={{
               tabBarIcon: ({ color, focused }) => (
                 <View style={{ 
-                  height: 45, 
-                  width: 70, 
+                  height: 60, 
+                  width: 80, 
                   justifyContent: 'center', 
                   alignItems: 'center', 
-                  borderRadius: 20, 
+                  borderRadius: 30, 
                   backgroundColor: focused ? 'rgba(0,0,0,0.08)' : 'transparent' 
                 }}>
                   <FontAwesome5 name="user-friends" size={24} color={color} />
@@ -124,11 +125,11 @@ export default function TabLayout() {
             options={{
               tabBarIcon: ({ color, focused }) => (
                 <View style={{ 
-                  height: 45, 
-                  width: 70, 
+                  height: 60, 
+                  width: 80, 
                   justifyContent: 'center', 
                   alignItems: 'center', 
-                  borderRadius: 20, 
+                  borderRadius: 30, 
                   backgroundColor: focused ? 'rgba(0,0,0,0.08)' : 'transparent' 
                 }}>
                   <MaterialIcons name="call" size={24} color={color} />

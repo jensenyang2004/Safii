@@ -5,7 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { Audio } from 'expo-av';
 import { Buffer } from 'buffer';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 
 // --- Type Definitions for Gemini API ---
 // Based on the successful hook example
@@ -38,7 +38,12 @@ type LiveServerMessage = {
 
 
 // IMPORTANT: Replace with your computer's local network IP address
-const BACKEND_URL = 'http://localhost:5010'; // Your local python server
+const BACKEND_URL = 'https://safii-backend.onrender.com'; // Your local python server
+
+// --- Security ---
+// IMPORTANT: Replace this with a strong, securely stored secret key.
+// This key MUST match the BACKEND_API_KEY environment variable on your server.
+const BACKEND_API_KEY = 'M9vtHEM44u7K0Bsj3f0fcfzm2Adl8iEb';
 
 // --- Audio Configuration ---
 const RECORDING_OPTIONS: Audio.RecordingOptions = {
@@ -76,13 +81,25 @@ const CallingModal = () => {
   const isRecording = useRef(false);
   const isSpeaking = useRef(false);
 
-  const stopCall = useCallback(() => {
+  const stopCall = useCallback(async () => {
     console.log('Stopping call...');
     isRecording.current = false; // Stop recording loop
     webSocketRef.current?.close();
-    recordingRef.current?.stopAndUnloadAsync().catch(console.error);
-    playbackRef.current?.unloadAsync().catch(console.error);
-    router.back();
+
+    try {
+      if (recordingRef.current) {
+        await recordingRef.current.stopAndUnloadAsync();
+      }
+      if (playbackRef.current) {
+        await playbackRef.current.unloadAsync();
+      }
+    } catch (e) {
+      console.error("Error during call cleanup:", e);
+    } finally {
+      recordingRef.current = null;
+      playbackRef.current = null;
+      router.back();
+    }
   }, []);
 
   // --- Main Connection & Audio Lifecycle ---
@@ -104,7 +121,11 @@ const CallingModal = () => {
 
         // 2. Fetch Auth Token
         setStatus('Fetching auth token...');
-        const res = await fetch(`${BACKEND_URL}/session`);
+        const res = await fetch(`${BACKEND_URL}/session`, {
+          headers: {
+            'X-API-Key': BACKEND_API_KEY,
+          },
+        });
         if (!res.ok) throw new Error(`Failed to fetch token: ${res.statusText}`);
         const { token } = await res.json();
         if (!token) throw new Error('Received an empty token.');
@@ -200,7 +221,24 @@ const CallingModal = () => {
       isActive = false;
       isRecording.current = false;
       webSocketRef.current?.close();
-      recordingRef.current?.stopAndUnloadAsync().catch(console.error);
+
+      // Define and call an async function to handle cleanup
+      const cleanup = async () => {
+        try {
+          if (recordingRef.current) {
+            await recordingRef.current.stopAndUnloadAsync();
+            recordingRef.current = null;
+          }
+          if (playbackRef.current) {
+            await playbackRef.current.unloadAsync();
+            playbackRef.current = null;
+          }
+        } catch (e) {
+          console.error("Error in useEffect cleanup:", e);
+        }
+      };
+
+      cleanup();
     };
   }, []);
 
@@ -226,7 +264,7 @@ const CallingModal = () => {
       await newRecording.startAsync();
       console.log('Recording chunk...');
 
-      await new Promise(resolve => setTimeout(resolve, 500)); // Record for 500ms
+      await new Promise(resolve => setTimeout(resolve, 2000)); // Record for 500ms
 
       // Ensure the recording object still exists before stopping
       if (recordingRef.current) {
@@ -236,7 +274,7 @@ const CallingModal = () => {
 
         if (uri) {
           const base64Data = await FileSystem.readAsStringAsync(uri, {
-            encoding: FileSystem.EncodingType.Base64,
+            encoding: 'base64',
           });
 
           if (webSocketRef.current?.readyState === WebSocket.OPEN) {
@@ -255,13 +293,23 @@ const CallingModal = () => {
       }
     } catch (error) {
       console.error('Error during recording chunk:', error);
-      // If an error occurs, clear the ref to be safe
+      // As a recovery mechanism, attempt to stop and unload the recording
+      // to prevent the audio system from getting stuck.
+      if (recordingRef.current) {
+        try {
+          await recordingRef.current.stopAndUnloadAsync();
+        } catch (e) {
+          // This inner catch is important to avoid unhandled promise rejections.
+          console.error('Error during recording error recovery:', e);
+        }
+      }
+      // Clear the ref to be safe for the next loop iteration.
       recordingRef.current = null;
     } finally {
       // Schedule the next iteration of the loop with a small delay
       // This prevents deep recursion and gives the native side time to clean up.
       if (isRecording.current) {
-        setTimeout(startRecordingStream, 100);
+        setTimeout(startRecordingStream, 50);
       }
     }
   };
