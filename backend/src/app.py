@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from flask_cors import CORS
 import os
 import logging
@@ -28,22 +28,34 @@ client = genai.Client(api_key=api_key, http_options={"api_version": "v1alpha"})
 # Note: The model used for the token must match the model used by the client
 MODEL = "gemini-2.0-flash-live-001"
 
+# --- Security ---
+# The backend API key must be set as an environment variable
+BACKEND_API_KEY = os.getenv("BACKEND_API_KEY")
+if not BACKEND_API_KEY:
+    raise ValueError("BACKEND_API_KEY not found in environment variables.")
+
 @app.route('/session', methods=['GET'])
 def create_session_token():
     """Creates and returns a short-lived auth token for the Gemini Live API."""
+    # --- API Key Authentication ---
+    request_api_key = request.headers.get("X-API-Key")
+    if not request_api_key or request_api_key != BACKEND_API_KEY:
+        logging.warning("Forbidden attempt to access /session without a valid API key.")
+        return jsonify({"error": "Forbidden"}), 403
+
     try:
         # Define token constraints, combining info from both examples
         expire_time = datetime.now(timezone.utc) + timedelta(hours=1)
 
         token_config = {
-            "uses": 10,
+            "uses": 20,
             "expire_time": expire_time.isoformat(),
             "new_session_expire_time": expire_time.isoformat(),
             "live_connect_constraints": {
                 "model": MODEL,
                 "config": {
                     "response_modalities": [types.Modality.AUDIO],
-                    "system_instruction": "You are a friendly woman calling your friend, who is an office worker that loves badminton. You are already at 'The Local Cafe' waiting for her. Start the conversation by greeting her and asking for her ETA.",
+                    "system_instruction": "You are a man waiting for your girlfriend get off work, who is an office worker. You are already at station waiting for her cabs to arrives. Start the conversation by greeting her and asking for her ETA.",
                 }
             }
         }

@@ -1,51 +1,36 @@
 
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, FlatList, Image, SafeAreaView } from 'react-native';
+import React from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Image, SafeAreaView } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import * as Theme from '../../constants/Theme';
 
-const contacts = [
-  { id: '1', name: 'Mike', image: require('../../assets/avatar-photo/mike.jpg') },
-  { id: '2', name: 'Cindy', image: require('../../assets/avatar-photo/alice.jpg') },
-  { id: '3', name: 'Bob', image: require('../../assets/avatar-photo/bob.jpg') },
-];
+// The single contact to be displayed and called.
+const contact = {
+  id: '1',
+  name: 'Mike',
+  image: require('../../assets/avatar-photo/mike.jpg'),
+};
 
 const GeminiCallScreen = () => {
-  const [selectedContact, setSelectedContact] = useState(null);
-
-  const handleSelectContact = (contact) => {
-    setSelectedContact(contact);
-  };
-
   const handleCallPress = () => {
-    if (selectedContact) {
-      router.push({ pathname: '/(modals)/calling', params: { contact: selectedContact.name } });
-    }
+    // Directly navigate to the calling screen with the hardcoded contact's info.
+    router.push({ pathname: '/(modals)/calling', params: { contact: contact.name } });
   };
-
-  const renderContactItem = ({ item }) => (
-    <TouchableOpacity 
-      style={[styles.contactItem, selectedContact?.id === item.id && styles.selectedContact]}
-      onPress={() => handleSelectContact(item)}
-    >
-      <Image source={item.image} style={styles.contactImage} />
-      <Text style={styles.contactName}>{item.name}</Text>
-    </TouchableOpacity>
-  );
 
   return (
     <SafeAreaView style={styles.container}>
-      <Text style={styles.title}>Select a contact to call</Text>
-      <FlatList
-        data={contacts}
-        renderItem={renderContactItem}
-        keyExtractor={(item) => item.id}
-        style={styles.contactList}
-      />
-      <TouchableOpacity 
-        style={[styles.callButton, !selectedContact && styles.disabledButton]}
-        onPress={handleCallPress} 
-        disabled={!selectedContact}
+      <View style={styles.content}>
+        <Text style={styles.title}>Your AI Companion</Text>
+        <Text style={styles.subtitle}>Press the button to start a call</Text>
+        
+        <Image source={contact.image} style={styles.profileImage} />
+        <Text style={styles.profileName}>{contact.name}</Text>
+      </View>
+
+      <TouchableOpacity
+        style={styles.callButton}
+        onPress={handleCallPress}
       >
         <FontAwesome name="phone" size={40} color="white" />
       </TouchableOpacity>
@@ -56,50 +41,52 @@ const GeminiCallScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
     backgroundColor: '#F5FCFF',
   },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginVertical: 20,
-  },
-  contactList: {
-    width: '100%',
-  },
-  contactItem: {
-    flexDirection: 'row',
+  content: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
-    padding: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    paddingBottom: 150, // Add padding to avoid overlap with the button
   },
-  selectedContact: {
-    backgroundColor: '#e0e0e0',
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    marginBottom: 8,
   },
-  contactImage: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    marginRight: 15,
-  },
-  contactName: {
+  subtitle: {
     fontSize: 18,
+    color: '#666',
+    marginBottom: 40,
+  },
+  profileImage: {
+    width: 200, // Larger image
+    height: 200,
+    borderRadius: 100, // Make it a circle
+    marginBottom: 20,
+  },
+  profileName: {
+    fontSize: 24,
+    fontWeight: '600',
   },
   callButton: {
     position: 'absolute',
-    bottom: 100, // Adjust this value to position the button above the tab bar
+    bottom: 180, // Moved up from 100
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#007AFF',
+    backgroundColor: Theme.colors.actionOrange,
     justifyContent: 'center',
     alignItems: 'center',
     alignSelf: 'center',
-  },
-  disabledButton: {
-    backgroundColor: '#A9A9A9',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.30,
+    shadowRadius: 4.65,
+    elevation: 8,
   },
 });
 

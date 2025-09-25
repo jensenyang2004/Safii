@@ -1,0 +1,5 @@
+Flask==3.1.2
+flask_cors==6.0.1
+protobuf==6.32.1
+python-dotenv==1.1.1
+google.genai==1.36.0

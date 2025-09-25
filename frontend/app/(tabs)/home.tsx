@@ -3,15 +3,14 @@
 import { ActivityIndicator, View, Text, Pressable, Alert, StyleSheet, Image, FlatList, TouchableOpacity, RefreshControl, ScrollView, Dimensions } from 'react-native';
 
 import { useEffect, useCallback, useMemo, useState } from 'react';
-import { router, useRootNavigationState } from 'expo-router';
+import { router } from 'expo-router';
 import { useAuth } from '@/context/AuthProvider';
 import '@/global.css';
-import ProfilePhotoUploader from '@/components/ProfilePhotoUploader';
-import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { doc, deleteDoc, collection, query, where, orderBy, onSnapshot, getDocs } from 'firebase/firestore';
+import { collection, query, where, orderBy, onSnapshot, getDocs } from 'firebase/firestore';
 import { db } from '@/libs/firebase';
 import { useTracking } from '@/context/TrackProvider';
+import * as Theme from '../../constants/Theme';
 
 // 1. Import your fake-call hook
 import { useFakePhoneCall } from '../../hooks/useFakePhoneCall';
@@ -269,7 +268,7 @@ export default function HomeScreen() {
 
           {settingsLoading ? (
             <View style={homeStyles.settingsCenter}>
-              <ActivityIndicator size="large" color="#2563eb" />
+              <ActivityIndicator size="large" color={Theme.colors.actionPink} />
               <Text style={homeStyles.settingsDim}>載入中…</Text>
             </View>
           ) : (
@@ -311,7 +310,7 @@ export default function HomeScreen() {
         {/* Settings content ends here */}
 
         {loading ? (
-          <ActivityIndicator size="large" color="#1E40AF" />
+          <ActivityIndicator size="large" color={Theme.colors.actionOrange} />
         ) : (
           <Pressable
             onPress={signOut}
@@ -348,7 +347,7 @@ const homeStyles = StyleSheet.create({
     marginBottom: 16,
     marginTop: 16,
     borderWidth: 3,
-    borderColor: '#1E40AF',
+    borderColor: Theme.colors.actionOrange,
   },
   avatarPlaceholder: {
     backgroundColor: '#E5E7EB',
@@ -364,7 +363,7 @@ const homeStyles = StyleSheet.create({
     position: 'absolute',
     bottom: 0,
     right: 0,
-    backgroundColor: '#1E40AF',
+    backgroundColor: Theme.colors.actionOrange,
     width: 36,
     height: 36,
     borderRadius: 18,
@@ -379,7 +378,7 @@ const homeStyles = StyleSheet.create({
     borderRadius: 60,
     marginBottom: 16,
     borderWidth: 3,
-    borderColor: '#1E40AF',
+    borderColor: Theme.colors.actionOrange,
   },
   avatarPlaceholder: {
     backgroundColor: '#E5E7EB',
@@ -395,7 +394,7 @@ const homeStyles = StyleSheet.create({
     position: 'absolute',
     bottom: 0,
     right: 0,
-    backgroundColor: '#1E40AF',
+    backgroundColor: Theme.colors.actionOrange,
     width: 36,
     height: 36,
     borderRadius: 18,
@@ -410,7 +409,7 @@ const homeStyles = StyleSheet.create({
     marginBottom: 24,
   },
   signOutButton: {
-    backgroundColor: '#1E40AF',
+    backgroundColor: Theme.colors.gray200,
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 6,
@@ -426,7 +425,7 @@ const homeStyles = StyleSheet.create({
   },
   disabledButton: {
     opacity: 0.5,
-    backgroundColor: '#8B9AC0', // Lighter blue for disabled state
+    backgroundColor: 'white', // Lighter blue for disabled state
   },
   callButton: {
     backgroundColor: '#059669',
@@ -460,7 +459,7 @@ const homeStyles = StyleSheet.create({
   settingsSection: {
     flex: 1,
     width: '100%',
-    backgroundColor: '#f9fafb',
+    backgroundColor: 'white',
     paddingTop: 20, // Adjust as needed
   },
   settingsDeleteBtn: {
@@ -511,16 +510,16 @@ const homeStyles = StyleSheet.create({
   settingsValue: { color: '#111827', fontWeight: '600' },
 
   settingsSmallBtn: {
-    backgroundColor: '#2563EB', paddingVertical: 10, paddingHorizontal: 12,
+    backgroundColor: Theme.colors.actionOrange, paddingVertical: 10, paddingHorizontal: 12,
     borderRadius: 10, marginRight: 8,
   },
   settingsSmallBtnText: { color: '#fff', fontWeight: '700' },
 
   settingsPrimaryBtn: {
     position: 'absolute', left: 16, right: 16,
-    backgroundColor: '#2563eb', borderRadius: 12,
+    backgroundColor: Theme.colors.actionOrange, borderRadius: 12,
     paddingVertical: 14, alignItems: 'center',
-    shadowColor: '#2563eb', shadowOpacity: 0.25, shadowRadius: 8,
+    shadowColor: Theme.colors.actionOrange, shadowOpacity: 0.25, shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 }, elevation: 3,
   },
   settingsPrimaryText: { color: '#fff', fontWeight: '800', fontSize: 16 },

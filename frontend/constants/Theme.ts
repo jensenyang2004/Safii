@@ -5,7 +5,8 @@ const palette = {
   brandPink: '#F18C8E',
   brandGreen: '#BFD3C1',
   brandOffWhite: '#F8F1EC',
-
+  actionOrange: '#F8BF80',
+  actionPink: '#F3A8BB',
   // --- Action & Accent Colors (from other components) ---
   // Blues
   bluePrimary: '#1E40AF',
