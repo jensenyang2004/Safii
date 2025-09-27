@@ -8,8 +8,8 @@ import * as Theme from '../../constants/Theme';
 // The single contact to be displayed and called.
 const contact = {
   id: '1',
-  name: 'Mike',
-  image: require('../../assets/avatar-photo/mike.jpg'),
+  name: 'Keanu',
+  image: require('../../assets/avatar-photo/keanu.jpg'),
 };
 
 const GeminiCallScreen = () => {
