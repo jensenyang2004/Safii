@@ -63,6 +63,7 @@
     "plugins": [
       "expo-dev-client",
       "expo-router",
+      "./PodPatch.ts",
       [
         "expo-location",
         {

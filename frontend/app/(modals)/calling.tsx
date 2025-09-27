@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
@@ -73,6 +73,7 @@ const RECORDING_OPTIONS: Audio.RecordingOptions = {
 const CallingModal = () => {
   const [status, setStatus] = useState('Initializing...');
   const [isMuted, setIsMuted] = useState(false); // UI only for now
+  const [isSpeakerOn, setIsSpeakerOn] = useState(false);
 
   const webSocketRef = useRef<WebSocket | null>(null);
   const recordingRef = useRef<Audio.Recording | null>(null);
@@ -102,6 +103,23 @@ const CallingModal = () => {
     }
   }, []);
 
+  const toggleSpeaker = async () => {
+    const newIsSpeakerOn = !isSpeakerOn;
+    setIsSpeakerOn(newIsSpeakerOn);
+    try {
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+        playThroughEarpieceAndroid: !newIsSpeakerOn,
+      });
+      if (Platform.OS === 'ios') {
+        await Audio.overrideOutputAudioPortAsync(newIsSpeakerOn ? 'Speaker' : 'None');
+      }
+    } catch (e) {
+      console.error('Failed to toggle speaker:', e);
+    }
+  };
+
   // --- Main Connection & Audio Lifecycle ---
   useEffect(() => {
     let isActive = true;
@@ -117,6 +135,7 @@ const CallingModal = () => {
         await Audio.setAudioModeAsync({
           allowsRecordingIOS: true,
           playsInSilentModeIOS: true,
+          playThroughEarpieceAndroid: true,
         });
 
         // 2. Fetch Auth Token
@@ -392,8 +411,8 @@ const CallingModal = () => {
           <TouchableOpacity style={[styles.controlButton, styles.hangUpButton]} onPress={stopCall}>
             <MaterialIcons name="call-end" size={30} color="white" />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.controlButton}>
-            <MaterialIcons name={'videocam-off'} size={30} color="white" />
+          <TouchableOpacity style={styles.controlButton} onPress={toggleSpeaker}>
+            <MaterialIcons name={isSpeakerOn ? 'volume-up' : 'volume-down'} size={30} color="white" />
           </TouchableOpacity>
         </View>
       </View>
