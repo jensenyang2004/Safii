@@ -4,6 +4,14 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { Audio } from 'expo-av';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withRepeat,
+  cancelAnimation,
+  Easing,
+} from 'react-native-reanimated';
 import { Buffer } from 'buffer';
 import * as FileSystem from 'expo-file-system/legacy';
 
@@ -73,7 +81,16 @@ const RECORDING_OPTIONS: Audio.RecordingOptions = {
 const CallingModal = () => {
   const [status, setStatus] = useState('Initializing...');
   const [isMuted, setIsMuted] = useState(false); // UI only for now
-  const [isSpeakerOn, setIsSpeakerOn] = useState(false);
+  const [isSpeakerOn, setIsSpeakerOn] = useState(true); // Default to speaker ON
+
+  // --- Animation Setup ---
+  const glowScale = useSharedValue(1);
+  const animatedGlowStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: glowScale.value }],
+    };
+  });
+  // --- End Animation Setup ---
 
   const webSocketRef = useRef<WebSocket | null>(null);
   const recordingRef = useRef<Audio.Recording | null>(null);
@@ -112,9 +129,9 @@ const CallingModal = () => {
         playsInSilentModeIOS: true,
         playThroughEarpieceAndroid: !newIsSpeakerOn,
       });
-      if (Platform.OS === 'ios') {
-        await Audio.overrideOutputAudioPortAsync(newIsSpeakerOn ? 'Speaker' : 'None');
-      }
+      // if (Platform.OS === 'ios') {
+      //   await Audio.overrideOutputAudioPortAsync(newIsSpeakerOn ? 'Speaker' : 'None');
+      // }
     } catch (e) {
       console.error('Failed to toggle speaker:', e);
     }
@@ -132,10 +149,11 @@ const CallingModal = () => {
         if (audioPerm.status !== 'granted') {
           throw new Error('Microphone permission is required!');
         }
+        // Initial mode is for playback, as Gemini speaks first.
         await Audio.setAudioModeAsync({
-          allowsRecordingIOS: true,
+          allowsRecordingIOS: false, // Start in playback mode
           playsInSilentModeIOS: true,
-          playThroughEarpieceAndroid: true,
+          playThroughEarpieceAndroid: false, // Corresponds to speaker ON
         });
 
         // 2. Fetch Auth Token
@@ -165,6 +183,8 @@ const CallingModal = () => {
         ws.onmessage = async (event) => {
           if (!isActive) return;
 
+          console.log('RAW_MESSAGE_RECEIVED', event.data);
+
           try {
             let text = "";
             if (typeof event.data === 'string') {
@@ -175,22 +195,24 @@ const CallingModal = () => {
               text = await event.data.text();
             } else {
               console.warn("Unknown WebSocket message type:", typeof event.data);
+              setStatus(`Debug: Unknown msg type: ${typeof event.data}`);
               return;
             }
 
             if (!text.trim()) {
               console.warn("Received empty or whitespace-only message.");
+              // Don't update status for empty messages
               return;
             }
 
             const message: LiveServerMessage = JSON.parse(text);
-            console.log('Received message:', message);
+            console.log('PARSED_MESSAGE:', message);
 
             if (message.setupComplete) {
-              setStatus('Connected. Prompting friend to speak...');
+              setStatus('Connected. Prompting...');
               // Send a kickoff message to make Gemini speak first.
               const kickoffMessage: LiveClientMessage = { realtimeInput: { text: "Hello?" } };
-              webSocketRef.current.send(JSON.stringify(kickoffMessage));
+              webSocketRef.current?.send(JSON.stringify(kickoffMessage));
 
               // Start the recording loop. It will wait until Gemini is done speaking.
               isRecording.current = true;
@@ -212,18 +234,18 @@ const CallingModal = () => {
             }
           } catch (e) {
             console.error("Failed to parse WebSocket message:", e);
-            setStatus("Error: Received invalid message from server.");
+            setStatus(`Error: Failed to parse msg: ${e.message}`);
           }
         };
 
         ws.onerror = (error) => {
           console.error('WebSocket Error:', error);
-          setStatus('Connection error occurred');
+          setStatus(`Error: ${error.message}`);
         };
 
         ws.onclose = (event) => {
           console.log('WebSocket closed:', event.code, event.reason);
-          setStatus('Connection closed.');
+          setStatus(`Connection closed: ${event.reason} (Code: ${event.code})`);
           isRecording.current = false;
         };
 
@@ -261,6 +283,30 @@ const CallingModal = () => {
     };
   }, []);
 
+  // Animation Effect
+  useEffect(() => {
+    // Animate when the AI is playing its response, which is indicated by the status.
+    if (status === 'Playing response...') {
+      glowScale.value = withRepeat(
+        withTiming(1.2, {
+          duration: 800,
+          easing: Easing.inOut(Easing.ease),
+        }),
+        -1, // Infinite loop
+        true // Reverse the animation
+      );
+    } else {
+      // Stop the animation for all other statuses
+      cancelAnimation(glowScale);
+      glowScale.value = withTiming(1, { duration: 300 });
+    }
+
+    return () => {
+      // Ensure animation is cancelled on unmount
+      cancelAnimation(glowScale);
+    };
+  }, [status]);
+
 
   // --- Audio Streaming Functions ---
 
@@ -276,6 +322,15 @@ const CallingModal = () => {
     }
 
     try {
+      // --- SET RECORDING MODE ---
+      console.log('Setting audio mode for recording...');
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true, // Key change for recording
+        playsInSilentModeIOS: true,
+        playThroughEarpieceAndroid: !isSpeakerOn, // Keep respecting toggle
+      });
+      // --- END SET RECORDING MODE ---
+
       const newRecording = new Audio.Recording();
       await newRecording.prepareToRecordAsync(RECORDING_OPTIONS);
       recordingRef.current = newRecording; // Keep track of the current recording
@@ -334,9 +389,23 @@ const CallingModal = () => {
   };
 
   const playCombinedAudio = async () => {
+    try {
+      console.log(`Setting audio mode for playback (Speaker: ${isSpeakerOn})`);
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false, // Key change for speaker playback on iOS
+        playsInSilentModeIOS: true,
+        playThroughEarpieceAndroid: !isSpeakerOn,
+      });
+
+    } catch (e) {
+      console.error('Failed to set audio mode for playback:', e);
+    }
+
     if (audioResponseQueue.current.length === 0) {
       isSpeaking.current = false;
       setStatus('Your turn to speak...');
+      // After a turn, immediately try to start recording again, which will set the correct audio mode.
+      setTimeout(() => startRecordingStream(), 50);
       return;
     }
 
@@ -398,25 +467,25 @@ const CallingModal = () => {
 
 
   return (
-    <LinearGradient colors={['#000428', '#004e92']} style={styles.container}>
+    <View style={styles.container}>
       <View style={styles.callingContainer}>
-        <Text style={styles.callingText}>{status}</Text>
+        {/* <Text style={styles.callingText}>{status}</Text> */}
         <View style={styles.glowContainer}>
-          <View style={styles.glow} />
+          <Animated.View style={[styles.glow, animatedGlowStyle]} />
         </View>
         <View style={styles.callControls}>
           <TouchableOpacity style={styles.controlButton} onPress={() => setIsMuted(!isMuted)}>
-            <MaterialIcons name={isMuted ? 'mic-off' : 'mic'} size={30} color="white" />
+            <MaterialIcons name={isMuted ? 'mic-off' : 'mic'} size={30} color="black" />
           </TouchableOpacity>
           <TouchableOpacity style={[styles.controlButton, styles.hangUpButton]} onPress={stopCall}>
             <MaterialIcons name="call-end" size={30} color="white" />
           </TouchableOpacity>
           <TouchableOpacity style={styles.controlButton} onPress={toggleSpeaker}>
-            <MaterialIcons name={isSpeakerOn ? 'volume-up' : 'volume-down'} size={30} color="white" />
+            <MaterialIcons name={isSpeakerOn ? 'volume-up' : 'volume-down'} size={30} color="black" />
           </TouchableOpacity>
         </View>
       </View>
-    </LinearGradient>
+    </View>
   );
 };
 
@@ -425,6 +494,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: 'white', // Changed background
   },
   callingContainer: {
     flex: 1,
@@ -433,7 +503,7 @@ const styles = StyleSheet.create({
   },
   callingText: {
     fontSize: 24,
-    color: 'white',
+    color: 'black', // Changed color
     marginBottom: 40,
     textAlign: 'center',
     paddingHorizontal: 20,
@@ -468,7 +538,7 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    backgroundColor: 'rgba(0, 0, 0, 0.1)', // Changed background
     justifyContent: 'center',
     alignItems: 'center',
   },

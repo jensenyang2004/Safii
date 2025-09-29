@@ -49,7 +49,7 @@ export default function OnboardingScreen() {
     if (allPermissionsGranted) {
       try {
         await SecureStore.setItemAsync(ONBOARDING_COMPLETED_KEY, 'true');
-        router.replace('/(auth)/sign-in');
+        router.replace('/(tabs)/home');
       } catch (error) {
         console.error('Failed to save onboarding status', error);
         // Handle error appropriately
