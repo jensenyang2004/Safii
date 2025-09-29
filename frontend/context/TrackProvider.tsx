@@ -75,8 +75,6 @@ Notifications.setNotificationHandler({
 
     if (data?.type === 'missed_report' && data.strike === (data.strikeThreshold || 3)) {
       console.log('🚨 FINAL STRIKE NOTIFICATION RECEIVED! Emergency is handled by contact-side listener.');
-      // Clean up local state, but leave Firestore doc active.
-      await stopTrackingMode({ isEmergency: true });
 
     } else if (data?.type === 'session_end') {
       console.log(`⏰ Session ${data.strike + 1} ended - Report required`);
@@ -221,6 +219,22 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
   useEffect(() => {
     initializeSystem();
     loadAndReconcileState();
+
+    // Listen for notification tap events
+    const responseSubscription = Notifications.addNotificationResponseReceivedListener(response => {
+      const data = response.notification.request.content.data as unknown as NotificationData;
+      console.log('📱 Notification response received:', response.notification.request.content.title);
+
+      // Only reconcile state if it's the final emergency notification
+      if (data?.type === 'missed_report' && data.strike === (data.strikeThreshold || 3)) {
+        console.log('🚨 Final emergency notification tapped. Reconciling state.');
+        loadAndReconcileState();
+      }
+    });
+
+    return () => {
+      responseSubscription.remove();
+    };
   }, []);
 
   const initializeSystem = async () => {
@@ -272,12 +286,7 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
           setIsInfoSent(false);
         }
 
-        // Handle emergency cleanup if the period has fully passed
-        if (finalEvent && now > finalEvent.time && finalEvent.type === 'missed_report' && finalEvent.strike === strikeThreshold) {
-          console.log('🚨 Emergency period has passed. Cleaning up local state.');
-          await stopTrackingMode({ isEmergency: true });
-          return;
-        }
+        
 
         let currentStrikeCount = 0;
         for (const event of timeline) {

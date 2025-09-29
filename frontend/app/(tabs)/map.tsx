@@ -36,7 +36,7 @@ const SNAP_INTERVAL = CARD_WIDTH + SPACING;
 export default function Map() {
   const [location, setLocation] = useState(null); // CHANGED to null
 
-  const { trackingModes, isTracking, trackingModeId, isReportDue, isInfoSent } = useTracking();
+  const { trackingModes, isTracking, trackingModeId, isReportDue, isInfoSent, stopTrackingMode } = useTracking();
   const { emergencyData: emergencies } = useEmergencyListener();
   const [showToolCard, setShowToolCard] = useState(false);
   const [selectedEmergency, setSelectedEmergency] = useState(null);
@@ -163,20 +163,13 @@ export default function Map() {
   }
 
   useEffect(() => {
-    let timer: NodeJS.Timeout;
     if (isInfoSent) { // If tracking provider says info is sent
       setShowLocationSentCard(true); // Show the card
-      console.log('showLocationSentCard has been set to true');
-      timer = setTimeout(() => {
-        setShowLocationSentCard(false); // Hide after 10 seconds
-      }, 10000); // 10 seconds
     }
-    return () => {
-      clearTimeout(timer); // Clean up the timer if component unmounts or isInfoSent changes
-    };
   }, [isInfoSent]);
 
   const handleDismissLocationSentCard = () => {
+    stopTrackingMode();
     setShowLocationSentCard(false);
   };
 
