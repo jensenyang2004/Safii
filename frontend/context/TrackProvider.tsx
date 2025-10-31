@@ -1,7 +1,7 @@
 // context/TrackingContext.tsx
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { collection, getDocs, doc, getDoc, updateDoc, query, where, addDoc, setDoc, Timestamp, serverTimestamp, deleteDoc, onSnapshot } from 'firebase/firestore';
-import { db } from '@/libs/firebase';
+import { db } from '@/apis/firebase';
 import * as TaskManager from 'expo-task-manager';
 import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';

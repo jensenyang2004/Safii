@@ -126,6 +126,7 @@
       "typedRoutes": true
     },
     "extra": {
+      "GOOGLE_MAPS_API_KEY": "AIzaSyCwPbw8zGCOd4Dz76EDoS98bcSdPjITWtI",
       "router": {
         "origin": false
       },

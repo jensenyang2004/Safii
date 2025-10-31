@@ -5,7 +5,7 @@ import { FontAwesome5 } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { requestForegroundPermissionsAsync, getCurrentPositionAsync } from 'expo-location';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { db } from '@/libs/firebase';
+import { db } from '@/apis/firebase';
 import * as Theme from '../../constants/Theme';
 
 interface SearchResult {

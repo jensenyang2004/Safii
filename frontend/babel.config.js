@@ -1,30 +1,69 @@
+
 module.exports = function (api) {
   api.cache(true);
   return {
-    presets: [
-      ["babel-preset-expo", { jsxImportSource: "nativewind" }],
-      "nativewind/babel",
-    ],
+    presets: ['babel-preset-expo'],
     plugins: [
-      "expo-router/babel",
-      [
-        "module-resolver",
-        {
-          root: ["./"],
-          alias: {
-            "@": "./",
-          },
-          extensions: [
-            ".ios.ts",
-            ".android.ts",
-            ".ts",
-            ".tsx",
-            ".json",
-            ".js",
-            ".jsx",
-          ],
-        },
-      ],
+      // (other plugins like module-resolver, nativewind, dotenv, etc.)
+      'react-native-reanimated/plugin', // must be last
     ],
   };
 };
+
+// module.exports = function (api) {
+//   api.cache(true);
+//   return {
+//     presets: ['babel-preset-expo'],
+//     plugins: [
+//       // 'expo-router/babel',
+//       require.resolve('expo-router/babel'),
+
+//       // [require.resolve('babel-plugin-module-resolver'), {
+//       //   root: ['./'],
+//       //   alias: { '@': './' },
+//       //   extensions: ['.ios.ts', '.android.ts', '.ts', '.tsx', '.js', '.jsx', '.json'],
+//       // }],
+
+//       // [require.resolve('module:react-native-dotenv'), {
+//       //   moduleName: '@env',
+//       //   path: '.env',
+//       // }],
+//       [
+//         'module:react-native-dotenv',
+//         {
+//           moduleName: '@env',
+//           path: '.env',
+//         },
+//       ],
+//       [
+//         'module-resolver',
+//         {
+//           root: ['./'],
+//           alias: { '@': './' },
+//         },
+//       ],
+//       'react-native-reanimated/plugin',
+//     ],
+//   };
+// };
+
+// module.exports = function (api) {
+//   api.cache(true);
+//   return {
+//     presets: ['babel-preset-expo'],
+//     plugins: [
+//       // Keep expo-router first
+//       require.resolve('expo-router/babel'),
+//       [
+//         'module-resolver',
+//         {
+//           root: ['./'],
+//           alias: { '@': './' },
+//           extensions: ['.ios.ts', '.android.ts', '.ts', '.tsx', '.js', '.jsx', '.json'],
+//         },
+//         'nativewind/babel',
+        
+//       ],
+//     ],
+//   };
+// };

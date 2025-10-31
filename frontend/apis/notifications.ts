@@ -37,9 +37,9 @@ export const sendPushNotification = async (expoPushToken: string, message: strin
 
 // New error handler function
 function handleRegistrationError(errorMessage: string) {
-  alert(errorMessage);
+  // alert(errorMessage);
   console.error(errorMessage); // Log to console for debugging
-  throw new Error(errorMessage); // Re-throw to stop execution if needed
+  // throw new Error(errorMessage); // Re-throw to stop execution if needed
 }
 
 export const registerForPushNotificationsAsync = async () => {

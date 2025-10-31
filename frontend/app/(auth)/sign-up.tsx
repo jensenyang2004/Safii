@@ -5,7 +5,7 @@ import {
   updateProfile,
   User as FirebaseUser,
 } from 'firebase/auth';
-import { auth, db } from '@/libs/firebase'
+import { auth, db } from '@/apis/firebase'
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { router, Stack } from 'expo-router';
 import { AntDesign } from '@expo/vector-icons'

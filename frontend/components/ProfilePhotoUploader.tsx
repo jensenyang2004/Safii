@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Pressable, Text, Image, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { storage, db } from '@/libs/firebase';
+import { storage, db } from '@/apis/firebase';
 import { ref, uploadBytesResumable, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { doc, updateDoc } from 'firebase/firestore';
 import { useAuth } from '@/context/AuthProvider';

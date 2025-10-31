@@ -8,7 +8,7 @@ import { useAuth } from '@/context/AuthProvider';
 import '@/global.css';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { collection, query, where, orderBy, onSnapshot, getDocs } from 'firebase/firestore';
-import { db } from '@/libs/firebase';
+import { db } from '@/apis/firebase';
 import { useTracking } from '@/context/TrackProvider';
 import * as Theme from '../../constants/Theme';
 
