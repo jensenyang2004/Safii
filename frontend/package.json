@@ -1,6 +1,7 @@
 {
   "name": "firebaseapp-2-afup",
   "main": "expo-router/entry",
+  "type": "module",
   "version": "1.0.0",
   "scripts": {
     "start": "expo start --dev-client",

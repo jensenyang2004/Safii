@@ -3,21 +3,31 @@ import * as XLSX from "xlsx";
 import fs from "fs";
 import path from "path";
 
-const META_URL = "https://www.npa.gov.tw/ch/app/data/doc?module=liaison&detailNo=1362326648816406528&type=s";
+const META_URL = "https://www.npa.gov.tw/ch/app/openData/data/data?module=liaison&serno=afc427bb-43d6-4af4-994a-71faee42e3c0&type=json";
+// const META_URL = "https://www.npa.gov.tw/ch/app/data/doc?module=liaison&detailNo=1362326648816406528&type=s";
 const OUTPUT_PATH = path.resolve("./frontend/data/policeStations.json");
 
 async function fetchLatestOdsUrl() {
   console.log("🔍 抓取開放資料入口...");
   const res = await fetch(META_URL);
-  const meta = await res.json();
+  const text = await res.text();
+  let meta;
 
-  if (!meta.docs || meta.docs.length === 0) {
-    throw new Error("❌ 無法找到 docs 檔案連結");
+  try {
+    meta = JSON.parse(text);
+  } catch {
+    console.log("⚠️ 目前抓到的不是 JSON，改試 XML 解析...");
+    // 從 XML 中擷取 fileurl
+    const match = text.match(/https:\/\/www\.npa\.gov\.tw\/ch\/app\/data\/doc\?module=liaison&detailNo=\d+&type=s/);
+    if (!match) throw new Error("❌ 找不到資料連結");
+    return match[0]; // 直接回傳檔案 URL
   }
 
-  const fileUrl = meta.docs[0].fileurl;
-  console.log("📦 取得檔案連結：", fileUrl);
-  return fileUrl;
+  if (!meta.docs || meta.docs.length === 0) {
+    throw new Error("❌ 無法從 JSON 解析出 docs");
+  }
+
+  return meta.docs[0].fileurl;
 }
 
 async function downloadOdsFile(url, outputFile) {
