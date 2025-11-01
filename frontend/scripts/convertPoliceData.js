@@ -42,7 +42,9 @@ async function downloadOdsFile(url, outputFile) {
 
 function convertOdsToJson(odsPath) {
   console.log("📖 解析 ODS...");
-  const workbook = XLSX.readFile(odsPath);
+  const buffer = fs.readFileSync(odsPath);
+  const workbook = XLSX.read(buffer, { type: "buffer" });
+  // const workbook = XLSX.readFile(odsPath);
   const sheetName = workbook.SheetNames[0];
   const sheet = workbook.Sheets[sheetName];
   const jsonData = XLSX.utils.sheet_to_json(sheet);
