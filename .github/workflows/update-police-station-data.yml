@@ -1,0 +1,32 @@
+name: Update Police Data
+
+on:
+  schedule:
+    - cron: "0 0 1 * *" # 每月1日00:00 UTC 執行
+  workflow_dispatch: # 可手動觸發
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install node-fetch xlsx
+
+      - name: Run update script
+        run: node frontend/scripts/convertPoliceData.js
+
+      - name: Commit and push changes
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "actions@github.com"
+          git add frontend/data/policeStations.json
+          git commit -m "Auto update police data" || echo "No changes to commit"
+          git push
