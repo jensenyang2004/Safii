@@ -1,21 +1,23 @@
-// frontend/scripts/convertPoliceData.js
 import fetch from "node-fetch";
 import * as XLSX from "xlsx";
 import fs from "fs";
 import path from "path";
 
-const META_URL = "https://www.npa.gov.tw/ch/app/data/openDataList?module=liaison&detailNo=1362326648816406528&type=s";
+const META_URL = "https://www.npa.gov.tw/ch/app/data/doc?module=liaison&detailNo=1362326648816406528&type=s";
 const OUTPUT_PATH = path.resolve("./frontend/data/policeStations.json");
 
 async function fetchLatestOdsUrl() {
   console.log("🔍 抓取開放資料入口...");
   const res = await fetch(META_URL);
-  const text = await res.text();
+  const meta = await res.json();
 
-  // 從 XML 找出檔案連結（也可改用 JSON）
-  const match = text.match(/https:\/\/www\.npa\.gov\.tw\/ch\/app\/data\/doc\?module=liaison&detailNo=\d+&type=s/);
-  if (!match) throw new Error("❌ 找不到 ODS 檔案連結");
-  return match[0];
+  if (!meta.docs || meta.docs.length === 0) {
+    throw new Error("❌ 無法找到 docs 檔案連結");
+  }
+
+  const fileUrl = meta.docs[0].fileurl;
+  console.log("📦 取得檔案連結：", fileUrl);
+  return fileUrl;
 }
 
 async function downloadOdsFile(url, outputFile) {
@@ -62,6 +64,7 @@ async function updatePoliceData() {
     console.log(`🚀 更新完成！已輸出至 ${OUTPUT_PATH}`);
   } catch (err) {
     console.error("❌ 發生錯誤：", err);
+    process.exit(1);
   }
 }
 
