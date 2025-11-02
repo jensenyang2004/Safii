@@ -5,13 +5,9 @@ import { FontAwesome5 } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { requestForegroundPermissionsAsync, getCurrentPositionAsync } from 'expo-location';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-<<<<<<< HEAD
 import { db } from '@/apis/firebase';
 import * as Theme from '../../constants/Theme';
-=======
-import { db } from '@/libs/firebase';
 import { getAuth } from 'firebase/auth';
->>>>>>> c97b2e0e53ce9bf53b1fc2a3056936d2f561a642
 
 interface SearchResult {
   id: string;
@@ -203,11 +199,8 @@ export default function FriendsScreen() {
             style={styles.addButton}
             onPress={() => handleSendRequest(item.id)}
           >
-<<<<<<< HEAD
             <FontAwesome5 name="user-plus" size={16} color={Theme.colors.actionOrange} />
-=======
             <FontAwesome5 name="user-plus" size={16} color="#1E40AF" />
->>>>>>> c97b2e0e53ce9bf53b1fc2a3056936d2f561a642
           </Pressable>
         )}
       </View>
@@ -350,11 +343,8 @@ export default function FriendsScreen() {
         )}
 
         {loading ? (
-<<<<<<< HEAD
           <ActivityIndicator size="large" color={Theme.colors.actionOrange} style={styles.loader} />
-=======
-          <ActivityIndicator size="large" color="#1E40AF" style={styles.loader} />
->>>>>>> c97b2e0e53ce9bf53b1fc2a3056936d2f561a642
+
         ) : (
           <>
             {activeTab === 'friends' && (
@@ -374,11 +364,8 @@ export default function FriendsScreen() {
                 <View style={styles.header}>
                   <Text style={styles.sectionTitle}>交友請求</Text>
                   <Pressable onPress={refreshFriendData} style={styles.refreshButton}>
-<<<<<<< HEAD
                     <FontAwesome5 name="sync" size={16} color={Theme.colors.action} />
-=======
                     <FontAwesome5 name="sync" size={16} color="#1E40AF" />
->>>>>>> c97b2e0e53ce9bf53b1fc2a3056936d2f561a642
                   </Pressable>
                 </View>
 
@@ -407,11 +394,8 @@ export default function FriendsScreen() {
             {activeTab === 'search' && (
               <>
                 {searching ? (
-<<<<<<< HEAD
                   <ActivityIndicator size="small" color={Theme.colors.actionOrange} style={styles.loader} />
-=======
-                  <ActivityIndicator size="small" color="#1E40AF" style={styles.loader} />
->>>>>>> c97b2e0e53ce9bf53b1fc2a3056936d2f561a642
+
                 ) : (
                   // <></>
                   <FlatList
@@ -483,11 +467,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   activeTab: {
-<<<<<<< HEAD
     backgroundColor: Theme.colors.actionOrange,
-=======
     backgroundColor: '#1E40AF',
->>>>>>> c97b2e0e53ce9bf53b1fc2a3056936d2f561a642
   },
   tabText: {
     fontWeight: '500',
@@ -509,11 +490,8 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   searchButton: {
-<<<<<<< HEAD
     backgroundColor: Theme.colors.actionOrange,
-=======
     backgroundColor: '#1E40AF',
->>>>>>> c97b2e0e53ce9bf53b1fc2a3056936d2f561a642
     borderRadius: 8,
     padding: 12,
     justifyContent: 'center',
@@ -521,11 +499,8 @@ const styles = StyleSheet.create({
   },
 
   sendLocationButton: {
-<<<<<<< HEAD
     backgroundColor: Theme.colors.actionOrange,
-=======
     backgroundColor: '#1E40AF',
->>>>>>> c97b2e0e53ce9bf53b1fc2a3056936d2f561a642
     padding: 8,
     borderRadius: 5,
     marginLeft: 10,

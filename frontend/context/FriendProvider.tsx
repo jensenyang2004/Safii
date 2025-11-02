@@ -1,9 +1,5 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
-<<<<<<< HEAD
 import { db } from '@/apis/firebase';
-=======
-import { db } from '../libs/firebase';
->>>>>>> c97b2e0e53ce9bf53b1fc2a3056936d2f561a642
 import {
     collection,
     addDoc,

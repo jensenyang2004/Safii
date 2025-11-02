@@ -1,10 +1,6 @@
 // app/(auth)/sign-in.tsx
 
-<<<<<<< HEAD
 import { auth, db } from '@/apis/firebase';
-=======
-import { auth, db } from '@/libs/firebase';
->>>>>>> c97b2e0e53ce9bf53b1fc2a3056936d2f561a642
 import { router } from 'expo-router';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc, Timestamp } from 'firebase/firestore';

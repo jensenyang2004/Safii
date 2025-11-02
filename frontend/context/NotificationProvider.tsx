@@ -1,13 +1,8 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Alert, Button, View } from 'react-native';
 import { collection, query, where, onSnapshot, getDoc, doc as docRef, doc } from 'firebase/firestore';
-<<<<<<< HEAD
 import { db } from '@/apis/firebase';
 import { registerForPushNotificationsAsync, saveTokenToFirestore, sendPushNotification } from '@/apis/notifications';
-=======
-import { db } from '@/libs/firebase';
-import { registerForPushNotificationsAsync, saveTokenToFirestore, sendPushNotification } from '@/libs/notifications';
->>>>>>> c97b2e0e53ce9bf53b1fc2a3056936d2f561a642
 import { useAuth } from '@/context/AuthProvider'; // Import AuthProvider context
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -43,10 +38,7 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
     const navigation = useNavigation<NavigationParams>();
 
     useEffect(() => {
-<<<<<<< HEAD
 
-=======
->>>>>>> c97b2e0e53ce9bf53b1fc2a3056936d2f561a642
         if (user) {
             registerForPushNotificationsAsync().then(token => {
                 if (token) {

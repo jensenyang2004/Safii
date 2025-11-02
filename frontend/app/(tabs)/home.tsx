@@ -3,26 +3,15 @@
 import { ActivityIndicator, View, Text, Pressable, Alert, StyleSheet, Image, FlatList, TouchableOpacity, RefreshControl, ScrollView, Dimensions } from 'react-native';
 
 import { useEffect, useCallback, useMemo, useState } from 'react';
-<<<<<<< HEAD
-import { router } from 'expo-router';
-import { useAuth } from '@/context/AuthProvider';
 import '@/global.css';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { collection, query, where, orderBy, onSnapshot, getDocs } from 'firebase/firestore';
 import { db } from '@/apis/firebase';
 import { useTracking } from '@/context/TrackProvider';
 import * as Theme from '../../constants/Theme';
-=======
 import { router, useRootNavigationState } from 'expo-router';
 import { useAuth } from '@/context/AuthProvider';
-import '@/global.css';
-import ProfilePhotoUploader from '@/components/ProfilePhotoUploader';
-import { Ionicons } from '@expo/vector-icons';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { doc, deleteDoc, collection, query, where, orderBy, onSnapshot, getDocs } from 'firebase/firestore';
-import { db } from '@/libs/firebase';
-import { useTracking } from '@/context/TrackProvider';
->>>>>>> c97b2e0e53ce9bf53b1fc2a3056936d2f561a642
+
 
 // 1. Import your fake-call hook
 import { useFakePhoneCall } from '../../hooks/useFakePhoneCall';
@@ -280,11 +269,8 @@ export default function HomeScreen() {
 
           {settingsLoading ? (
             <View style={homeStyles.settingsCenter}>
-<<<<<<< HEAD
               <ActivityIndicator size="large" color={Theme.colors.actionPink} />
-=======
               <ActivityIndicator size="large" color="#2563eb" />
->>>>>>> c97b2e0e53ce9bf53b1fc2a3056936d2f561a642
               <Text style={homeStyles.settingsDim}>載入中…</Text>
             </View>
           ) : (
@@ -326,11 +312,8 @@ export default function HomeScreen() {
         {/* Settings content ends here */}
 
         {loading ? (
-<<<<<<< HEAD
           <ActivityIndicator size="large" color={Theme.colors.actionOrange} />
-=======
-          <ActivityIndicator size="large" color="#1E40AF" />
->>>>>>> c97b2e0e53ce9bf53b1fc2a3056936d2f561a642
+
         ) : (
           <Pressable
             onPress={signOut}
@@ -367,11 +350,8 @@ const homeStyles = StyleSheet.create({
     marginBottom: 16,
     marginTop: 16,
     borderWidth: 3,
-<<<<<<< HEAD
     borderColor: Theme.colors.actionOrange,
-=======
     borderColor: '#1E40AF',
->>>>>>> c97b2e0e53ce9bf53b1fc2a3056936d2f561a642
   },
   avatarPlaceholder: {
     backgroundColor: '#E5E7EB',
@@ -387,11 +367,8 @@ const homeStyles = StyleSheet.create({
     position: 'absolute',
     bottom: 0,
     right: 0,
-<<<<<<< HEAD
     backgroundColor: Theme.colors.actionOrange,
-=======
     backgroundColor: '#1E40AF',
->>>>>>> c97b2e0e53ce9bf53b1fc2a3056936d2f561a642
     width: 36,
     height: 36,
     borderRadius: 18,
@@ -406,11 +383,8 @@ const homeStyles = StyleSheet.create({
     borderRadius: 60,
     marginBottom: 16,
     borderWidth: 3,
-<<<<<<< HEAD
     borderColor: Theme.colors.actionOrange,
-=======
     borderColor: '#1E40AF',
->>>>>>> c97b2e0e53ce9bf53b1fc2a3056936d2f561a642
   },
   avatarPlaceholder: {
     backgroundColor: '#E5E7EB',
@@ -426,11 +400,8 @@ const homeStyles = StyleSheet.create({
     position: 'absolute',
     bottom: 0,
     right: 0,
-<<<<<<< HEAD
     backgroundColor: Theme.colors.actionOrange,
-=======
     backgroundColor: '#1E40AF',
->>>>>>> c97b2e0e53ce9bf53b1fc2a3056936d2f561a642
     width: 36,
     height: 36,
     borderRadius: 18,
@@ -445,11 +416,8 @@ const homeStyles = StyleSheet.create({
     marginBottom: 24,
   },
   signOutButton: {
-<<<<<<< HEAD
     backgroundColor: Theme.colors.gray200,
-=======
     backgroundColor: '#1E40AF',
->>>>>>> c97b2e0e53ce9bf53b1fc2a3056936d2f561a642
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 6,
@@ -465,11 +433,8 @@ const homeStyles = StyleSheet.create({
   },
   disabledButton: {
     opacity: 0.5,
-<<<<<<< HEAD
     backgroundColor: 'white', // Lighter blue for disabled state
-=======
     backgroundColor: '#8B9AC0', // Lighter blue for disabled state
->>>>>>> c97b2e0e53ce9bf53b1fc2a3056936d2f561a642
   },
   callButton: {
     backgroundColor: '#059669',
@@ -503,11 +468,8 @@ const homeStyles = StyleSheet.create({
   settingsSection: {
     flex: 1,
     width: '100%',
-<<<<<<< HEAD
     backgroundColor: 'white',
-=======
     backgroundColor: '#f9fafb',
->>>>>>> c97b2e0e53ce9bf53b1fc2a3056936d2f561a642
     paddingTop: 20, // Adjust as needed
   },
   settingsDeleteBtn: {
@@ -558,26 +520,20 @@ const homeStyles = StyleSheet.create({
   settingsValue: { color: '#111827', fontWeight: '600' },
 
   settingsSmallBtn: {
-<<<<<<< HEAD
     backgroundColor: Theme.colors.actionOrange, paddingVertical: 10, paddingHorizontal: 12,
-=======
     backgroundColor: '#2563EB', paddingVertical: 10, paddingHorizontal: 12,
->>>>>>> c97b2e0e53ce9bf53b1fc2a3056936d2f561a642
     borderRadius: 10, marginRight: 8,
   },
   settingsSmallBtnText: { color: '#fff', fontWeight: '700' },
 
   settingsPrimaryBtn: {
     position: 'absolute', left: 16, right: 16,
-<<<<<<< HEAD
     backgroundColor: Theme.colors.actionOrange, borderRadius: 12,
     paddingVertical: 14, alignItems: 'center',
     shadowColor: Theme.colors.actionOrange, shadowOpacity: 0.25, shadowRadius: 8,
-=======
     backgroundColor: '#2563eb', borderRadius: 12,
     paddingVertical: 14, alignItems: 'center',
     shadowColor: '#2563eb', shadowOpacity: 0.25, shadowRadius: 8,
->>>>>>> c97b2e0e53ce9bf53b1fc2a3056936d2f561a642
     shadowOffset: { width: 0, height: 4 }, elevation: 3,
   },
   settingsPrimaryText: { color: '#fff', fontWeight: '800', fontSize: 16 },

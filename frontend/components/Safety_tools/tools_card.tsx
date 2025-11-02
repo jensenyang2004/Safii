@@ -7,13 +7,8 @@ const { width } = Dimensions.get('window');
 
 const CARD_WIDTH = width * 0.9;
 
-<<<<<<< HEAD
 const ToolCard = ({ showBottomBar = true, onFindSafeSpot }) => {
   const items = ['求助', '假電話', '警報聲', '尋找安全地點'];
-=======
-const ToolCard = ({ showBottomBar = true }) => {
-  const items = ['求助', '假電話', '警報聲'];
->>>>>>> c97b2e0e53ce9bf53b1fc2a3056936d2f561a642
   const [currentIndex, setCurrentIndex] = useState(0);
   return (
     <View style={styles.toolCardWrapper}>
@@ -28,7 +23,6 @@ const ToolCard = ({ showBottomBar = true }) => {
           data={items}
           scrollAnimationDuration={500}
           onSnapToItem={index => setCurrentIndex(index)}
-<<<<<<< HEAD
           renderItem={({ item }) => {
             const handlePress = () => {
               if (item === '尋找安全地點') {
@@ -43,13 +37,6 @@ const ToolCard = ({ showBottomBar = true }) => {
               </TouchableOpacity>
             )
           }}
-=======
-          renderItem={({ item }) => (
-            <TouchableOpacity style={styles.circleButton}>
-              <Text style={styles.circleText}>{item}</Text>
-            </TouchableOpacity>
-          )}
->>>>>>> c97b2e0e53ce9bf53b1fc2a3056936d2f561a642
         />
 
         {showBottomBar && (
@@ -70,17 +57,8 @@ export default ToolCard;
 
 const styles = StyleSheet.create({
   toolCardWrapper: {
-<<<<<<< HEAD
     width: '100%',
     alignItems: 'center',
-=======
-    position: 'absolute',
-    bottom: 120,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-    zIndex: 100,
->>>>>>> c97b2e0e53ce9bf53b1fc2a3056936d2f561a642
   },
   container: {
     width: CARD_WIDTH,

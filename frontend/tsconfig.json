@@ -1,7 +1,6 @@
 {
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
-<<<<<<< HEAD
     "useUnknownInCatchVariables": false,
     "strict": true,
     "jsx": "react-native",
@@ -15,31 +14,12 @@
     "allowJs": true,
     "esModuleInterop": true,
     "skipLibCheck": true
-=======
-    "strict": true,
-    "jsx": "react-native",                  // ⬅️ Required to handle JSX (tsx files)
-    "moduleResolution": "bundler",         // ⬅️ Helps resolve node_modules and aliases
-    "baseUrl": ".",                        // ⬅️ Required for path aliases to work
-    "paths": {
-      "@/*": ["./*"]                       // ⬅️ Your existing alias for '@/libs/firebase', etc.
-    },
-    "allowJs": true,                       // ⬅️ Optional: if you also use .js files
-    "esModuleInterop": true,               // ⬅️ Ensures default imports work with CommonJS modules
-    "skipLibCheck": true                   // ⬅️ Speeds up builds by skipping node_modules type checks
->>>>>>> c97b2e0e53ce9bf53b1fc2a3056936d2f561a642
   },
   "include": [
     "**/*.ts",
     "**/*.tsx",
-<<<<<<< HEAD
     "types/svg.d.ts",
+    "types/css.d.ts",
     "nativewind-env.d.ts"
   ]
 }
-=======
-    ".expo/types/**/*.ts",
-    "expo-env.d.ts",
-    "nativewind-env.d.ts"
-  ]
-}
->>>>>>> c97b2e0e53ce9bf53b1fc2a3056936d2f561a642
