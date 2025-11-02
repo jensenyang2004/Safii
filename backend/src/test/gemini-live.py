@@ -16,7 +16,7 @@ if not api_key:
 client = genai.Client(api_key=api_key)
 
 # Select the model designed for live, audio-based interactions.
-MODEL = "gemini-2.5-flash-preview-native-audio-dialog"
+MODEL = "gemini-2.5-flash-native-audio-preview-09-2025"
 
 # PyAudio setup
 # These values match the output format from the Gemini Live API.

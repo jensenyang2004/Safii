@@ -1,31 +1,20 @@
-
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Image, SafeAreaView } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as Theme from '../../constants/Theme';
 
-// The single contact to be displayed and called.
-const contact = {
-  id: '1',
-  name: 'Keanu',
-  image: require('../../assets/avatar-photo/keanu.jpg'),
-};
-
-const GeminiCallScreen = () => {
+const FirebaseTestScreen = () => {
   const handleCallPress = () => {
-    // Directly navigate to the calling screen with the hardcoded contact's info.
-    router.push({ pathname: '/(modals)/calling', params: { contact: contact.name } });
+    // router.push('/(modals)/websocket_calling');
+    router.push('/(modals)/openai_call');
   };
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-        <Text style={styles.title}>Your AI Companion</Text>
-        <Text style={styles.subtitle}>Press the button to start a call</Text>
-        
-        <Image source={contact.image} style={styles.profileImage} />
-        <Text style={styles.profileName}>{contact.name}</Text>
+        <Text style={styles.title}>Firebase Live Call Test</Text>
+        <Text style={styles.subtitle}>Press the button to start a live audio conversation with Gemini.</Text>
       </View>
 
       <TouchableOpacity
@@ -47,31 +36,24 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 20,
     paddingBottom: 150, // Add padding to avoid overlap with the button
   },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
     marginBottom: 8,
+    textAlign: 'center',
   },
   subtitle: {
     fontSize: 18,
     color: '#666',
     marginBottom: 40,
-  },
-  profileImage: {
-    width: 200, // Larger image
-    height: 200,
-    borderRadius: 100, // Make it a circle
-    marginBottom: 20,
-  },
-  profileName: {
-    fontSize: 24,
-    fontWeight: '600',
+    textAlign: 'center',
   },
   callButton: {
     position: 'absolute',
-    bottom: 180, // Moved up from 100
+    bottom: 180,
     width: 80,
     height: 80,
     borderRadius: 40,
@@ -90,4 +72,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default GeminiCallScreen;
+export default FirebaseTestScreen;

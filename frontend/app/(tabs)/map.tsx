@@ -23,36 +23,34 @@ import { useTracking } from '@/context/TrackProvider';
 import { useEmergencyListener } from '@/hooks/useEmergencyListener';
 import EmergencyList from '@/components/Emergency/EmergencyList';
 import EmergencyInfoModal from '@/components/Emergency/EmergencyInfoModal';
-import { useAuth } from '@/context/AuthProvider';
+import { useSharingSessions } from '@/hooks/useSharingSessions';
+import { auth } from '@/libs/firebase';
 import LocationSentCard from '@/components/Tracking/LocationSentCard';
+import SharingSessionCard from '@/components/Tracking/SharingSessionCard';
+import EmergencyContactMarker from '@/components/Map/EmergencyContactMarker';
+import EmergencyBubbles from '@/components/Emergency/EmergencyBubbles';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
-
-const CARD_WIDTH = screenWidth * 0.8;
-const SPACING = screenWidth * 0.03;
-const SIDE_PADDING = (screenWidth - CARD_WIDTH) / 2;
-const SNAP_INTERVAL = CARD_WIDTH + SPACING;
 
 export default function Map() {
   const [location, setLocation] = useState(null); // CHANGED to null
 
-  const { trackingModes, isTracking, trackingModeId, isReportDue, isInfoSent } = useTracking();
+  const { trackingModes, isTracking, trackingModeId, isReportDue, isInfoSent, stopTrackingMode } = useTracking();
   const { emergencyData: emergencies } = useEmergencyListener();
   const [showToolCard, setShowToolCard] = useState(false);
   const [selectedEmergency, setSelectedEmergency] = useState(null);
   const [bottomComponentHeight, setBottomComponentHeight] = useState(0);
   const [showLocationSentCard, setShowLocationSentCard] = useState(false); // New state
-  
-  const tabBarHeight = screenHeight * 0.12; 
+
+  const tabBarHeight = screenHeight * 0.12;
 
   const mapRef = useRef<MapView>(null);
   const flatListRef = useRef<FlatList>(null);
 
-
-  const auth = useAuth();
+  const avatarImg = require('../../assets/avatar-photo/avatar-1.png');
   const currentUserId = auth.currentUser?.uid;
 
-  const styles = createStyles(bottomComponentHeight, tabBarHeight);   
+  const styles = createStyles(bottomComponentHeight, tabBarHeight);
 
   useEffect(() => {
     (async () => {
@@ -101,7 +99,7 @@ export default function Map() {
       };
       mapRef.current.animateToRegion(newRegion, 1000);
     }
-  }, [emergencies]);
+  }, [emergencies, selectedEmergency]);
 
 
   const recenterMap = async () => {
@@ -126,7 +124,21 @@ export default function Map() {
     }
   };
 
+  const handleSelectEmergency = (emergency: any) => {
+    if (selectedEmergency && selectedEmergency.emergencyDocId === emergency.emergencyDocId) {
+      setSelectedEmergency(null); // Deselect if the same emergency is pressed again
+    } else {
+      setSelectedEmergency(emergency);
+    }
+  };
+
   let carouselData: any[] = [];
+
+  // Add SharingSessionCard to the carousel data
+  carouselData.push({
+    id: 'sharing-sessions',
+    component: <SharingSessionCard />,
+  });
 
   if (isTracking && trackingModeId) {
     const activeMode = trackingModes.find(mode => mode.id === trackingModeId);
@@ -153,7 +165,7 @@ export default function Map() {
           contacts={mode.contacts.map((c: any) => ({
             id: c.id,
             name: c.username,
-            url: 'none',
+            url: c.avatarUrl ? { uri: c.avatarUrl } : avatarImg,
           }))}
           checkIntervalMinutes={mode.checkIntervalMinutes}
         />
@@ -163,20 +175,13 @@ export default function Map() {
   }
 
   useEffect(() => {
-    let timer: NodeJS.Timeout;
     if (isInfoSent) { // If tracking provider says info is sent
       setShowLocationSentCard(true); // Show the card
-      console.log('showLocationSentCard has been set to true');
-      timer = setTimeout(() => {
-        setShowLocationSentCard(false); // Hide after 10 seconds
-      }, 10000); // 10 seconds
     }
-    return () => {
-      clearTimeout(timer); // Clean up the timer if component unmounts or isInfoSent changes
-    };
   }, [isInfoSent]);
 
   const handleDismissLocationSentCard = () => {
+    stopTrackingMode({ isEmergency: true });
     setShowLocationSentCard(false);
   };
 
@@ -197,8 +202,8 @@ export default function Map() {
         initialRegion={location}
         showsUserLocation={true}
         mapType="standard"
-        showsCompass={true} 
-        compassOffset={{ x: -8, y: 50 }}    
+        showsCompass={true}
+        compassOffset={{ x: -8, y: 50 }}
       >
         {emergencies && emergencies.map(emergency => (
           <Marker
@@ -207,16 +212,23 @@ export default function Map() {
               latitude: emergency.lat,
               longitude: emergency.long,
             }}
-            title={`SOS: ${emergency.trackedUserName}`}
-            description={emergency.updateTime ? `Last update: ${emergency.updateTime.toDate().toLocaleTimeString()}` : 'No update time available'}
-            pinColor="red"
-            onPress={() => setSelectedEmergency(emergency)}
-          />
+            onPress={() => handleSelectEmergency(emergency)}
+          >
+            <EmergencyContactMarker
+              trackedUserName={emergency.trackedUserName}
+              avatarUrl={emergency.trackedUserAvatarUrl}
+            />
+          </Marker>
         ))}
       </MapView>
 
-      <EmergencyList emergencies={emergencies} onSelectEmergency={setSelectedEmergency} />
-      <EmergencyInfoModal emergency={selectedEmergency} onClose={() => setSelectedEmergency(null)} />
+      <View style={styles.emergencyBubblesContainer}>
+        <EmergencyBubbles emergencies={emergencies} onSelectEmergency={handleSelectEmergency} />
+      </View>
+
+      {selectedEmergency && (
+        <EmergencyInfoModal emergency={selectedEmergency} onClose={() => setSelectedEmergency(null)} />
+      )}
 
       {/*temporarily disable tool toggle button for the beta 0.1 version*/}
       {/*<Pressable
@@ -225,7 +237,6 @@ export default function Map() {
       >
         <MaterialIcons name={showToolCard ? "map" : "apps"} size={24} color="black" />
       </Pressable>*/}
-
       <Pressable style={styles.recenterButton} onPress={recenterMap}>
         <MaterialIcons name="my-location" size={24} color="black" />
       </Pressable>
@@ -242,7 +253,7 @@ export default function Map() {
   );
 }
 
-function createStyles(bottomComponentHeight: number, tabBarHeight: number) {               
+function createStyles(bottomComponentHeight: number, tabBarHeight: number) {
   return StyleSheet.create({
     container: {
       ...StyleSheet.absoluteFillObject,
@@ -285,11 +296,19 @@ function createStyles(bottomComponentHeight: number, tabBarHeight: number) {
       elevation: 3,
       zIndex: 1,
     },
+    emergencyBubblesContainer: {
+      position: 'absolute',
+      bottom: bottomComponentHeight + tabBarHeight + 20, // Same height as recenterButton
+      left: '13%',
+      right: 80, // To avoid covering the recenterButton
+      flexDirection: 'row',
+      zIndex: 1,
+    },
     bottomComponentContainer: {
-        position: 'absolute',
-        bottom: tabBarHeight + 10, // Add 10px margin above tab bar
-        left: 0,
-        right: 0,
+      position: 'absolute',
+      bottom: tabBarHeight + 10, // Add 10px margin above tab bar
+      left: 0,
+      right: 0,
     },
     loadingContainer: { // ADDED
       flex: 1,

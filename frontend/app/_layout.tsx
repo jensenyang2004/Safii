@@ -68,7 +68,7 @@ function RootLayoutNav() {
       setOnboardingComplete(status === 'true');
     }
     checkOnboardingStatus();
-  }, []);
+  }, [segments]);
 
   useEffect(() => {
     const inAuthGroup = segments[0] === '(auth)';

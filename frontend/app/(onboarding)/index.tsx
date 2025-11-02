@@ -4,7 +4,7 @@ import PagerView from 'react-native-pager-view';
 import OnboardingPage from '../../components/OnboardingPage';
 import { router } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
-import { AntDesign } from '@expo/vector-icons';
+import { FontAwesome } from '@expo/vector-icons';
 import * as Notifications from 'expo-notifications';
 import * as Location from 'expo-location';
 import { usePermissions } from '../../hooks/usePermissions';
@@ -25,18 +25,21 @@ export default function OnboardingScreen() {
   } = usePermissions();
 
 
-  const requestNotificationPermission = async () => {
-    await Notifications.requestPermissionsAsync();
-    checkPermissions(); // Re-check permissions to update the global state
+  const handlePermissionRequest = async (request: () => Promise<any>) => {
+    await request();
+    checkPermissions();
+    // Automatically advance to the next page
+    pagerRef.current?.setPage(activeIndex + 1);
   };
 
-  const requestLocationPermission = async () => {
+  const requestNotificationPermission = () => handlePermissionRequest(Notifications.requestPermissionsAsync);
+
+  const requestLocationPermission = () => handlePermissionRequest(async () => {
     const { status: foregroundStatus } = await Location.requestForegroundPermissionsAsync();
     if (foregroundStatus === 'granted') {
       await Location.requestBackgroundPermissionsAsync();
     }
-    checkPermissions(); // Re-check permissions to update the global state
-  };
+  });
 
   const openAppSettings = () => {
     Linking.openSettings();
@@ -44,8 +47,16 @@ export default function OnboardingScreen() {
 
   const handleOnboardingComplete = async () => {
     if (allPermissionsGranted) {
-      await SecureStore.setItemAsync(ONBOARDING_COMPLETED_KEY, 'true');
-      router.replace('/(auth)/sign-in');
+      try {
+        await SecureStore.setItemAsync(ONBOARDING_COMPLETED_KEY, 'true');
+        router.replace('/(tabs)/home');
+      } catch (error) {
+        console.error('Failed to save onboarding status', error);
+        // Handle error appropriately
+      }
+    } else {
+      // Optionally, show an alert to the user that permissions are required.
+      alert('Please grant all required permissions to continue.');
     }
   };
 
@@ -94,8 +105,7 @@ export default function OnboardingScreen() {
     },
   ];
 
-  const isPermissionPage = activeIndex === 2 || activeIndex === 3;
-  const isCurrentPermissionGranted = (activeIndex === 2 && notificationStatus === 'granted') || (activeIndex === 3 && (foregroundLocationStatus === 'granted' || backgroundLocationStatus === 'granted'));
+
 
   return (
     <View style={styles.container}>
@@ -104,7 +114,7 @@ export default function OnboardingScreen() {
         initialPage={0}
         ref={pagerRef}
         onPageSelected={(e) => setActiveIndex(e.nativeEvent.position)}
-        scrollEnabled={!isPermissionPage || isCurrentPermissionGranted}
+        scrollEnabled={true}
       >
         {pages.map((page, index) => (
             <View key={index} style={styles.page}>
@@ -121,15 +131,15 @@ export default function OnboardingScreen() {
           style={[styles.arrow, styles.leftArrow]}
           onPress={() => pagerRef.current?.setPage(activeIndex - 1)}
         >
-          <AntDesign name="arrowleft" size={24} color="white" />
+          <FontAwesome name="arrow-left" size={24} color="white" />
         </TouchableOpacity>
       )}
-      {activeIndex < pages.length - 1 && (!isPermissionPage || isCurrentPermissionGranted) && (
+      {activeIndex < pages.length - 1 && (
         <TouchableOpacity
           style={[styles.arrow, styles.rightArrow]}
           onPress={() => pagerRef.current?.setPage(activeIndex + 1)}
         >
-          <AntDesign name="arrowright" size={24} color="white" />
+          <FontAwesome name="arrow-right" size={24} color="white" />
         </TouchableOpacity>
       )}
 

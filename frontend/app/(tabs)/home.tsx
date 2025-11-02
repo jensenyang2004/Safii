@@ -3,18 +3,16 @@
 import { ActivityIndicator, View, Text, Pressable, Alert, StyleSheet, Image, FlatList, TouchableOpacity, RefreshControl, ScrollView, Dimensions } from 'react-native';
 
 import { useEffect, useCallback, useMemo, useState } from 'react';
-import { router, useRootNavigationState } from 'expo-router';
+import { router } from 'expo-router';
 import { useAuth } from '@/context/AuthProvider';
 import '@/global.css';
-import ProfilePhotoUploader from '@/components/ProfilePhotoUploader';
-import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { doc, deleteDoc, collection, query, where, orderBy, onSnapshot, getDocs } from 'firebase/firestore';
+import { collection, query, where, orderBy, onSnapshot, getDocs } from 'firebase/firestore';
 import { db } from '@/libs/firebase';
+import ProfilePhotoUploader from '@/components/ProfilePhotoUploader';
+import * as Theme from '../../constants/Theme';
 import { useTracking } from '@/context/TrackProvider';
-
 // 1. Import your fake-call hook
-import { useFakePhoneCall } from '../../hooks/useFakePhoneCall';
 
 type TrackingMode = {
   id: string;
@@ -40,13 +38,7 @@ interface TrackingContext {
 export default function HomeScreen() {
   const { user, loading, signOut } = useAuth();
 
-  // 2. Destructure the state+actions from the hook
-  const {
-    startFakeCall,
-    incoming,
-    answerCall,
-    declineCall,
-  } = useFakePhoneCall();
+
 
   const handleSignOut = async () => {
     try {
@@ -256,7 +248,7 @@ export default function HomeScreen() {
             {user?.displayName || user?.username || user?.nickname || user?.email || 'Unknown User'}
           </Text>
 
-          {/* <ProfilePhotoUploader /> */}
+          <ProfilePhotoUploader />
         </View>
 
         {/* Settings content starts here */}
@@ -269,7 +261,7 @@ export default function HomeScreen() {
 
           {settingsLoading ? (
             <View style={homeStyles.settingsCenter}>
-              <ActivityIndicator size="large" color="#F18C8E" />
+              <ActivityIndicator size="large" color={Theme.colors.actionPink} />
               <Text style={homeStyles.settingsDim}>載入中…</Text>
             </View>
           ) : (
@@ -311,7 +303,7 @@ export default function HomeScreen() {
         {/* Settings content ends here */}
 
         {loading ? (
-          <ActivityIndicator size="large" color="#F18C8E" />
+          <ActivityIndicator size="large" color={Theme.colors.actionOrange} />
         ) : (
           <Pressable
             onPress={signOut}
@@ -348,7 +340,7 @@ const homeStyles = StyleSheet.create({
     marginBottom: 16,
     marginTop: 16,
     borderWidth: 3,
-    borderColor: '#F18C8E',
+    borderColor: Theme.colors.actionOrange,
   },
   avatarPlaceholder: {
     backgroundColor: '#E5E5E5',
@@ -364,14 +356,14 @@ const homeStyles = StyleSheet.create({
     position: 'absolute',
     bottom: 0,
     right: 0,
-    backgroundColor: '#F18C8E',
+    backgroundColor: Theme.colors.actionOrange,
     width: 36,
     height: 36,
     borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#F8F1EC',
+    borderColor: 'white',
   },
   username: {
     fontSize: 24,
@@ -380,7 +372,7 @@ const homeStyles = StyleSheet.create({
     color: '#000',
   },
   signOutButton: {
-    backgroundColor: '#F18C8E',
+    backgroundColor: Theme.colors.gray200,
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 16,
@@ -396,7 +388,7 @@ const homeStyles = StyleSheet.create({
   },
   disabledButton: {
     opacity: 0.5,
-    backgroundColor: '#F18C8E', // Lighter blue for disabled state
+    backgroundColor: 'white', // Lighter blue for disabled state
   },
   callButton: {
     backgroundColor: '#BFD3C1',
@@ -430,7 +422,7 @@ const homeStyles = StyleSheet.create({
   settingsSection: {
     flex: 1,
     width: '100%',
-    backgroundColor: '#F8F1EC',
+    backgroundColor: 'white',
     paddingTop: 20, // Adjust as needed
   },
   settingsDeleteBtn: {
@@ -481,16 +473,16 @@ const homeStyles = StyleSheet.create({
   settingsValue: { color: '#444', fontWeight: '600' },
 
   settingsSmallBtn: {
-    backgroundColor: '#F18C8E', paddingVertical: 10, paddingHorizontal: 12,
-    borderRadius: 16, marginRight: 8,
+    backgroundColor: Theme.colors.actionOrange, paddingVertical: 10, paddingHorizontal: 12,
+    borderRadius: 10, marginRight: 8,
   },
   settingsSmallBtnText: { color: '#fff', fontWeight: '700' },
 
   settingsPrimaryBtn: {
     position: 'absolute', left: 16, right: 16,
-    backgroundColor: '#F18C8E', borderRadius: 16,
+    backgroundColor: Theme.colors.actionOrange, borderRadius: 12,
     paddingVertical: 14, alignItems: 'center',
-    shadowColor: '#F18C8E', shadowOpacity: 0.25, shadowRadius: 8,
+    shadowColor: Theme.colors.actionOrange, shadowOpacity: 0.25, shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 }, elevation: 3,
   },
   settingsPrimaryText: { color: '#fff', fontWeight: '800', fontSize: 16 },
@@ -500,5 +492,3 @@ const homeStyles = StyleSheet.create({
   settingsEmptyTitle: { fontSize: 16, fontWeight: '700', color: '#000', marginBottom: 6 },
   settingsDim: { color: '#888' },
 });
-
-

@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { requestForegroundPermissionsAsync, getCurrentPositionAsync } from 'expo-location';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/libs/firebase';
-import { getAuth } from 'firebase/auth';
+import * as Theme from '../../constants/Theme';
 
 interface SearchResult {
   id: string;
@@ -198,7 +198,7 @@ export default function FriendsScreen() {
             style={styles.addButton}
             onPress={() => handleSendRequest(item.id)}
           >
-            <FontAwesome5 name="user-plus" size={16} color="#F18C8E" />
+            <FontAwesome5 name="user-plus" size={16} color={Theme.colors.actionOrange} />
           </Pressable>
         )}
       </View>
@@ -341,7 +341,7 @@ export default function FriendsScreen() {
         )}
 
         {loading ? (
-          <ActivityIndicator size="large" color="#F18C8E" style={styles.loader} />
+          <ActivityIndicator size="large" color={Theme.colors.actionOrange} style={styles.loader} />
         ) : (
           <>
             {activeTab === 'friends' && (
@@ -361,7 +361,7 @@ export default function FriendsScreen() {
                 <View style={styles.header}>
                   <Text style={styles.sectionTitle}>交友請求</Text>
                   <Pressable onPress={refreshFriendData} style={styles.refreshButton}>
-                    <FontAwesome5 name="sync" size={16} color="#F18C8E" />
+                    <FontAwesome5 name="sync" size={16} color={Theme.colors.action} />
                   </Pressable>
                 </View>
 
@@ -390,7 +390,7 @@ export default function FriendsScreen() {
             {activeTab === 'search' && (
               <>
                 {searching ? (
-                  <ActivityIndicator size="small" color="#F18C8E" style={styles.loader} />
+                  <ActivityIndicator size="small" color={Theme.colors.actionOrange} style={styles.loader} />
                 ) : (
                   // <></>
                   <FlatList
@@ -462,7 +462,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   activeTab: {
-    backgroundColor: '#F18C8E',
+    backgroundColor: Theme.colors.actionOrange,
   },
   tabText: {
     fontWeight: '500',
@@ -484,15 +484,15 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   searchButton: {
-    backgroundColor: '#F18C8E',
-    borderRadius: 16,
+    backgroundColor: Theme.colors.actionOrange,
+    borderRadius: 8,
     padding: 12,
     justifyContent: 'center',
     alignItems: 'center',
   },
 
   sendLocationButton: {
-    backgroundColor: '#F18C8E',
+    backgroundColor: Theme.colors.actionOrange,
     padding: 8,
     borderRadius: 5,
     marginLeft: 10,
