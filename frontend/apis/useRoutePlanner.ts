@@ -28,7 +28,8 @@ export const useRoutePlanner = () => {
     setLoading(true);
     setError(null); // Clear previous errors
     try {
-      const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${origin.latitude},${origin.longitude}&destination=${destination}&key=${GOOGLE_MAPS_API_KEY}&alternatives=true&language=zh-TW`;
+      const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${origin.latitude},${origin.longitude}&destination=${destination}&mode=walking&key=${GOOGLE_MAPS_API_KEY}&alternatives=true&language=zh-TW`;
+      console.log('Fetching routes with URL:', url);
       const response = await fetch(url);
       const data = await response.json();
 

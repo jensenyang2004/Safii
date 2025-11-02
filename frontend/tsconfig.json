@@ -3,21 +3,22 @@
   "compilerOptions": {
     "useUnknownInCatchVariables": false,
     "strict": true,
-    "jsx": "react-native",                  // ⬅️ Required to handle JSX (tsx files)
-    "moduleResolution": "bundler",         // ⬅️ Helps resolve node_modules and aliases
-    "baseUrl": ".",                        // ⬅️ Required for path aliases to work
+    "jsx": "react-native",
+    "moduleResolution": "bundler",
+    "baseUrl": ".",
     "paths": {
-      "@/*": ["./*"]                       // ⬅️ Your existing alias for '@/libs/firebase', etc.
+      "@/*": [
+        "./*"
+      ]
     },
-    "allowJs": true,                       // ⬅️ Optional: if you also use .js files
-    "esModuleInterop": true,               // ⬅️ Ensures default imports work with CommonJS modules
-    "skipLibCheck": true                   // ⬅️ Speeds up builds by skipping node_modules type checks
+    "allowJs": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true
   },
   "include": [
     "**/*.ts",
     "**/*.tsx",
-    ".expo/types/**/*.ts",
-    "expo-env.d.ts",
+    "types/svg.d.ts",
     "nativewind-env.d.ts"
   ]
 }
