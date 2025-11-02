@@ -98,7 +98,7 @@ export const registerForPushNotificationsAsync = async () => {
 
     return token;
   } else {
-    handleRegistrationError('必須使用實體裝置才能推播通知');
+    // handleRegistrationError('必須使用實體裝置才能推播通知');
   }
 };
 

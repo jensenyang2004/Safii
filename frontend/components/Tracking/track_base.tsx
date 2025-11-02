@@ -11,7 +11,7 @@ type TrackModeCardProps = {
   checkIntervalMinutes: number;
 };
 
-const avatarImg = require('../../assets/images/person.png');
+const avatarImg = require('../../assets/avatar-photo/avatar-1.png');
 
 export default function TrackModeCard({ id, name, contacts, checkIntervalMinutes }: TrackModeCardProps) {
   const [expanded, setExpanded] = useState(false);
@@ -49,14 +49,13 @@ export default function TrackModeCard({ id, name, contacts, checkIntervalMinutes
           <Text style={styles.notifyText}>緊急時將通知</Text>
           <View style={styles.avatarsRow}>
             {visibleContacts.map((contact) => (
-              <Image key={contact.id} source={avatarImg} style={styles.avatar} />
+              <Image key={contact.id} source={contact.url} style={styles.avatar} />
             ))}
             {moreCount > 0 && (
               <View style={styles.moreCircle}>
                 <Text style={styles.moreText}>{`+${moreCount}`}</Text>
               </View>
             )}
-            <Text>{'>'}</Text>
           </View>
           {expanded && (
             <View style={styles.expandedContent}>

@@ -3,3 +3,8 @@ flask_cors==6.0.1
 protobuf==6.32.1
 python-dotenv==1.1.1
 google.genai==1.36.0
+flask-sock==0.7.0
+simple-websocket==1.0.0
+gunicorn==22.0.0
+gevent==24.2.1
+gevent-websocket==0.10.1

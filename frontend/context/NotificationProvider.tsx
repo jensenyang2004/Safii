@@ -40,11 +40,15 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
     useEffect(() => {
 
         if (user) {
-            registerForPushNotificationsAsync().then(token => {
-                if (token) {
-                    saveTokenToFirestore(token);
-                }
-            });
+            registerForPushNotificationsAsync()
+                .then(token => {
+                    if (token) {
+                        saveTokenToFirestore(token);
+                    }
+                })
+                .catch(error => {
+                    console.error("Failed to register for push notifications:", error);
+                });
         }
     }, [user]);
 

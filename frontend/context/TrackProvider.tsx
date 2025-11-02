@@ -441,15 +441,15 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
 
       let title: string, body: string;
       if (event.type === 'session_end') {
-        title = `⏰ Session ${event.strike + 1} Complete`;
-        body = 'Please report your safety within 3 minutes';
+        title = `⏰ 請回報安全`;
+        body = '請在三分鐘內回報安全狀態';
       } else if (event.type === 'missed_report') {
         if (event.strike < (event.strikeThreshold ?? 3)) {
-          title = `❌ Missed Report ${event.strike}`;
-          body = `Starting next session (${event.strike}/${event.strikeThreshold ?? 3} strikes)`;
+          title = `⚠️ 錯過安全回報`;
+          body = `您未在時限內回報。新的安全追蹤時段已開始，請務必在下次時限內回報。`;
         } else {
-          title = '🆘 EMERGENCY ACTIVATION';
-          body = `Failed to respond ${event.strikeThreshold ?? 3} times - Emergency contacts being notified`;
+          title = '🚨 觸發緊急通知';
+          body = `因為尚未回報安全，您的即時位置已經分享給設定的緊急聯絡人`;
         }
       } else {
         title = 'Safety Alert';
@@ -532,7 +532,7 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
           emergencyContactIds: emergencyContactIds,
           emergencyActivationTime: emergencyActivationTime,
           lastUpdateTime: serverTimestamp(),
-          isActive: true, // <-- ADD THIS LINE
+          isActive: true,
           nextNotificationTime: emergencyActivationTime,
           overallStatus: 'notifying', // The whole event is active
           contactStatus: contactStatusMap // The detailed map

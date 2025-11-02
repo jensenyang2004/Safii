@@ -135,6 +135,27 @@ export default function TabLayout() {
         />
 
         <Tabs.Screen
+          name="firebase-test"
+          options={{
+            tabBarIcon: ({ color, focused }) => (
+              <View
+                style={{
+                  marginTop: 40,
+                  borderRadius: 38,
+                  height: 60,
+                  width: 80,
+                  backgroundColor: focused ? "rgba(0,0,0,0.06)" : "transparent",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <FontAwesome5 name="fire-alt" size={24} color={color} />
+              </View>
+            ),
+          }}
+        />
+
+        <Tabs.Screen
           name="contact"
           options={{
             href: null,

@@ -1,9 +1,9 @@
 import React from 'react';
-import { Modal, View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { Modal, View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/libs/firebase';
 import { useAuth } from '@/context/AuthProvider';
-
+import Theme from '@/constants/Theme';
 const EmergencyInfoModal = ({ emergency, onClose }) => {
   const { user } = useAuth();
 
@@ -38,12 +38,18 @@ const EmergencyInfoModal = ({ emergency, onClose }) => {
     >
       <View style={styles.modalContainer}>
         <View style={styles.modalContent}>
-          <Text style={styles.modalTitle}>求救訊息詳情</Text>
-          <Text style={styles.modalText}>
-            {emergency.trackedUserName}
+          <View style={styles.avatarContainer}>
+            <Image
+              source={{ uri: emergency.trackedUserAvatarUrl || undefined }}
+              style={styles.avatar}
+            />
+          </View>
+          <Text style={styles.modalTitle}>{emergency.trackedUserName} 可能有危險了</Text>
+          <Text style={styles.modalDescription}>
+            This emergency was triggered because {emergency.trackedUserName} did not respond in time while using the "default" mode.
           </Text>
           <Text style={styles.modalText}>
-            最後更新: {emergency.updateTime ? emergency.updateTime.toDate().toLocaleString() : 'N/A'}
+            Last update: {emergency.updateTime ? emergency.updateTime.toDate().toLocaleString() : 'N/A'}
           </Text>
           
           {emergency.contactStatus?.[user.uid]?.status === 'active' && (
@@ -73,17 +79,40 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8F1EC',
     borderRadius: 20,
     padding: 20,
+    paddingTop: 70, // Make space for the avatar
     alignItems: 'center',
     shadowColor: '#000',
     shadowOpacity: 0.1,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 5 },
     elevation: 5,
+    position: 'relative',
+  },
+  avatarContainer: {
+    position: 'absolute',
+    top: -50,
+    alignItems: 'center',
+    width: '100%',
+  },
+  avatar: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    borderWidth: 3,
+    borderColor: 'white',
   },
   modalTitle: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: 'bold',
     marginBottom: 15,
+    textAlign: 'center',
+    color: Theme.colors.danger,
+  },
+  modalDescription: {
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 10,
+    color: '#6c757d',
   },
   modalText: {
     fontSize: 16,

@@ -32,6 +32,13 @@ export default function ModalLayout() {
           headerShown: false,
         }}
       />
+      <Stack.Screen
+        name="websocket_calling"
+        options={{
+          presentation: 'modal',
+          headerShown: false,
+        }}
+      />
     </Stack>
   );
 }

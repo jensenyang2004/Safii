@@ -9,11 +9,10 @@ import '@/global.css';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { collection, query, where, orderBy, onSnapshot, getDocs } from 'firebase/firestore';
 import { db } from '@/libs/firebase';
-import { useTracking } from '@/context/TrackProvider';
+import ProfilePhotoUploader from '@/components/ProfilePhotoUploader';
 import * as Theme from '../../constants/Theme';
-
+import { useTracking } from '@/context/TrackProvider';
 // 1. Import your fake-call hook
-import { useFakePhoneCall } from '../../hooks/useFakePhoneCall';
 
 type TrackingMode = {
   id: string;
@@ -39,13 +38,7 @@ interface TrackingContext {
 export default function HomeScreen() {
   const { user, loading, signOut } = useAuth();
 
-  // 2. Destructure the state+actions from the hook
-  const {
-    startFakeCall,
-    incoming,
-    answerCall,
-    declineCall,
-  } = useFakePhoneCall();
+
 
   const handleSignOut = async () => {
     try {
@@ -255,7 +248,7 @@ export default function HomeScreen() {
             {user?.displayName || user?.username || user?.nickname || user?.email || 'Unknown User'}
           </Text>
 
-          {/* <ProfilePhotoUploader /> */}
+          <ProfilePhotoUploader />
         </View>
 
         {/* Settings content starts here */}
@@ -346,37 +339,6 @@ const homeStyles = StyleSheet.create({
     borderRadius: 60,
     marginBottom: 16,
     marginTop: 16,
-    borderWidth: 3,
-    borderColor: Theme.colors.actionOrange,
-  },
-  avatarPlaceholder: {
-    backgroundColor: '#E5E7EB',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  avatarPlaceholderText: {
-    fontSize: 48,
-    color: '#6B7280',
-    fontWeight: 'bold',
-  },
-  editOverlay: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    backgroundColor: Theme.colors.actionOrange,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: 'white',
-  },
-  avatar: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    marginBottom: 16,
     borderWidth: 3,
     borderColor: Theme.colors.actionOrange,
   },
@@ -529,5 +491,3 @@ const homeStyles = StyleSheet.create({
   settingsEmptyTitle: { fontSize: 16, fontWeight: '700', color: '#111827', marginBottom: 6 },
   settingsDim: { color: '#6b7280' },
 });
-
-

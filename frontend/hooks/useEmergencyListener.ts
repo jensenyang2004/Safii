@@ -9,6 +9,7 @@ interface EmergencyData {
   updateTime: Timestamp;
   trackedUserId: string;
   trackedUserName: string;
+  trackedUserAvatarUrl?: string; // Added avatarUrl
   emergencyDocId: string;
   contactStatus: Record<string, { status: string; notificationCount: number }>;
 }
@@ -74,13 +75,16 @@ export const useEmergencyListener = () => {
         // If we are not already listening for this emergency's location, set up a new listener
         if (!locationListenersRef.current[emergencyDocId]) {
           let trackedUserName = 'Unknown User';
+          let trackedUserAvatarUrl: string | undefined;
           try {
             const userDoc = await getDoc(doc(db, 'users', trackedUserId));
             if (userDoc.exists()) {
-              trackedUserName = userDoc.data().username || 'Unknown User';
+              const userData = userDoc.data();
+              trackedUserName = userData.username || 'Unknown User';
+              trackedUserAvatarUrl = userData.avatarUrl;
             }
           } catch (e) {
-            console.error("Error fetching user name:", e);
+            console.error("Error fetching user name/avatar:", e);
           }
 
           // Initialize the emergency data in the state with static info
@@ -92,6 +96,7 @@ export const useEmergencyListener = () => {
                   updateTime: Timestamp.now(), // Placeholder
                   trackedUserId,
                   trackedUserName,
+                  trackedUserAvatarUrl, // Added here
                   emergencyDocId,
                   contactStatus,
               }

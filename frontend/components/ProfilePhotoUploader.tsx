@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
 import { View, Pressable, Text, Image, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { storage, db } from '@/libs/firebase';
+import { storage, db, auth } from '@/libs/firebase';
 import { ref, uploadBytesResumable, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { doc, updateDoc } from 'firebase/firestore';
 import { useAuth } from '@/context/AuthProvider';
 import { FontAwesome } from '@expo/vector-icons';
-
 
 export default function ProfilePhotoUploader() {
     const { user, fetchUserInfo } = useAuth();
@@ -99,9 +98,8 @@ export default function ProfilePhotoUploader() {
         await updateDoc(doc(db, "users", user.uid), {
         avatarUrl: url
         });
-
-        fetchUserInfo(user.uid);
-        Alert.alert("Success!", "Photo uploaded");
+        fetchUserInfo(auth.currentUser)
+        // Alert.alert("Success!", "Photo uploaded");
     } catch (error: any) {
         console.error("Upload error:", JSON.stringify(error, null, 2));
         Alert.alert("Error", `Failed to upload image: ${error.message || "Unknown error"}`);

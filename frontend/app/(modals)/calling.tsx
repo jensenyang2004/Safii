@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import { View, TouchableOpacity, StyleSheet } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { Audio } from 'expo-av';
 import Animated, {
@@ -18,7 +17,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 // --- Type Definitions for Gemini API ---
 // Based on the successful hook example
 type LiveClientMessage = {
-  setup?: {};
+  setup?: object;
   realtimeInput?: {
     audio?: {
       data: string; // Base64 encoded audio chunk
@@ -58,8 +57,8 @@ const RECORDING_OPTIONS: Audio.RecordingOptions = {
   isMeteringEnabled: true,
   android: {
     extension: '.wav',
-    outputFormat: Audio.AndroidOutputFormat.WAV,
-    audioEncoder: Audio.AndroidAudioEncoder.PCM,
+    outputFormat: Audio.AndroidOutputFormat.WEBM,
+    audioEncoder: Audio.AndroidAudioEncoder.DEFAULT,
     sampleRate: 16000,
     numberOfChannels: 1,
     bitRate: 128000,
@@ -240,7 +239,7 @@ const CallingModal = () => {
 
         ws.onerror = (error) => {
           console.error('WebSocket Error:', error);
-          setStatus(`Error: ${error.message}`);
+          setStatus('WebSocket connection error');
         };
 
         ws.onclose = (event) => {
