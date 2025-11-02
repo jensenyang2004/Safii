@@ -5,7 +5,11 @@ import {
   updateProfile,
   User as FirebaseUser,
 } from 'firebase/auth';
+<<<<<<< HEAD
 import { auth, db } from '@/apis/firebase'
+=======
+import { auth, db } from '@/libs/firebase'
+>>>>>>> c97b2e0e53ce9bf53b1fc2a3056936d2f561a642
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { router, Stack } from 'expo-router';
 import { AntDesign } from '@expo/vector-icons'

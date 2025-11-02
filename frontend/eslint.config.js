@@ -6,6 +6,7 @@ module.exports = defineConfig([
   expoConfig,
   {
     ignores: ["dist/*"],
+<<<<<<< HEAD
   },
   {
     settings: {
@@ -20,4 +21,7 @@ module.exports = defineConfig([
       },
     },
   },
+=======
+  }
+>>>>>>> c97b2e0e53ce9bf53b1fc2a3056936d2f561a642
 ]);

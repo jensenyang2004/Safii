@@ -63,7 +63,10 @@
     "plugins": [
       "expo-dev-client",
       "expo-router",
+<<<<<<< HEAD
       "./PodPatch.ts",
+=======
+>>>>>>> c97b2e0e53ce9bf53b1fc2a3056936d2f561a642
       [
         "expo-location",
         {
@@ -114,6 +117,7 @@
       [
         "expo-notifications",
         {
+<<<<<<< HEAD
           "sounds": [
             "./assets/sounds/siren.wav"
           ]
@@ -121,12 +125,20 @@
       ],
       "expo-font",
       "expo-web-browser"
+=======
+          "sounds": ["./assets/sounds/siren.wav"]
+        }
+      ]
+>>>>>>> c97b2e0e53ce9bf53b1fc2a3056936d2f561a642
     ],
     "experiments": {
       "typedRoutes": true
     },
     "extra": {
+<<<<<<< HEAD
       "GOOGLE_MAPS_API_KEY": "API",
+=======
+>>>>>>> c97b2e0e53ce9bf53b1fc2a3056936d2f561a642
       "router": {
         "origin": false
       },

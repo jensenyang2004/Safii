@@ -1,7 +1,11 @@
 // context/TrackingContext.tsx
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { collection, getDocs, doc, getDoc, updateDoc, query, where, addDoc, setDoc, Timestamp, serverTimestamp, deleteDoc, onSnapshot } from 'firebase/firestore';
+<<<<<<< HEAD
 import { db } from '@/apis/firebase';
+=======
+import { db } from '@/libs/firebase';
+>>>>>>> c97b2e0e53ce9bf53b1fc2a3056936d2f561a642
 import * as TaskManager from 'expo-task-manager';
 import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -75,6 +79,11 @@ Notifications.setNotificationHandler({
 
     if (data?.type === 'missed_report' && data.strike === (data.strikeThreshold || 3)) {
       console.log('🚨 FINAL STRIKE NOTIFICATION RECEIVED! Emergency is handled by contact-side listener.');
+<<<<<<< HEAD
+=======
+      // Clean up local state, but leave Firestore doc active.
+      await stopTrackingMode({ isEmergency: true });
+>>>>>>> c97b2e0e53ce9bf53b1fc2a3056936d2f561a642
 
     } else if (data?.type === 'session_end') {
       console.log(`⏰ Session ${data.strike + 1} ended - Report required`);
@@ -219,6 +228,7 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
   useEffect(() => {
     initializeSystem();
     loadAndReconcileState();
+<<<<<<< HEAD
 
     // Listen for notification tap events
     const responseSubscription = Notifications.addNotificationResponseReceivedListener(response => {
@@ -235,6 +245,8 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
     return () => {
       responseSubscription.remove();
     };
+=======
+>>>>>>> c97b2e0e53ce9bf53b1fc2a3056936d2f561a642
   }, []);
 
   const initializeSystem = async () => {
@@ -286,7 +298,16 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
           setIsInfoSent(false);
         }
 
+<<<<<<< HEAD
         
+=======
+        // Handle emergency cleanup if the period has fully passed
+        if (finalEvent && now > finalEvent.time && finalEvent.type === 'missed_report' && finalEvent.strike === strikeThreshold) {
+          console.log('🚨 Emergency period has passed. Cleaning up local state.');
+          await stopTrackingMode({ isEmergency: true });
+          return;
+        }
+>>>>>>> c97b2e0e53ce9bf53b1fc2a3056936d2f561a642
 
         let currentStrikeCount = 0;
         for (const event of timeline) {

@@ -1,7 +1,12 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
   <style name="AppTheme" parent="Theme.AppCompat.DayNight.NoActionBar">
+<<<<<<< HEAD
     <item name="android:enforceNavigationBarContrast" tools:targetApi="29">true</item>
     <item name="android:editTextBackground">@drawable/rn_edit_text_material</item>
+=======
+    <item name="android:editTextBackground">@drawable/rn_edit_text_material</item>
+    <item name="android:windowOptOutEdgeToEdgeEnforcement" tools:targetApi="35">true</item>
+>>>>>>> c97b2e0e53ce9bf53b1fc2a3056936d2f561a642
     <item name="colorPrimary">@color/colorPrimary</item>
     <item name="android:statusBarColor">#ffffff</item>
   </style>
@@ -9,6 +14,9 @@
     <item name="windowSplashScreenBackground">@color/splashscreen_background</item>
     <item name="windowSplashScreenAnimatedIcon">@drawable/splashscreen_logo</item>
     <item name="postSplashScreenTheme">@style/AppTheme</item>
+<<<<<<< HEAD
     <item name="android:windowSplashScreenBehavior">icon_preferred</item>
+=======
+>>>>>>> c97b2e0e53ce9bf53b1fc2a3056936d2f561a642
   </style>
 </resources>

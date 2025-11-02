@@ -4,7 +4,11 @@ import PagerView from 'react-native-pager-view';
 import OnboardingPage from '../../components/OnboardingPage';
 import { router } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
+<<<<<<< HEAD
 import { FontAwesome } from '@expo/vector-icons';
+=======
+import { AntDesign } from '@expo/vector-icons';
+>>>>>>> c97b2e0e53ce9bf53b1fc2a3056936d2f561a642
 import * as Notifications from 'expo-notifications';
 import * as Location from 'expo-location';
 import { usePermissions } from '../../hooks/usePermissions';
@@ -25,6 +29,7 @@ export default function OnboardingScreen() {
   } = usePermissions();
 
 
+<<<<<<< HEAD
   const handlePermissionRequest = async (request: () => Promise<any>) => {
     await request();
     checkPermissions();
@@ -35,11 +40,24 @@ export default function OnboardingScreen() {
   const requestNotificationPermission = () => handlePermissionRequest(Notifications.requestPermissionsAsync);
 
   const requestLocationPermission = () => handlePermissionRequest(async () => {
+=======
+  const requestNotificationPermission = async () => {
+    await Notifications.requestPermissionsAsync();
+    checkPermissions(); // Re-check permissions to update the global state
+  };
+
+  const requestLocationPermission = async () => {
+>>>>>>> c97b2e0e53ce9bf53b1fc2a3056936d2f561a642
     const { status: foregroundStatus } = await Location.requestForegroundPermissionsAsync();
     if (foregroundStatus === 'granted') {
       await Location.requestBackgroundPermissionsAsync();
     }
+<<<<<<< HEAD
   });
+=======
+    checkPermissions(); // Re-check permissions to update the global state
+  };
+>>>>>>> c97b2e0e53ce9bf53b1fc2a3056936d2f561a642
 
   const openAppSettings = () => {
     Linking.openSettings();
@@ -47,6 +65,7 @@ export default function OnboardingScreen() {
 
   const handleOnboardingComplete = async () => {
     if (allPermissionsGranted) {
+<<<<<<< HEAD
       try {
         await SecureStore.setItemAsync(ONBOARDING_COMPLETED_KEY, 'true');
         router.replace('/(auth)/sign-in');
@@ -57,6 +76,10 @@ export default function OnboardingScreen() {
     } else {
       // Optionally, show an alert to the user that permissions are required.
       alert('Please grant all required permissions to continue.');
+=======
+      await SecureStore.setItemAsync(ONBOARDING_COMPLETED_KEY, 'true');
+      router.replace('/(auth)/sign-in');
+>>>>>>> c97b2e0e53ce9bf53b1fc2a3056936d2f561a642
     }
   };
 
@@ -105,7 +128,12 @@ export default function OnboardingScreen() {
     },
   ];
 
+<<<<<<< HEAD
 
+=======
+  const isPermissionPage = activeIndex === 2 || activeIndex === 3;
+  const isCurrentPermissionGranted = (activeIndex === 2 && notificationStatus === 'granted') || (activeIndex === 3 && (foregroundLocationStatus === 'granted' || backgroundLocationStatus === 'granted'));
+>>>>>>> c97b2e0e53ce9bf53b1fc2a3056936d2f561a642
 
   return (
     <View style={styles.container}>
@@ -114,7 +142,11 @@ export default function OnboardingScreen() {
         initialPage={0}
         ref={pagerRef}
         onPageSelected={(e) => setActiveIndex(e.nativeEvent.position)}
+<<<<<<< HEAD
         scrollEnabled={true}
+=======
+        scrollEnabled={!isPermissionPage || isCurrentPermissionGranted}
+>>>>>>> c97b2e0e53ce9bf53b1fc2a3056936d2f561a642
       >
         {pages.map((page, index) => (
             <View key={index} style={styles.page}>
@@ -131,15 +163,26 @@ export default function OnboardingScreen() {
           style={[styles.arrow, styles.leftArrow]}
           onPress={() => pagerRef.current?.setPage(activeIndex - 1)}
         >
+<<<<<<< HEAD
           <FontAwesome name="arrow-left" size={24} color="white" />
         </TouchableOpacity>
       )}
       {activeIndex < pages.length - 1 && (
+=======
+          <AntDesign name="arrowleft" size={24} color="white" />
+        </TouchableOpacity>
+      )}
+      {activeIndex < pages.length - 1 && (!isPermissionPage || isCurrentPermissionGranted) && (
+>>>>>>> c97b2e0e53ce9bf53b1fc2a3056936d2f561a642
         <TouchableOpacity
           style={[styles.arrow, styles.rightArrow]}
           onPress={() => pagerRef.current?.setPage(activeIndex + 1)}
         >
+<<<<<<< HEAD
           <FontAwesome name="arrow-right" size={24} color="white" />
+=======
+          <AntDesign name="arrowright" size={24} color="white" />
+>>>>>>> c97b2e0e53ce9bf53b1fc2a3056936d2f561a642
         </TouchableOpacity>
       )}
 

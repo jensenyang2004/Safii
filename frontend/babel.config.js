@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 
 module.exports = function (api) {
   api.cache(true);
@@ -67,3 +68,14 @@ module.exports = function (api) {
 //     ],
 //   };
 // };
+=======
+module.exports = function (api) {
+  api.cache(true);
+  return {
+    presets: [
+      ["babel-preset-expo", { jsxImportSource: "nativewind" }],
+      "nativewind/babel",
+    ],
+  };
+};
+>>>>>>> c97b2e0e53ce9bf53b1fc2a3056936d2f561a642

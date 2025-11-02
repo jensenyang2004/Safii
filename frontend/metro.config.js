@@ -3,6 +3,7 @@ const { withNativeWind } = require("nativewind/metro");
 
 const config = getDefaultConfig(__dirname);
 
+<<<<<<< HEAD
 // 修改默认配置
 const { transformer, resolver } = config;
 
@@ -18,6 +19,8 @@ config.resolver = {
   sourceExts: [...resolver.sourceExts, "svg"]
 };
 
+=======
+>>>>>>> c97b2e0e53ce9bf53b1fc2a3056936d2f561a642
 config.resolver.assetExts = [
   // keep everything Metro was already bundling…
   ...config.resolver.assetExts,
