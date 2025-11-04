@@ -1,5 +1,4 @@
-#!/usr/bin/env python
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, abort
 from flask_cors import CORS
 from flask_sock import Sock
 import os
@@ -10,6 +9,9 @@ from dotenv import load_dotenv
 from datetime import datetime, timedelta, timezone
 import requests
 import json
+
+from .firebase import add_successful_call_log, check_user_and_rate_limit
+
 # --- Basic Configuration ---
 logging.basicConfig(level=logging.INFO)
 load_dotenv() # Load environment variables from .env file
@@ -40,7 +42,19 @@ if not BACKEND_API_KEY:
 
 @app.route('/openai_session', methods=['GET'])
 def openai_session():
+
+    UID = request.headers.get("USERID")
+    if not UID or UID == 'Frontend error':
+        logging.warning("Forbidden attempt to access /session without authentication.")
+        return jsonify({"error": "Forbidden"}), 403
+    
+    # 1. Auth and Rate Limit Check
+    auth_check = check_user_and_rate_limit(UID, limit=10)
+    if auth_check["status"] == "error":
+        return jsonify({"error": auth_check["message"]}), auth_check["code"]
+
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+    print
 
     session_config = {
         "session": {
@@ -74,6 +88,7 @@ def openai_session():
             data=json.dumps(session_config)
         )
 
+
         # Check for successful response
         if response.status_code == 200:
             data = response.json()
@@ -81,6 +96,8 @@ def openai_session():
             client_secret = data.get("value") 
             
             if client_secret:
+                # Log the successful call
+                add_successful_call_log(UID)
                 # Send the token back to the frontend
                 return jsonify({"client_secret": client_secret})
             else:

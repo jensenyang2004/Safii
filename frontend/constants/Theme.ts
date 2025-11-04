@@ -75,7 +75,7 @@ export const colors = {
 
 export const spacing = {
   xs: 4,
-  sm: 8,
+  sm: 2,
   md: 12,
   lg: 16,
   xl: 24,
@@ -103,9 +103,9 @@ export const typography = {
 
 export const radii = {
   sm: 8,
-  md: 12,
-  lg: 16,
-  xl: 20, // from track_base.tsx container
+  md: 10,
+  lg: 25,
+  xl: 32, // from track_base.tsx container
   full: 999,
 };
 

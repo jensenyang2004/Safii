@@ -52,3 +52,4 @@ app/(auth)/phone-auth-manual.tsx
 app/(auth)/sign-in-google.tsx
 app/(auth)/sign-in-x.tsx
 app/(auth)/sign-up-y.tsx
+backend/
