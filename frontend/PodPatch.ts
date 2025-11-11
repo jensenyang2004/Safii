@@ -1,7 +1,4 @@
-// frontend/PodPatch.ts
-const { withPodfile } = require("@expo/config-plugins");
-const fs = require("fs");
-const path = require("path");
+const { withPodfile } = require('@expo/config-plugins');
 
 const patchCode = `
   installer.pods_project.targets.each do |target|
@@ -20,36 +17,36 @@ const patchCode = `
   end
 `;
 
-function withPodfilePatch(config) {
+function withFinalPodfilePatch(config) {
   return withPodfile(config, (podfileConfig) => {
-    const podfilePath = path.join(podfileConfig.modRequest.platformProjectRoot, "Podfile");
+    let podfileContents = podfileConfig.modResults.contents;
+    const postInstallHook = 'post_install do |installer|';
 
-    // ✅ 1. 檢查 Podfile 是否存在（避免 prebuild 階段報錯）
-    if (!fs.existsSync(podfilePath)) {
-      console.log("⚠️  Skipping PodPatch: No Podfile found yet (prebuild not completed).");
+    // Idempotency check: if patch is already there, do nothing.
+    if (podfileContents.includes("RNFBApp") || podfileContents.includes("react-native-maps")) {
+      console.log("ℹ️  Podfile patch already applied, skipping.");
       return podfileConfig;
     }
 
-    let contents = fs.readFileSync(podfilePath, "utf8");
-    const postInstallHook = "post_install do |installer|";
+    // Ensure the post_install hook exists.
+    if (!podfileContents.includes(postInstallHook)) {
+      podfileContents += `
 
-    // ✅ 2. 若沒有 post_install，建立一個空的
-    if (!contents.includes(postInstallHook)) {
-      contents += `\n${postInstallHook}\nend\n`;
+${postInstallHook}
+end
+`;
     }
 
-    // ✅ 3. 避免重複插入相同 patch
-    if (!contents.includes("RNFBApp") && !contents.includes("react-native-maps")) {
-      contents = contents.replace(postInstallHook, `${postInstallHook}\n${patchCode}`);
-      fs.writeFileSync(podfilePath, contents, "utf8");
-      console.log("✅ PodPatch successfully applied to Podfile.");
-    } else {
-      console.log("ℹ️  PodPatch already applied, skipping duplicate.");
-    }
+    // Insert the patch code.
+    podfileContents = podfileContents.replace(
+      postInstallHook,
+      `${postInstallHook}
+${patchCode}`
+    );
 
-    podfileConfig.modResults.contents = contents;
+    podfileConfig.modResults.contents = podfileContents;
     return podfileConfig;
   });
 }
 
-module.exports = withPodfilePatch;
+module.exports = withFinalPodfilePatch;
