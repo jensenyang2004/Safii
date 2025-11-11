@@ -13,30 +13,32 @@ function withFirebasePodPatch(config) {
       const podfilePath = path.join(config.modRequest.platformProjectRoot, 'Podfile');
       let podfileContent = fs.readFileSync(podfilePath, 'utf8');
 
+      // Add post_install block for RNFirebase
       const patchCode = `
-    installer.pods_project.targets.each do |target|
-      # Allow non-modular includes for RNFirebase pods to fix
-      # "include of non-modular header inside framework module" errors
-      if ['RNFBApp', 'RNFBAnalytics', 'RNFBCrashlytics', 'RNFBRemoteConfig', 'RNFBAppCheck'].include?(target.name)
-        target.build_configurations.each do |config|
-          config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
-          config.build_settings['DEFINES_MODULE'] = 'NO'
-        end
+  installer.pods_project.targets.each do |target|
+    if ['RNFBApp', 'RNFBAnalytics', 'RNFBCrashlytics', 'RNFBRemoteConfig', 'RNFBAppCheck'].include?(target.name)
+      target.build_configurations.each do |config|
+        config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
+        config.build_settings['DEFINES_MODULE'] = 'NO'
       end
     end
+
+    if target.name == 'react-native-maps'
+      target.build_configurations.each do |config|
+        config.build_settings['FRAMEWORK_SEARCH_PATHS'] = '$(inherited) "${PODS_ROOT}/../react-native/ReactCommon"'
+      end
+    end
+  end
 `;
-
-      const newPodfileContent = podfileContent.replace(
-        /(post_install do \|installer\|\s*)/,
-        `$1${patchCode}`
-      );
-
-      if (podfileContent !== newPodfileContent) {
-        fs.writeFileSync(podfilePath, newPodfileContent, 'utf8');
-        console.log('✅ Successfully patched Podfile for RNFirebase non-modular includes.');
-      } else {
-        console.log('❌ Could not find the "post_install do |installer|" block to patch. Podfile was not modified.');
+      const postInstallHook = 'post_install do |installer|';
+      if (podfileContent.includes(postInstallHook) && !podfileContent.includes('RNFBApp')) {
+        const lines = podfileContent.split('\n');
+        const postInstallIndex = lines.findIndex(line => line.includes(postInstallHook));
+        lines.splice(postInstallIndex + 1, 0, patchCode);
+        podfileContent = lines.join('\n');
       }
+
+      fs.writeFileSync(podfilePath, podfileContent, 'utf8');
       
       return config;
     },
