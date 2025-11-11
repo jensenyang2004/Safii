@@ -62,6 +62,12 @@ export const registerForPushNotificationsAsync = async () => {
       sound: 'siren.wav', // Associate the sound with the channel
       lightColor: '#FF231F7C',
     });
+    await Notifications.setNotificationChannelAsync('safii_alert_channel', {
+      name: 'SAFII Alerts',
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 250, 250, 250],
+      sound: 'safii_alert.wav',
+    });
   }
 
   if (Device.isDevice) {
@@ -173,3 +179,38 @@ export const createEmergencyNotificationChannel = async () => {
     });
   }
 };
+
+/**
+ * Schedules a local alert notification with the 'safii_alert.wav' sound.
+ */
+export async function sendAlertNotification(): Promise<void> {
+  const { status } = await Notifications.getPermissionsAsync();
+  if (status !== 'granted') {
+    const { status: newStatus } = await Notifications.requestPermissionsAsync();
+    if (newStatus !== 'granted') {
+      alert('You need to enable notifications in settings for alerts to work.');
+      return;
+    }
+  }
+
+  if (Platform.OS === 'android') {
+    await Notifications.setNotificationChannelAsync('safii_alert_channel', {
+      name: 'SAFII Alerts',
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 250, 250, 250],
+      sound: 'safii_alert.wav',
+    });
+  }
+
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      title: "🚨 SAFII Alert",
+      body: "Potential danger detected nearby. Stay alert.",
+      sound: 'safii_alert.wav', // For iOS
+      channelId: 'safii_alert_channel', // For Android
+    },
+    trigger: null, // Triggers immediately
+  });
+
+  console.log("Local SAFII alert notification scheduled.");
+}

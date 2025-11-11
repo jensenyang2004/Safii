@@ -1,6 +1,7 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { useTracking } from '@/context/TrackProvider';
+import * as LocalAuthentication from 'expo-local-authentication';
 
 const ReportSafetyCard = () => {
   const { reportSafety, reportDeadline } = useTracking();
@@ -22,6 +23,30 @@ const ReportSafetyCard = () => {
     }
   }, [reportDeadline]);
 
+  const handleReportSafety = async () => {
+    const hasHardware = await LocalAuthentication.hasHardwareAsync();
+    if (hasHardware) {
+      const supportedTypes = await LocalAuthentication.supportedAuthenticationTypesAsync();
+      const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+      if (isEnrolled) {
+        const result = await LocalAuthentication.authenticateAsync({
+          promptMessage: '請使用 Face ID 回報安全',
+          fallbackLabel: 'Enter Password',
+        });
+        if (result.success) {
+          reportSafety();
+        } else {
+          Alert.alert('Authentication failed', '請再試一次');
+        }
+      } else {
+        Alert.alert('No biometrics enrolled', '請先在您的裝置上設定 Face ID');
+      }
+    } else {
+        // Fallback for devices without biometrics
+        reportSafety();
+    }
+  };
+
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -33,7 +58,8 @@ const ReportSafetyCard = () => {
       <View style={styles.header}>
         <Text style={styles.subText}>請在 {formatTime(remainingTime)} 內回報安全</Text>
       </View>
-      <TouchableOpacity style={styles.reportButton} onPress={reportSafety}>
+      {/* <TouchableOpacity style={styles.reportButton} onPress={reportSafety}> */}
+      <TouchableOpacity style={styles.reportButton} onPress={handleReportSafety}>
         <Text style={styles.reportButtonText}>回報安全</Text>
       </TouchableOpacity>
     </View>

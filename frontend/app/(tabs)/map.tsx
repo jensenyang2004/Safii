@@ -69,12 +69,28 @@ const haversineDistance = (
 
 export default function Map() {
   const [location, setLocation] = useState<Location.LocationObject | null>(null);
-  const { trackingModes, isTracking, trackingModeId, isReportDue, isInfoSent, stopTrackingMode } = useTracking();
+  const { trackingModes, isTracking, trackingModeId, isReportDue, isInfoSent, stopTrackingMode, justReportedSafety, setJustReportedSafety } = useTracking();
+
   const { emergencyData: emergencies } = useEmergencyListener();
   const [showToolCard, setShowToolCard] = useState(true);
   const [selectedEmergency, setSelectedEmergency] = useState<EmergencyData | null>(null);
   const [bottomComponentHeight, setBottomComponentHeight] = useState(0);
   const [showLocationSentCard, setShowLocationSentCard] = useState(false);
+
+  useEffect(() => {
+    console.log('�🔍 [Map] Effect triggered. JustReportedSafety:', justReportedSafety);
+    if (justReportedSafety) {
+      console.log('✅ [Map] justReportedSafety is true, updating states...');
+      setShowToolCard(false);
+      setJustReportedSafety(false);
+      console.log('✅ [Map] States updated: setShowToolCard(false), setJustReportedSafety(false)');
+    }
+  }, [justReportedSafety]);
+
+  useEffect(() => {
+    console.log('🔍 [Map] , showToolCard:', showToolCard);
+
+  }, [showToolCard]);
 
   const { routes, error, getRoutes, loading: isFetchingRoutes, clearRoutes } = useRoutePlanner();
   const [selectedRoute, setSelectedRoute] = useState<RouteInfo | null>(null);
@@ -91,7 +107,7 @@ export default function Map() {
     latitude: number;
     longitude: number;
     walkingTime: string | null;
-  } | null>(null);    
+  } | null>(null);
 
   const [selectedLocation, setSelectedLocation] = useState<{
     name: string;
@@ -99,7 +115,7 @@ export default function Map() {
     latitude: number;
     longitude: number;
   } | null>(null);
-  
+
   const calculateWalkingTime = async (origin: Location.LocationObject, destination: { latitude: number; longitude: number }) => {
     try {
       console.log('Calculating walking time for:', {
@@ -110,9 +126,9 @@ export default function Map() {
       const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${origin.coords.latitude},${origin.coords.longitude}&destination=${destination.latitude},${destination.longitude}&mode=walking&alternatives=true&language=zh-TW&key=${GOOGLE_MAPS_API_KEY}`;
       console.log('API Key being used:', GOOGLE_MAPS_API_KEY);
       console.log('Request URL:', url);
-      
+
       const response = await fetch(url);
-      
+
       const data = await response.json();
       console.log('Google Directions API response:', data);
 
@@ -127,7 +143,7 @@ export default function Map() {
         console.log('Walking duration:', durationText);
         return durationText;
       }
-      
+
       console.log('No valid route found');
       return '無法計算';
     } catch (error) {
@@ -141,14 +157,14 @@ export default function Map() {
       console.log('No current location available');
       return;
     }
-    
+
     console.log('Police station pressed:', station);
-    
+
     // 清除現有的路線選擇狀態
     setDestination(null);
     setSelectedRoute(null);
     clearRoutes();
-    
+
     // 使用 calculateWalkingTime 來獲取預估時間
     setSelectedPoliceStation({
       name: station.name || '警察局',
@@ -162,7 +178,7 @@ export default function Map() {
       latitude: station.latitude,
       longitude: station.longitude
     });
-    
+
     // 更新警察局資訊包含步行時間
     setSelectedPoliceStation(prev => {
       if (!prev) return null;
@@ -215,8 +231,8 @@ export default function Map() {
   } = useLiveNavigation({ onReroute: handleReroute });
 
   const [isSearchingSafeSpot, setIsSearchingSafeSpot] = useState(false);
-  
-  const tabBarHeight = screenHeight * 0.12; 
+
+  const tabBarHeight = screenHeight * 0.12;
 
   const mapRef = useRef<MapView>(null);
   const flatListRef = useRef<FlatList>(null);
@@ -237,7 +253,7 @@ export default function Map() {
 
   const styles = createStyles(bottomComponentHeight, tabBarHeight, selectedPoliceStation !== null, selectedLocation !== null);
 
-   useEffect(() => {
+  useEffect(() => {
     const initialLocation = {
       coords: {
         latitude: 25.03,
@@ -363,7 +379,7 @@ export default function Map() {
       Alert.alert('提示', '附近2公里內未找到安全地點');
       return;
     }
-    
+
     let errors = 0;
     for (const spot of safeSpots) {
       const destination = `${spot.latitude},${spot.longitude}`;
@@ -417,7 +433,7 @@ export default function Map() {
       });
 
       // 移動地圖到選定位置
-      mapRef.current?.fitToCoordinates([origin, {latitude: bestRoute.latitude, longitude: bestRoute.longitude}], {
+      mapRef.current?.fitToCoordinates([origin, { latitude: bestRoute.latitude, longitude: bestRoute.longitude }], {
         edgePadding: { top: 100, right: 50, bottom: 350, left: 50 },
         animated: true,
       });
@@ -503,7 +519,7 @@ export default function Map() {
       latitude: latitude,
       longitude: longitude
     });
-    
+
     // 移动地图到选定位置
     if (mapRef.current) {
       mapRef.current.animateToRegion({
@@ -574,7 +590,7 @@ export default function Map() {
         }}
         showsUserLocation={true}
         mapType="standard"
-        showsCompass={true} 
+        showsCompass={true}
         compassOffset={{ x: -8, y: 50 }}
         onPress={() => setCalloutVisible(null)} // 點擊地圖時隱藏所有 callout
       >
@@ -618,12 +634,12 @@ export default function Map() {
           >
             <Animated.View style={{ transform: [{ scale: activeMarker === poi.id ? scaleAnimation : 1 }] }}>
               {poi.type === 'police' ? (
-                <Image 
+                <Image
                   source={require('@/assets/icons/police-station.png')}
                   style={{ width: 32, height: 32 }}
                 />
               ) : (
-                <Image 
+                <Image
                   source={require('@/assets/icons/family-mart.png')}
                   style={{ width: 32, height: 32 }}
                 />
@@ -702,11 +718,11 @@ export default function Map() {
         </View>
       )}
 
-      {isNavigating && 
-        <NavigationInstructionsCard 
-          currentStep={currentStep} 
-          remainingDistance={remainingDistance} 
-          eta={eta} 
+      {isNavigating &&
+        <NavigationInstructionsCard
+          currentStep={currentStep}
+          remainingDistance={remainingDistance}
+          eta={eta}
         />
       }
 
@@ -727,6 +743,14 @@ export default function Map() {
           <Pressable
             style={styles.toolToggleButton}
             onPress={() => setShowToolCard(prev => !prev)}
+          // onPress={() => {
+          //   setShowToolCard(prev => {
+          //     console.log('Previous showToolCard state:', prev);
+          //     const newState = !prev;
+          //     console.log('New showToolCard state:', newState);
+          //     return newState;
+          //   });
+          // }}
           >
             <MaterialIcons name={showToolCard ? "map" : "apps"} size={24} color="black" />
           </Pressable>
@@ -750,7 +774,7 @@ export default function Map() {
       ) : (
         !isNavigating && (
           <View style={styles.bottomComponentContainer}>
-            <RouteCarousel 
+            <RouteCarousel
               routes={routes}
               selectedRoute={selectedRoute}
               onSelectRoute={setSelectedRoute}
@@ -835,8 +859,8 @@ export default function Map() {
 }
 
 function createStyles(
-  bottomComponentHeight: number, 
-  tabBarHeight: number, 
+  bottomComponentHeight: number,
+  tabBarHeight: number,
   hasPoliceStation: boolean,
   hasLocation: boolean
 ) {
@@ -918,8 +942,8 @@ function createStyles(
     },
     recenterButton: {
       position: 'absolute',
-      bottom: (hasPoliceStation || hasLocation) ? 
-        (bottomComponentHeight + tabBarHeight + 90) : 
+      bottom: (hasPoliceStation || hasLocation) ?
+        (bottomComponentHeight + tabBarHeight + 90) :
         (bottomComponentHeight + tabBarHeight + 20),
       right: 20,
       backgroundColor: 'rgba(255,255,255,0.9)',
@@ -948,20 +972,20 @@ function createStyles(
       fontSize: 16,
     },
     bottomComponentContainer: {
-        position: 'absolute',
-        bottom: tabBarHeight + 10,
-        left: 0,
-        right: 0,
-        zIndex: 1000,
-        elevation: 5, // for Android
-        shadowColor: '#000',
-        shadowOffset: {
-          width: 0,
-          height: -2,
-        },
-        shadowOpacity: 0.25,
-        shadowRadius: 3.84,
-        backgroundColor: 'transparent',
+      position: 'absolute',
+      bottom: tabBarHeight + 10,
+      left: 0,
+      right: 0,
+      zIndex: 1000,
+      elevation: 5, // for Android
+      shadowColor: '#000',
+      shadowOffset: {
+        width: 0,
+        height: -2,
+      },
+      shadowOpacity: 0.25,
+      shadowRadius: 3.84,
+      backgroundColor: 'transparent',
     },
     loadingContainer: {
       flex: 1,

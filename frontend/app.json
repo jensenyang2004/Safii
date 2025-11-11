@@ -60,9 +60,6 @@
       "output": "static",
       "favicon": "./assets/images/favicon.png"
     },
-    "extra": {
-      "GOOGLE_MAPS_API_KEY": "your_api_key_here"
-    },
     "plugins": [
       "expo-dev-client",
       "expo-router",
