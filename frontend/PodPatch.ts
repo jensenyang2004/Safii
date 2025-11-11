@@ -11,8 +11,7 @@ const patchCode = `
 
     if target.name == 'react-native-maps'
       target.build_configurations.each do |config|
-        # ✅ 注意：這裡要用 \\${} 讓 JS 不展開 PODS_ROOT
-        config.build_settings['FRAMEWORK_SEARCH_PATHS'] = '$(inherited) "\\${PODS_ROOT}/../react-native/ReactCommon"'
+        config.build_settings['FRAMEWORK_SEARCH_PATHS'] = '$(inherited) "\${PODS_ROOT}/../react-native/ReactCommon"'
       end
     end
   end
