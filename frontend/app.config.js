@@ -1,4 +1,4 @@
-
+// frontend/app.config.js
 module.exports = {
   expo: {
     name: "Safii",
