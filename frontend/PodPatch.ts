@@ -1,3 +1,4 @@
+// frontend/PodPatch.ts
 const { withPodfile } = require('@expo/config-plugins');
 
 const patchCode = `
