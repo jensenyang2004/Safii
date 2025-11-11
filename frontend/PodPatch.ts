@@ -1,4 +1,3 @@
-// frontend/PodPatch.ts
 const { withPodfile } = require('@expo/config-plugins');
 
 const patchCode = `
@@ -12,7 +11,8 @@ const patchCode = `
 
     if target.name == 'react-native-maps'
       target.build_configurations.each do |config|
-        config.build_settings['FRAMEWORK_SEARCH_PATHS'] = '$(inherited) "${PODS_ROOT}/../react-native/ReactCommon"'
+        # ✅ 注意：這裡要用 \\${} 讓 JS 不展開 PODS_ROOT
+        config.build_settings['FRAMEWORK_SEARCH_PATHS'] = '$(inherited) "\\${PODS_ROOT}/../react-native/ReactCommon"'
       end
     end
   end
@@ -23,13 +23,11 @@ function withFinalPodfilePatch(config) {
     let podfileContents = podfileConfig.modResults.contents;
     const postInstallHook = 'post_install do |installer|';
 
-    // Idempotency check: if patch is already there, do nothing.
     if (podfileContents.includes("RNFBApp") || podfileContents.includes("react-native-maps")) {
       console.log("ℹ️  Podfile patch already applied, skipping.");
       return podfileConfig;
     }
 
-    // Ensure the post_install hook exists.
     if (!podfileContents.includes(postInstallHook)) {
       podfileContents += `
 
@@ -38,7 +36,6 @@ end
 `;
     }
 
-    // Insert the patch code.
     podfileContents = podfileContents.replace(
       postInstallHook,
       `${postInstallHook}
