@@ -32,10 +32,10 @@ module.exports = {
           sounds: ["./assets/notifications/safii_alert.wav"],
         },
       ],
-      ...(fs.existsSync(path.join(__dirname, "ios"))
-        ? ["./PodPatch.ts"]
-        : []),
-      // "./PodPatch.ts",
+      // ...(fs.existsSync(path.join(__dirname, "ios"))
+      //   ? ["./PodPatch.ts"]
+      //   : []),
+      "./PodPatch.ts",
       [
         "expo-build-properties",
         {
