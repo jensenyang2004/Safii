@@ -789,28 +789,19 @@ export default function Map() {
 
       {routes.length === 0 ? (
         <>
-          <EmergencyList emergencies={emergencies} onSelectEmergency={setSelectedEmergency} />
-          <EmergencyInfoModal emergency={selectedEmergency} onClose={() => setSelectedEmergency(null)} />
-
+          {/* <EmergencyList emergencies={emergencies} onSelectEmergency={setSelectedEmergency} />
+          <EmergencyInfoModal emergency={selectedEmergency} onClose={() => setSelectedEmergency(null)} /> */}
+{/* 
           <Pressable
             style={styles.toolToggleButton}
             onPress={() => setShowToolCard(prev => !prev)}
-          // onPress={() => {
-          //   setShowToolCard(prev => {
-          //     console.log('Previous showToolCard state:', prev);
-          //     const newState = !prev;
-          //     console.log('New showToolCard state:', newState);
-          //     return newState;
-          //   });
-          // }}
           >
             <MaterialIcons name={showToolCard ? "map" : "apps"} size={24} color="black" />
-          </Pressable>
+          </Pressable> */}
 
           {!selectedPoliceStation && !selectedLocation && (
             <View style={styles.bottomComponentContainer} onLayout={(event) => setBottomComponentHeight(event.nativeEvent.layout.height)}>
-              {!showToolCard && <MapCarousel data={carouselData} />}
-              {showToolCard && <ToolCard showBottomBar={true} onFindSafeSpot={findNearestSafeSpot} />}
+              <MapCarousel data={carouselData} />
             </View>
           )}
 
@@ -825,7 +816,7 @@ export default function Map() {
         </>
       ) : (
         !isNavigating && (
-          <View style={styles.bottomComponentContainer}>
+          <View style={styles.bottomComponentContainer} onLayout={(event) => setBottomComponentHeight(event.nativeEvent.layout.height)}>
             <RouteCarousel
               routes={routes}
               selectedRoute={selectedRoute}
@@ -840,7 +831,7 @@ export default function Map() {
       )}
 
       {isNavigating && (
-        <View style={styles.bottomComponentContainer}>
+        <View style={styles.bottomComponentContainer} onLayout={(event) => setBottomComponentHeight(event.nativeEvent.layout.height)}>
           <Pressable style={styles.endNavigationButton} onPress={stopNavigation}>
             <Text style={styles.endNavigationButtonText}>結束導航</Text>
           </Pressable>
@@ -997,15 +988,6 @@ function createStyles(
       zIndex: 1,
     },
     topScrollViewContent: {
-      bottom: (hasPoliceStation || hasLocation) ?
-        (bottomComponentHeight + tabBarHeight + 90) :
-        (bottomComponentHeight + tabBarHeight + 20),
-      right: 20,
-      backgroundColor: 'rgba(255,255,255,0.9)',
-      width: 50,
-      height: 50,
-      borderRadius: 25,
-      justifyContent: 'center',
       alignItems: 'center',
       paddingHorizontal: 12,
     },
@@ -1025,6 +1007,7 @@ function createStyles(
     bottomComponentContainer: {
       position: 'absolute',
       bottom: tabBarHeight, // Add 10px margin above tab bar
+      padding: 10,
       left: 0,
       right: 0,
     }, 

@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { View, Text, FlatList, TouchableOpacity, ActivityIndicator, StyleSheet, Alert } from 'react-native';
 import { collection, getDocs, doc, updateDoc, getDoc } from 'firebase/firestore';
-import { db } from '@/apis/firebase';
+import { db } from '@/libs/firebase';
 import { useAuth } from '@/context/AuthProvider';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons'; 

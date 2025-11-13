@@ -6,9 +6,7 @@ import * as Theme from '@/constants/Theme';
 import { FontAwesome, Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { uiParameters } from '@/constants/Theme';
-import {
-  enableBioMetric,
-} from 'react-native-biometric-check';
+
 
 const LocationSharingButton = () => (
   <TouchableOpacity

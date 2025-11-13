@@ -5,7 +5,7 @@ import { View, Text, TextInput, Switch, TouchableOpacity, StyleSheet, Alert } fr
 
 import { Ionicons } from '@expo/vector-icons'; // Added Ionicons import
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '@/apis/firebase';
+import { db } from '@/libs/firebase';
 import { useAuth } from '@/context/AuthProvider';
 import { router } from 'expo-router';
 import { useTracking } from '@/context/TrackProvider';

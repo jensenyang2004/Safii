@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Alert, Button, View } from 'react-native';
 import { collection, query, where, onSnapshot, getDoc, doc as docRef, doc } from 'firebase/firestore';
-import { db } from '@/apis/firebase';
+import { db } from '@/libs/firebase';
 import { registerForPushNotificationsAsync, saveTokenToFirestore, sendPushNotification } from '@/apis/notifications';
 import { useAuth } from '@/context/AuthProvider'; // Import AuthProvider context
 import { useNavigation } from '@react-navigation/native';
