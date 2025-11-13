@@ -1,8 +1,9 @@
 import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, Alert } from 'react-native';
 import { useTracking } from '@/context/TrackProvider';
 import { BlurView } from 'expo-blur';
 import { uiParameters } from '../../constants/Theme';
+import * as LocalAuthentication from 'expo-local-authentication';
 
 const ReportSafetyCard = () => {
   const { reportSafety, reportDeadline } = useTracking();
@@ -23,6 +24,30 @@ const ReportSafetyCard = () => {
       setRemainingTime(0);
     }
   }, [reportDeadline]);
+
+  const handleReportSafety = async () => {
+    const hasHardware = await LocalAuthentication.hasHardwareAsync();
+    if (hasHardware) {
+      const supportedTypes = await LocalAuthentication.supportedAuthenticationTypesAsync();
+      const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+      if (isEnrolled) {
+        const result = await LocalAuthentication.authenticateAsync({
+          promptMessage: '請使用 Face ID 回報安全',
+          fallbackLabel: 'Enter Password',
+        });
+        if (result.success) {
+          reportSafety();
+        } else {
+          Alert.alert('Authentication failed', '請再試一次');
+        }
+      } else {
+        Alert.alert('No biometrics enrolled', '請先在您的裝置上設定 Face ID');
+      }
+    } else {
+        // Fallback for devices without biometrics
+        reportSafety();
+    }
+  };
 
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);

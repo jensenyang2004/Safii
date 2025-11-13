@@ -546,10 +546,6 @@ const styles = StyleSheet.create({
   rejectButton: {
     backgroundColor: '#EF4444',
   },
-  actionButtonText: {
-    color: '#FFFFFF',
-    fontWeight: '500',
-  },
   removeButton: {
     padding: 10,
   },

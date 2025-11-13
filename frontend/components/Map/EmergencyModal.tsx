@@ -1,7 +1,7 @@
 import React from 'react';
 import { Modal, View, Text, Button, StyleSheet } from 'react-native';
 import { doc, updateDoc } from 'firebase/firestore';
-import { db } from '@/libs/firebase';
+import { db } from '@/apis/firebase';
 import { useAuth } from '@/context/AuthProvider';
 
 // The emergencyData prop will be passed from the map screen

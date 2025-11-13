@@ -1,7 +1,7 @@
 // context/AuthProvider.tsx
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { auth, db } from '@/libs/firebase';
+import { auth, db } from '@/apis/firebase';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { router } from 'expo-router';

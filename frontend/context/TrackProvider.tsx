@@ -1,7 +1,7 @@
 // context/TrackingContext.tsx
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { collection, getDocs, doc, getDoc, updateDoc, query, where, addDoc, setDoc, Timestamp, serverTimestamp, deleteDoc, onSnapshot } from 'firebase/firestore';
-import { db } from '@/libs/firebase';
+import { db } from '@/apis/firebase';
 import * as TaskManager from 'expo-task-manager';
 import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -62,6 +62,8 @@ type TrackingContextType = {
   nextCheckInTime: number | null;
   isInfoSent: boolean;
   setIsInfoSent: React.Dispatch<React.SetStateAction<boolean>>;
+  justReportedSafety: boolean;
+  setJustReportedSafety: React.Dispatch<React.SetStateAction<boolean>>;
 };
 
 const TrackingContext = createContext<TrackingContextType | null>(null);
@@ -214,6 +216,7 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
   const [reportDeadline, setReportDeadline] = useState<number | null>(null);
   const [nextCheckInTime, setNextCheckInTime] = useState<number | null>(null);
   const [isInfoSent, setIsInfoSent] = useState<boolean>(false);
+  const [justReportedSafety, setJustReportedSafety] = useState<boolean>(false);
   const [foregroundWatcher, setForegroundWatcher] = useState<Location.LocationSubscription | null>(null); // ADDED
 
   useEffect(() => {
@@ -495,7 +498,8 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
       const modeRef = doc(db, 'TrackingMode', modeId);
       await updateDoc(modeRef, { On: true });
 
-      const sessionMs = sessionMinutes * 60 * 1000;
+      const sessionMs = sessionMinutes * 3 * 1000;
+      // const sessionMs = sessionMinutes * 60 * 1000;
       const reductionMs = reductionMinutes * 60 * 1000;
       const reportMs = 3 * 60 * 1000;
       const startTime = Date.now();
@@ -676,7 +680,9 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
         },
         trigger: null,
       });
-      
+      console.log('🔍 [TrackProvider] About to set justReportedSafety to true');
+      setJustReportedSafety(true);
+      console.log('✅ [TrackProvider] Called setJustReportedSafety(true)');
     } catch (error) {
       console.error('❌ Error reporting safety:', error);
       const errMsg = (error instanceof Error) ? error.message : String(error);
@@ -734,7 +740,6 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
           console.log("✅ Dead man's switch deactivated in Firestore for safe stop.");
         }
       }
-
 
       const keys = Object.values(STORAGE_KEYS);
       if (isEmergency) {
@@ -929,6 +934,8 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
       nextCheckInTime,
       isInfoSent,
       setIsInfoSent,
+      justReportedSafety,
+      setJustReportedSafety,
     }}>
       {children}
     </TrackingContext.Provider>

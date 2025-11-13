@@ -24,7 +24,6 @@ export default function OnboardingScreen() {
     checkPermissions 
   } = usePermissions();
 
-
   const handlePermissionRequest = async (request: () => Promise<any>) => {
     await request();
     checkPermissions();

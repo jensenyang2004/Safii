@@ -96,7 +96,6 @@ export default function TabLayout() {
             tabBarIcon: ({ color, focused }) => (
               <View
                 style={{
-                  // padding: 8,               // gives rounded background some breathing room
                   marginTop: 40,
                   borderRadius: 38,
                   height: 60,

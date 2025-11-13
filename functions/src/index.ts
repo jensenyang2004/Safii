@@ -67,7 +67,7 @@ export const emergencyScanner = onSchedule(`every ${REMINDER_INTERVAL_MINUTES} m
 
           const message = {
             to: pushToken,
-            sound: 'default',
+            sound: 'safii_alert.wav',
             title: `Emergency Alert from ${trackedUserName}`,
             body: `${trackedUserName} needs your attention. Please check the app.`, // Customize message
             data: { // Data payload for deep linking

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Modal, View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { doc, updateDoc } from 'firebase/firestore';
-import { db } from '@/libs/firebase';
+import { db } from '@/apis/firebase';
 import { useAuth } from '@/context/AuthProvider';
 import Theme from '@/constants/Theme';
 const EmergencyInfoModal = ({ emergency, onClose }) => {
