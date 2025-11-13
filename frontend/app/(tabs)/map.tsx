@@ -1,3 +1,4 @@
+// frontend/app/%28tabs%29/map.tsx
 import { MaterialIcons } from '@expo/vector-icons';
 import {
   View,
