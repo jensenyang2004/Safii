@@ -340,7 +340,7 @@ const homeStyles = StyleSheet.create({
     marginBottom: 16,
     marginTop: 16,
     borderWidth: 3,
-    borderColor: Theme.colors.actionOrange,
+    borderColor: Theme.tracking_colors.coralRed,
   },
   avatarPlaceholder: {
     backgroundColor: '#E5E7EB',
@@ -373,9 +373,16 @@ const homeStyles = StyleSheet.create({
   signOutButton: {
     backgroundColor: Theme.colors.gray200,
     paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 6,
+    paddingVertical: 16,
+    borderRadius: Theme.radii.xl,
     marginBottom: 24,
+
+
+    shadowColor: '#000',
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    shadowOffset: { width: 0, height: 4 }, // 👈 bottom shadow
+
   },
   signOutText: {
     color: 'white',
@@ -390,7 +397,7 @@ const homeStyles = StyleSheet.create({
     backgroundColor: 'white', // Lighter blue for disabled state
   },
   callButton: {
-    backgroundColor: '#059669',
+    backgroundColor: Theme.tracking_colors.coralRed,
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: 6,
@@ -472,16 +479,16 @@ const homeStyles = StyleSheet.create({
   settingsValue: { color: '#111827', fontWeight: '600' },
 
   settingsSmallBtn: {
-    backgroundColor: Theme.colors.actionOrange, paddingVertical: 10, paddingHorizontal: 12,
-    borderRadius: 10, marginRight: 8,
+    backgroundColor: Theme.tracking_colors.coralRed, paddingVertical: 10, paddingHorizontal: 12,
+    borderRadius: Theme.radii.xl, marginRight: 8,
   },
   settingsSmallBtnText: { color: '#fff', fontWeight: '700' },
 
   settingsPrimaryBtn: {
     position: 'absolute', left: 16, right: 16,
-    backgroundColor: Theme.colors.actionOrange, borderRadius: 12,
+    backgroundColor: Theme.tracking_colors.coralRed, borderRadius: Theme.radii.xl,
     paddingVertical: 14, alignItems: 'center',
-    shadowColor: Theme.colors.actionOrange, shadowOpacity: 0.25, shadowRadius: 8,
+    shadowColor: 'grey', shadowOpacity: 0.3, shadowRadius: 6,
     shadowOffset: { width: 0, height: 4 }, elevation: 3,
   },
   settingsPrimaryText: { color: '#fff', fontWeight: '800', fontSize: 16 },

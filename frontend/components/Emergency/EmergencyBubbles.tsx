@@ -2,12 +2,12 @@ import React from 'react';
 import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import Theme from '@/constants/Theme';
-interface EmergencyBubbleProps {
+export interface EmergencyBubbleProps {
   emergency: any;
   onPress: () => void;
 }
 
-const EmergencyBubble: React.FC<EmergencyBubbleProps> = ({ emergency, onPress }) => {
+export const EmergencyBubble: React.FC<EmergencyBubbleProps> = ({ emergency, onPress }) => {
   return (
     <Pressable style={styles.bubble} onPress={onPress}>
       <MaterialIcons name="warning" size={24} color="white" />

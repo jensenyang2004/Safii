@@ -50,7 +50,7 @@ const BACKEND_URL = 'https://safii-backend.onrender.com'; // Your local python s
 // --- Security ---
 // IMPORTANT: Replace this with a strong, securely stored secret key.
 // This key MUST match the BACKEND_API_KEY environment variable on your server.
-const BACKEND_API_KEY = 'M9vtHEM44u7K0Bsj3f0fcfzm2Adl8iEb';
+const BACKEND_API_KEY = '';
 
 // --- Audio Configuration ---
 const RECORDING_OPTIONS: Audio.RecordingOptions = {

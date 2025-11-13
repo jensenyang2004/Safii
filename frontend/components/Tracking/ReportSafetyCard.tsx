@@ -1,6 +1,8 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { useTracking } from '@/context/TrackProvider';
+import { BlurView } from 'expo-blur';
+import { uiParameters } from '../../constants/Theme';
 
 const ReportSafetyCard = () => {
   const { reportSafety, reportDeadline } = useTracking();
@@ -29,54 +31,38 @@ const ReportSafetyCard = () => {
   };
 
   return (
-    <View style={styles.card}>
-      <View style={styles.header}>
-        <Text style={styles.subText}>請在 {formatTime(remainingTime)} 內回報安全</Text>
-      </View>
-      <TouchableOpacity style={styles.reportButton} onPress={reportSafety}>
-        <Text style={styles.reportButtonText}>回報安全</Text>
-      </TouchableOpacity>
+    <View style={{ // Shadow container from track_ongoning.tsx
+        width: '90%',
+        height: 100,
+        paddingTop: 10,
+        paddingBottom: 10,
+        alignSelf: 'center',
+        marginVertical: 10,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 5,
+        elevation: 5, // for Android
+    }}>
+      <BlurView
+        intensity={90}
+        tint="light"
+        className="w-full h-full rounded-full overflow-hidden"
+      >
+        <View style={{ backgroundColor: uiParameters.mainComponent.background }} className="w-full h-full flex-col items-center justify-center px-8 space-y-3">
+            <TouchableOpacity
+              onPress={reportSafety}
+              style={{ backgroundColor: uiParameters.buttons.report.background }}
+              className="py-4 px-20 rounded-full shadow-sm"
+            >
+                <Text style={{ color: uiParameters.buttons.report.text }} className="font-bold text-base">
+                    請在 {formatTime(remainingTime)} 內回報安全
+                </Text>
+            </TouchableOpacity>
+        </View>
+      </BlurView>
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-    card: {
-        borderRadius: 20,
-        backgroundColor: '#F8F1EC',
-        shadowColor: '#000',
-        shadowOpacity: 0.1,
-        shadowRadius: 10,
-        shadowOffset: { width: 0, height: 4 },
-        elevation: 5,
-        padding: 20,
-        alignItems: 'center',
-      },
-      header: {
-        alignItems: 'center',
-        marginBottom: 20,
-      },
-      headerText: {
-        fontSize: 22,
-        fontWeight: 'bold',
-        color: '#333',
-      },
-      subText: {
-        fontSize: 16,
-        color: '#666',
-        marginTop: 5,
-      },
-      reportButton: {
-        backgroundColor: '#4CAF50', // A green color
-        paddingVertical: 15,
-        paddingHorizontal: 40,
-        borderRadius: 30,
-      },
-      reportButtonText: {
-        color: '#fff',
-        fontSize: 18,
-        fontWeight: 'bold',
-      },
-});
 
 export default ReportSafetyCard;

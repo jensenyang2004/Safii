@@ -49,7 +49,7 @@ def openai_session():
         return jsonify({"error": "Forbidden"}), 403
     
     # 1. Auth and Rate Limit Check
-    auth_check = check_user_and_rate_limit(UID, limit=10)
+    auth_check = check_user_and_rate_limit(UID, limit=50)
     if auth_check["status"] == "error":
         return jsonify({"error": auth_check["message"]}), auth_check["code"]
 

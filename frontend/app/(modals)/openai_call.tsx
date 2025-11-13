@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, TouchableOpacity, StyleSheet, Text, Image } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, Text, Image, Alert } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
 import { AudioSession } from 'expo-audio-streaming';
@@ -15,6 +15,7 @@ const BACKEND_URL = 'https://safii-backend-beta251104.onrender.com';
 
 const prompt_boyfriend = "你現在扮演「男友來電」的角色。\n" +
   "角色設定\n" +
+   "注意！！！請用全程用台灣的腔調來講話！\n" +
   "- 語氣：溫柔、體貼、略帶打趣或撒嬌。\n" +
   "- 個性：有點愛開玩笑，但真心關心使用者的安全與狀況。\n" +
   "- 對話目標：\n" +
@@ -33,6 +34,7 @@ const prompt_boyfriend = "你現在扮演「男友來電」的角色。\n" +
 const prompt_mom = "你現在扮演「老媽來電」的角色。\n" +
     "角色設定\n" +
   "- 語氣：親切、熟悉、帶點碎念但充滿關愛。\n" +
+   "注意！！！請用全程用台灣的腔調來講話！\n" +
     "- 個性：有點嘮叨，但出發點是擔心與疼愛。\n" +
     "- 對話目標：\n" +
     "- 問使用者現在在哪、吃飯了沒、什麼時候回家。\n" +
@@ -51,6 +53,7 @@ const prompt_mom = "你現在扮演「老媽來電」的角色。\n" +
 
 const prompt_bestie = 
   "你現在扮演「閨蜜來電」的角色。" +
+  "注意！！！請用全程用台灣的腔調來講話！\n" +
 
   "【角色設定】" +
   "- 語氣：輕鬆自然、有活力、帶點幽默。" +
@@ -77,6 +80,24 @@ const prompts: { [key: string]: string } = {
   '閨蜜來電': prompt_bestie
 };
 
+// Import images statically
+const boyfriendAvatar = require('../../assets/avatar-photo/boyfriend.png');
+const momAvatar = require('../../assets/avatar-photo/mom.png');
+const bestieAvatar = require('../../assets/avatar-photo/bestie.png');
+
+const avatars: { [key: string]: any } = {
+  '男友來電': boyfriendAvatar,
+  '老媽來電': momAvatar,
+  '閨蜜來電': bestieAvatar
+};
+
+
+const voices: { [key: string]: string } = {
+  '男友來電': 'ash',
+  '老媽來電': 'marin',
+  '閨蜜來電': 'shimmer'
+};
+
 export default function OpenAICall() {
   const [permissionResponse, requestPermission] = Audio.usePermissions();
   const [connectionStatus, setConnectionStatus] = useState('Disconnected');
@@ -101,6 +122,7 @@ export default function OpenAICall() {
 
   const { title } = useLocalSearchParams<{ title: string }>();
   const characterPrompt = prompts[title || ''] || "You are a helpful assistant.";
+  const characterVoice = voices[title || ''] || "arbor";
 
   // --- Effect for Initializing and Cleaning Up ---
   useEffect(() => {
@@ -110,7 +132,7 @@ export default function OpenAICall() {
       recorderBufferSize: 4096,
     });
 
-    // startCall(); // Automatically start the call
+    startCall(); // Automatically start the call
 
     // Cleanup function on component unmount
     return () => {
@@ -138,6 +160,11 @@ export default function OpenAICall() {
         if (newPermissions.status !== 'granted') {
           console.error("Microphone permission not granted.");
           setConnectionStatus("Failed: Mic permission denied");
+          Alert.alert(
+            "Microphone Permission",
+            "Microphone permission is required to make a call.",
+            [{ text: "OK", onPress: () => router.replace('/(tabs)/firebase-test') }]
+          );
           return;
         }
       }
@@ -149,9 +176,21 @@ export default function OpenAICall() {
         headers: { 'USERID': user?.uid ?? 'Frontend error' },
       });
 
-      if (!res.ok) throw new Error(`Failed to fetch API key: ${res.statusText}`);
+      if (!res.ok) {
+        const errorData = await res.json(); 
+      
+      // 2. **Access the "error" key** from the parsed data
+        const errorMessage = errorData.error;
+        Alert.alert(
+          "Error Occurred",
+          // Use the res.error message if it's available (truthy), 
+          // otherwise display "A network issue occurred. Please try again."
+          errorMessage || "A network issue occurred. Please try again.", 
+          [{ text: "OK", onPress: () => router.replace({ pathname: '/(tabs)/firebase-test'}) }]
+        );
+        return;
+      }
       const { client_secret: apiKey } = await res.json();
-      if (!apiKey) throw new Error('Received an empty API key.');
 
       // 3. Connect WebSocket with Auth Header
       setConnectionStatus('Connecting...');
@@ -187,7 +226,7 @@ export default function OpenAICall() {
                   type: "audio/pcm",
                   rate: 24000,
                 },
-                voice: "marin"
+                voice: characterVoice
               }
             },
             instructions: characterPrompt
@@ -232,7 +271,7 @@ export default function OpenAICall() {
               startRecording();
             }
           case 'response.output_audio.delta':
-            if (message.delta && !isSpeakerOn) {
+            if (message.delta && isSpeakerOn) {
               addToBuffer(message.delta);
               play();
             }
@@ -256,6 +295,13 @@ export default function OpenAICall() {
         console.error('WebSocket Error:', error);
         setConnectionStatus('Error');
         setIsCallActive(false);
+        Alert.alert(
+          "Error Occurred",
+          // Use the res.error message if it's available (truthy), 
+          // otherwise display "A network issue occurred. Please try again."
+          "A network issue occurred. Please try again.", 
+          [{ text: "OK", onPress: () => router.replace({ pathname: '/(tabs)/firebase-test'}) }]
+        );
       };
 
       socket.onclose = (event) => {
@@ -268,6 +314,11 @@ export default function OpenAICall() {
     } catch (err) {
       console.error('Failed to start call', err);
       setConnectionStatus(`Failed: ${err instanceof Error ? err.message : String(err)}`);
+      Alert.alert(
+        "An Error Occurred",
+        "An unexpected error occurred. Please try again.",
+        [{ text: "OK", onPress: () => router.replace({ pathname: '/(tabs)/firebase-test'}) }]
+      );
     }
   };
 
@@ -300,7 +351,7 @@ export default function OpenAICall() {
 
   return (
     <View style={styles.container}>
-        <Image source={require('../../assets/avatar-photo/cool_ai.gif')} style={styles.avatar} />
+        <Image source={avatars[title || ''] || momAvatar} style={styles.avatar} />
         <Text style={styles.callingText}>{connectionStatus === 'Connected' ? 'Connected' : 'Connecting...'}</Text>
         <View style={styles.callControls}>
           <TouchableOpacity style={styles.controlButton} onPress={closeMic}>
@@ -322,7 +373,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'black',
+    backgroundColor: 'white',
   },
   callingContainer: {
     flex: 1,
@@ -337,8 +388,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   avatar: {
-    width: 300, // Slightly smaller than glow to show the glow effect
-    height: 600,
+    width: 250, // Slightly smaller than glow to show the glow effect
+    height: 250,
     resizeMode: 'contain',
     alignSelf: 'center',
     borderRadius: 100,

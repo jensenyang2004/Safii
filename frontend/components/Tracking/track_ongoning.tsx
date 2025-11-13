@@ -1,7 +1,9 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTracking } from '@/context/TrackProvider';
+import { BlurView } from 'expo-blur';
+import { uiParameters } from '../../constants/Theme';
 
 interface TrackingMode {
   id: string;
@@ -32,127 +34,90 @@ const Card_ongoing = ({ trackingMode }: { trackingMode: TrackingMode }) => {
     }
   }, [nextCheckInTime]);
 
-  const formatTime = (seconds: number) => {
-    const minutes = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-
   const totalDuration = trackingMode.checkIntervalMinutes * 60;
-  const progressPercentage = totalDuration > 0 ? (remainingTime / totalDuration) * 100 : 0;
+  const progressPercentage = totalDuration > 0 ? ((totalDuration - remainingTime) / totalDuration) * 100 : 0;
 
   const StrikeDots = () => (
-    <View style={styles.strikeContainer}>
-      {[...Array(trackingMode?.unresponsiveThreshold || 3)].map((_, i) => (
+    <View className="flex-row space-x-1 gap-1">
+      {[...Array(trackingMode?.unresponsiveThreshold || 4)].map((_, i) => (
         <View
           key={i}
-          style={[
-            styles.strikeDot,
-            { backgroundColor: i < currentStrike ? '#FF6347' : '#E0E0E0' },
-          ]}
+          style={{
+            width: 10,
+            height: 10,
+            borderRadius: 10,
+            backgroundColor: i < currentStrike ? uiParameters.countingDot.active : uiParameters.countingDot.background,
+          }}
         />
       ))}
     </View>
   );
 
   return (
-    <View style={styles.card}>
-      <View style={styles.header}>
-        <Text style={styles.statusText}>正在進行 {trackingMode?.name ?? '模式'}...</Text>
-        <StrikeDots />
-      </View>
+    <View style={{ // Shadow container
+        width: '90%',
+        height: 100,
+        paddingTop: 10,
+        paddingBottom: 10,
+        alignSelf: 'center',
+        marginVertical: 10,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 5,
+        elevation: 5, // for Android
+    }}>
+      <BlurView
+        intensity={90}
+        tint="light"
+        className="w-full h-full rounded-full overflow-hidden"
+      >
+        <View style={{ backgroundColor: uiParameters.mainComponent.background }} className="w-full h-full flex-row items-center justify-between py-3 px-8">
+          {/* Left Content Block */}
+          <View className="flex-col items-start space-y-10 gap-2">
+            <Text style={{ color: uiParameters.mainComponent.text }} className="font-bold text-xl">
+              正在進行{trackingMode?.name ?? '模式'}...
+            </Text>
+            <View className="flex-row items-center space-x-2 gap-2">
+              {/* Progress Bar */}
+              <View style={{ backgroundColor: uiParameters.progressBar.background }} className="w-24 h-2.5 rounded-full">
+                <View
+                  style={{
+                    width: `${progressPercentage}%`,
+                    backgroundColor: uiParameters.progressBar.fill,
+                  }}
+                  className="h-full rounded-full"
+                />
+              </View>
+              {/* Counting Dots */}
+              <StrikeDots />
+            </View>
+          </View>
 
-      <View style={styles.timerContainer}>
-        <Text style={styles.timeText}>{formatTime(remainingTime)}</Text>
-        <Text style={styles.contactText}>
-          監護人數: {trackingMode?.contacts?.length ?? 0}
-        </Text>
-      </View>
+          {/* Right Action Block */}
+          <View className="flex-row items-center space-x-2 gap-4 py-6">
+            {/* Location Button */}
+            <TouchableOpacity
+              style={{ backgroundColor: uiParameters.buttons.locationShare.default.background }}
+              className="w-12 h-12 rounded-full items-center justify-center drop-shadow-2xl"
+            >
+              <Ionicons name="location-sharp" size={24} color={uiParameters.buttons.locationShare.default.icon} />
+            </TouchableOpacity>
 
-      <View style={styles.footer}>
-        <View style={styles.progressBarContainer}>
-          <View style={[styles.progressBar, { width: `${progressPercentage}%` }]} />
+            {/* Pause Button */}
+            <TouchableOpacity
+              onPress={stopTrackingMode}
+              style={{ backgroundColor: uiParameters.buttons.action.background }}
+              className="w-12 h-12 rounded-full items-center justify-center drop-shadow-2xl"
+            >
+              <Ionicons name="pause" size={24} color={uiParameters.buttons.action.text} />
+            </TouchableOpacity>
+          </View>
         </View>
-        <TouchableOpacity style={styles.stopButton} onPress={stopTrackingMode}>
-          <Ionicons name="stop" size={20} color="#fff" />
-        </TouchableOpacity>
-      </View>
+      </BlurView>
     </View>
   );
 };
 
-const styles = StyleSheet.create({
-  card: {
-    borderRadius: 20,
-    backgroundColor: '#F8F1EC',
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 5 },
-    elevation: 5,
-    padding: 20,
-    margin: 10,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 15,
-  },
-  statusText: {
-    color: '#15223F',
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  strikeContainer: {
-    flexDirection: 'row',
-  },
-  strikeDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    marginLeft: 5,
-  },
-  timerContainer: {
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  timeText: {
-    fontSize: 40,
-    fontWeight: 'bold',
-    color: '#15223F',
-  },
-  contactText: {
-    color: '#15223F',
-    fontSize: 14,
-    marginTop: 5,
-  },
-  footer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    height: 36,
-  },
-  progressBarContainer: {
-    flex: 1,
-    height: '100%',
-    backgroundColor: '#E0E0E0',
-    borderRadius: 18,
-    overflow: 'hidden',
-    marginRight: 15,
-  },
-  progressBar: {
-    height: '100%',
-    backgroundColor: '#15223F',
-    borderRadius: 18,
-  },
-  stopButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#15223F',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
-
 export default Card_ongoing;
+

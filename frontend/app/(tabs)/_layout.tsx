@@ -115,22 +115,7 @@ export default function TabLayout() {
         <Tabs.Screen
           name="gemini-call"
           options={{
-            tabBarIcon: ({ color, focused }) => (
-              <View
-                style={{
-                  // padding: 8,               // gives rounded background some breathing room
-                  marginTop: 40,
-                  borderRadius: 38,
-                  height: 60,
-                  width: 80,
-                  backgroundColor: focused ? "rgba(0,0,0,0.06)" : "transparent",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <MaterialIcons name="call" size={24} color={color} />
-              </View>
-            ),
+            href: null,
           }}
         />
 

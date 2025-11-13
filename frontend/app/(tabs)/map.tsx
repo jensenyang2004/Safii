@@ -3,7 +3,7 @@ import {
   View,
   StyleSheet,
   Dimensions,
-  FlatList,
+  ScrollView,
   Pressable,
   ActivityIndicator, // ADDED
   Text, // ADDED
@@ -28,7 +28,7 @@ import { auth } from '@/libs/firebase';
 import LocationSentCard from '@/components/Tracking/LocationSentCard';
 import SharingSessionCard from '@/components/Tracking/SharingSessionCard';
 import EmergencyContactMarker from '@/components/Map/EmergencyContactMarker';
-import EmergencyBubbles from '@/components/Emergency/EmergencyBubbles';
+import { EmergencyBubble } from '@/components/Emergency/EmergencyBubbles';
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -42,10 +42,9 @@ export default function Map() {
   const [bottomComponentHeight, setBottomComponentHeight] = useState(0);
   const [showLocationSentCard, setShowLocationSentCard] = useState(false); // New state
 
-  const tabBarHeight = screenHeight * 0.12;
+  const tabBarHeight = screenHeight * 0.09;
 
   const mapRef = useRef<MapView>(null);
-  const flatListRef = useRef<FlatList>(null);
 
   const avatarImg = require('../../assets/avatar-photo/avatar-1.png');
   const currentUserId = auth.currentUser?.uid;
@@ -174,6 +173,26 @@ export default function Map() {
     carouselData.push(...modeCards);
   }
 
+  const topCarouselData: any[] = [
+    {
+      id: 'recenter-button',
+      component: (
+        <Pressable style={styles.recenterBubble} onPress={recenterMap}>
+          <MaterialIcons name="my-location" size={24} color="black" />
+        </Pressable>
+      ),
+    },
+    ...(emergencies ?? []).map((emergency: any) => ({
+      id: emergency.emergencyDocId,
+      component: (
+        <EmergencyBubble
+          emergency={emergency}
+          onPress={() => handleSelectEmergency(emergency)}
+        />
+      ),
+    })),
+  ];
+
   useEffect(() => {
     if (isInfoSent) { // If tracking provider says info is sent
       setShowLocationSentCard(true); // Show the card
@@ -222,8 +241,16 @@ export default function Map() {
         ))}
       </MapView>
 
-      <View style={styles.emergencyBubblesContainer}>
-        <EmergencyBubbles emergencies={emergencies} onSelectEmergency={handleSelectEmergency} />
+      <View style={styles.topCarouselContainer}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.topScrollViewContent}
+        >
+          {topCarouselData.map(item =>
+            React.cloneElement(item.component, { key: item.id })
+          )}
+        </ScrollView>
       </View>
 
       {selectedEmergency && (
@@ -237,9 +264,6 @@ export default function Map() {
       >
         <MaterialIcons name={showToolCard ? "map" : "apps"} size={24} color="black" />
       </Pressable>*/}
-      <Pressable style={styles.recenterButton} onPress={recenterMap}>
-        <MaterialIcons name="my-location" size={24} color="black" />
-      </Pressable>
 
       <View style={styles.bottomComponentContainer} onLayout={(event) => setBottomComponentHeight(event.nativeEvent.layout.height)}>
         {!showToolCard && <MapCarousel data={carouselData} />}
@@ -279,34 +303,33 @@ function createStyles(bottomComponentHeight: number, tabBarHeight: number) {
       elevation: 3,
       zIndex: 1,
     },
-    recenterButton: {
+    topCarouselContainer: {
       position: 'absolute',
-      bottom: bottomComponentHeight + tabBarHeight + 20, // Increased spacing
-      right: 20,
-      backgroundColor: 'rgba(255,255,255,0.9)',
-      width: 50,
-      height: 50,
-      borderRadius: 25,
-      justifyContent: 'center',
+      bottom: bottomComponentHeight + tabBarHeight,
+      left: 0,
+      right: 0,
+      zIndex: 1,
+    },
+    topScrollViewContent: {
       alignItems: 'center',
+      paddingHorizontal: 12,
+    },
+    recenterBubble: {
+      flexDirection: 'row',
+      backgroundColor: 'rgba(255,255,255,0.9)',
+      borderRadius: 30,
+      padding: 10,
+      alignItems: 'center',
+      marginHorizontal: 5,
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 1 },
       shadowOpacity: 0.2,
       shadowRadius: 2,
       elevation: 3,
-      zIndex: 1,
-    },
-    emergencyBubblesContainer: {
-      position: 'absolute',
-      bottom: bottomComponentHeight + tabBarHeight + 20, // Same height as recenterButton
-      left: '13%',
-      right: 80, // To avoid covering the recenterButton
-      flexDirection: 'row',
-      zIndex: 1,
     },
     bottomComponentContainer: {
       position: 'absolute',
-      bottom: tabBarHeight + 10, // Add 10px margin above tab bar
+      bottom: tabBarHeight, // Add 10px margin above tab bar
       left: 0,
       right: 0,
     },

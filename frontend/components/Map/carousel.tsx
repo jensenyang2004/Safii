@@ -3,7 +3,7 @@ import { FlatList, View, Dimensions } from 'react-native';
 
 const { width: screenWidth } = Dimensions.get('window');
 
-const CARD_WIDTH = screenWidth * 0.75;
+const CARD_WIDTH = screenWidth * 1;
 const SPACING = 16;
 const SNAP_INTERVAL = CARD_WIDTH + SPACING;
 const SIDE_PADDING = (screenWidth - CARD_WIDTH) / 2;
@@ -25,7 +25,7 @@ export default function MapCarousel({ data }: MapCarouselProps) {
       ref={flatListRef}
       data={data}
       renderItem={({ item }) => (
-        <View style={{ width: CARD_WIDTH }}>
+        <View style={{ width: CARD_WIDTH, flex: 1, justifyContent: 'flex-end' }}>
           {item.component}
         </View>
       )}

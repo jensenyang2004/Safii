@@ -43,6 +43,72 @@ const palette = {
   black: '#000000',
 };
 
+
+export const tracking_colors = {
+    coralRed: '#EE8A82',    // Action button
+    dangerRed: '#D63A2D',   // Base emergency color
+    successGreen: '#79CA90', // Progress bar fill / Report button
+    
+    // Text & Icons
+    darkBlue: '#15223F',    // Main text / Map icon
+    white: '#FFFFFF',       // Button text
+    
+    // Background & UI Tints
+    componentBg: '#ECECEC4D',  // Main component bg (ECECEC at 70% alpha)
+    emergencyBg: '#D63A2DE6', // Emergency button bg (D63A2D at 90% alpha)
+    progressBarBg: '#FFF6F0',// Progress bar background
+    disabledGrey: '#D9D9D9', // Counting dot / Location share bg
+}
+
+export const uiParameters = {
+  mainComponent: {
+    background: tracking_colors.componentBg, // <-- Uses the 70% alpha color
+    blur: '60px',
+    text: tracking_colors.darkBlue,
+    textSize: '1rem', // Or '1rem', '1.2em', etc.
+  },
+  progressBar: {
+    background: tracking_colors.progressBarBg,
+    fill: tracking_colors.successGreen,
+  },
+  countingDot: {
+    background: tracking_colors.disabledGrey,
+    active: tracking_colors.dangerRed, // Using the solid red here
+  },
+  buttons: {
+    action: {
+      background: tracking_colors.coralRed,
+      text: tracking_colors.white,
+      effect: 'drop-shadow',
+    },
+    emergency: {
+      background: tracking_colors.emergencyBg, // <-- Uses the 90% alpha color
+      blur: '60px',
+      text: tracking_colors.white,
+    },
+    report: {
+      background: tracking_colors.successGreen,
+      text: tracking_colors.white,
+    },
+    mapRecenter: {
+      // Assuming this background is also transparent
+      background: tracking_colors.componentBg, 
+      icon: tracking_colors.darkBlue,
+    },
+    locationShare: {
+      default: {
+        background: tracking_colors.disabledGrey,
+        icon: tracking_colors.white,
+      },
+      active: {
+        background: tracking_colors.coralRed,
+        icon: tracking_colors.white,
+      },
+    },
+  },
+};
+
+
 export const colors = {
   ...palette,
   // --- Semantic Aliases ---
@@ -106,6 +172,7 @@ export const radii = {
   md: 10,
   lg: 25,
   xl: 32, // from track_base.tsx container
+  xxl: 80,
   full: 999,
 };
 

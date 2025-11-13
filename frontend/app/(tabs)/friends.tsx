@@ -452,9 +452,9 @@ const styles = StyleSheet.create({
   tabBar: {
     flexDirection: 'row',
     marginBottom: 16,
-    borderRadius: 8,
+    borderRadius: Theme.radii.xl,
     overflow: 'hidden',
-    backgroundColor: '#F3F4F6',
+    backgroundColor: Theme.colors.background,
   },
   tabButton: {
     flex: 1,
@@ -462,7 +462,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   activeTab: {
-    backgroundColor: Theme.colors.actionOrange,
+    backgroundColor: Theme.tracking_colors.coralRed,
   },
   tabText: {
     fontWeight: '500',
