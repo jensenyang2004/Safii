@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, Alert, StyleSheet } from 'react-native';
 import { useTracking } from '@/context/TrackProvider';
 import { BlurView } from 'expo-blur';
 import { uiParameters } from '../../constants/Theme';
@@ -56,31 +56,18 @@ const ReportSafetyCard = () => {
   };
 
   return (
-    <View style={{ // Shadow container from track_ongoning.tsx
-        width: '90%',
-        height: 100,
-        paddingTop: 10,
-        paddingBottom: 10,
-        alignSelf: 'center',
-        marginVertical: 10,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
-        shadowRadius: 5,
-        elevation: 5, // for Android
-    }}>
+    <View style={styles.shadowContainer}>
       <BlurView
         intensity={90}
         tint="light"
-        className="w-full h-full rounded-full overflow-hidden"
+        style={styles.blurView}
       >
-        <View style={{ backgroundColor: uiParameters.mainComponent.background }} className="w-full h-full flex-col items-center justify-center px-8 space-y-3">
+        <View style={[styles.innerContainer, { backgroundColor: uiParameters.mainComponent.background }]}>
             <TouchableOpacity
-              onPress={reportSafety}
-              style={{ backgroundColor: uiParameters.buttons.report.background }}
-              className="py-4 px-20 rounded-full shadow-sm"
+              onPress={handleReportSafety}
+              style={[styles.button, { backgroundColor: uiParameters.buttons.report.background }]}
             >
-                <Text style={{ color: uiParameters.buttons.report.text }} className="font-bold text-base">
+                <Text style={[styles.buttonText, { color: uiParameters.buttons.report.text }]}>
                     請在 {formatTime(remainingTime)} 內回報安全
                 </Text>
             </TouchableOpacity>
@@ -89,5 +76,49 @@ const ReportSafetyCard = () => {
     </View>
   );
 };
+
+const styles = StyleSheet.create({
+  shadowContainer: {
+    width: '90%',
+    height: 100,
+    paddingTop: 10,
+    paddingBottom: 10,
+    alignSelf: 'center',
+    marginVertical: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
+    elevation: 5,
+  },
+  blurView: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 9999,
+    overflow: 'hidden',
+  },
+  innerContainer: {
+    width: '100%',
+    height: '100%',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+  },
+  button: {
+    paddingVertical: 16,
+    paddingHorizontal: 50,
+    borderRadius: 9999,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.18,
+    shadowRadius: 1.00,
+    elevation: 1,
+  },
+  buttonText: {
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+});
 
 export default ReportSafetyCard;

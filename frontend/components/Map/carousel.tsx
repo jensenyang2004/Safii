@@ -25,7 +25,7 @@ export default function MapCarousel({ data }: MapCarouselProps) {
       ref={flatListRef}
       data={data}
       renderItem={({ item }) => (
-        <View style={{ width: CARD_WIDTH, flex: 1, justifyContent: 'flex-end' }}>
+        <View style={{ width: CARD_WIDTH, flex: 1,  justifyContent: 'flex-end' }}>
           {item.component}
         </View>
       )}

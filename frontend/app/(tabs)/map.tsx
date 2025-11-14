@@ -75,7 +75,7 @@ export default function Map() {
 
   const { trackingModes, isTracking, trackingModeId, isReportDue, isInfoSent, stopTrackingMode } = useTracking();
   const { emergencyData: emergencies } = useEmergencyListener();
-  const [showToolCard, setShowToolCard] = useState(true);
+  const [showToolCard, setShowToolCard] = useState(false);
   const [selectedEmergency, setSelectedEmergency] = useState<EmergencyData | null>(null);
   const [bottomComponentHeight, setBottomComponentHeight] = useState(0);
   const [showLocationSentCard, setShowLocationSentCard] = useState(false); // New state
@@ -235,6 +235,35 @@ export default function Map() {
   // const flatListRef = useRef<FlatList>(null);
   const [activeMarker, setActiveMarker] = useState<string | null>(null);
   const scaleAnimation = useRef(new Animated.Value(1)).current;
+
+  const [mapCarouselHeight, setMapCarouselHeight] = useState(0);
+  const [routeSheetHeight, setRouteSheetHeight] = useState(0);
+  const routeSheetAnimation = useRef(new Animated.Value(0)).current;
+
+  const showRouteSheet = routes.length > 0 || !!selectedPoliceStation || !!selectedLocation || isNavigating;
+
+  useEffect(() => {
+    Animated.timing(routeSheetAnimation, {
+      toValue: showRouteSheet ? 1 : 0,
+      duration: 300,
+      useNativeDriver: false, // Using false for layout properties animation
+    }).start();
+  }, [showRouteSheet]);
+
+  const topCarouselBottom = routeSheetAnimation.interpolate({
+    inputRange: [0, 1],
+    outputRange: [mapCarouselHeight + tabBarHeight, routeSheetHeight + tabBarHeight],
+  });
+
+  const mapCarouselOpacity = routeSheetAnimation.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 0],
+  });
+
+  const routeSheetTranslateY = routeSheetAnimation.interpolate({
+    inputRange: [0, 1],
+    outputRange: [routeSheetHeight > 0 ? routeSheetHeight : 1000, 0],
+  });
 
   const handleMarkerPress = (markerId: string) => {
     setActiveMarker(markerId);
@@ -701,7 +730,6 @@ export default function Map() {
         ) : (
           routes.map(route => {
             const isSelected = selectedRoute?.polyline === route.polyline;
-            // 先渲染未選中的路線，後渲染選中的路線
             if (!isSelected) {
               return (
                 <Polyline
@@ -715,7 +743,6 @@ export default function Map() {
                 />
               );
             }
-            // 最後渲染選中的路線，確保它在最上層
             return (
               <Polyline
                 key={`${route.polyline}-selected`}
@@ -731,7 +758,7 @@ export default function Map() {
         )}
       </MapView>
 
-      <View style={styles.topCarouselContainer}>
+      <Animated.View style={[styles.topCarouselContainer, { bottom: topCarouselBottom }]}>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -741,7 +768,7 @@ export default function Map() {
             React.cloneElement(item.component, { key: item.id })
           )}
         </ScrollView>
-      </View>
+      </Animated.View>
 
       {selectedEmergency && (
         <EmergencyInfoModal emergency={selectedEmergency} onClose={() => setSelectedEmergency(null)} />
@@ -753,7 +780,7 @@ export default function Map() {
             style={[styles.filterButton, selectedPoiType === 'police' && styles.selectedFilterButton]}
             onPress={() => {
               setSelectedPoiType(selectedPoiType === 'police' ? null : 'police');
-              setCalloutVisible(null); // 切換篩選時隱藏所有 callout
+              setCalloutVisible(null);
             }}
           >
             <Text style={styles.filterButtonText}>警察局</Text>
@@ -762,7 +789,7 @@ export default function Map() {
             style={[styles.filterButton, selectedPoiType === 'store' && styles.selectedFilterButton]}
             onPress={() => {
               setSelectedPoiType(selectedPoiType === 'store' ? null : 'store');
-              setCalloutVisible(null); // 切換篩選時隱藏所有 callout
+              setCalloutVisible(null);
             }}
           >
             <Text style={styles.filterButtonText}>便利商店</Text>
@@ -787,119 +814,86 @@ export default function Map() {
 
       {!isNavigating && <MapSearchBar onSearch={handleSearch} onSuggestionSelected={handleSuggestionSelected} />}
 
-      {routes.length === 0 ? (
-        <>
-          {/* <EmergencyList emergencies={emergencies} onSelectEmergency={setSelectedEmergency} />
-          <EmergencyInfoModal emergency={selectedEmergency} onClose={() => setSelectedEmergency(null)} /> */}
-{/* 
-          <Pressable
-            style={styles.toolToggleButton}
-            onPress={() => setShowToolCard(prev => !prev)}
-          >
-            <MaterialIcons name={showToolCard ? "map" : "apps"} size={24} color="black" />
-          </Pressable> */}
+      {showLocationSentCard && <LocationSentCard onDismiss={handleDismissLocationSentCard} />}
 
-          {!selectedPoliceStation && !selectedLocation && (
-            <View style={styles.bottomComponentContainer} onLayout={(event) => setBottomComponentHeight(event.nativeEvent.layout.height)}>
-              <MapCarousel data={carouselData} />
-            </View>
-          )}
-
-          {showLocationSentCard && <LocationSentCard onDismiss={handleDismissLocationSentCard} />}
-
-          {isSearchingSafeSpot && (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#0000ff" />
-              <Text style={{ marginTop: 10 }}>正在搜尋最近的安全地點...</Text>
-            </View>
-          )}
-        </>
-      ) : (
-        !isNavigating && (
-          <View style={styles.bottomComponentContainer} onLayout={(event) => setBottomComponentHeight(event.nativeEvent.layout.height)}>
-            <RouteCarousel
-              routes={routes}
-              selectedRoute={selectedRoute}
-              onSelectRoute={setSelectedRoute}
-              onStartNavigation={handleStartNavigation}
-            />
-            <Pressable style={styles.cancelRouteButton} onPress={handleCancelRouteSelection}>
-              <Text style={styles.cancelRouteButtonText}>取消路線</Text>
-            </Pressable>
-          </View>
-        )
-      )}
-
-      {isNavigating && (
-        <View style={styles.bottomComponentContainer} onLayout={(event) => setBottomComponentHeight(event.nativeEvent.layout.height)}>
-          <Pressable style={styles.endNavigationButton} onPress={stopNavigation}>
-            <Text style={styles.endNavigationButtonText}>結束導航</Text>
-          </Pressable>
+      {isSearchingSafeSpot && (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#0000ff" />
+          <Text style={{ marginTop: 10 }}>正在搜尋最近的安全地點...</Text>
         </View>
       )}
 
+      <Animated.View
+        style={[styles.bottomComponentContainer, { opacity: mapCarouselOpacity }]}
+        onLayout={(event) => {
+          const height = event.nativeEvent.layout.height;
+          if (height > 0 && height !== mapCarouselHeight) {
+            setMapCarouselHeight(height);
+          }
+        }}
+        pointerEvents={showRouteSheet ? 'none' : 'auto'}
+      >
+        <MapCarousel data={carouselData} />
+      </Animated.View>
 
-      {placeToConfirm && (
-        <View style={styles.confirmationContainer}>
-          <Text style={styles.confirmationText}>
-            選擇安全路線到: {placeToConfirm.description}？
-          </Text>
-          <View style={styles.confirmationButtons}>
-            <Pressable
-              style={[styles.confirmationButton, { backgroundColor: '#4CAF50' }]}
-              onPress={() => {
-                if (location && placeToConfirm) {
-                  setDestination(placeToConfirm.description);
-                  getRoutes(location.coords, `${placeToConfirm.latitude},${placeToConfirm.longitude}`);
-                  lastRecalculation.current = Date.now();
-                  setPlaceToConfirm(null); // Dismiss confirmation
-                }
+
+      <Animated.View style={[styles.routeSheetContainer, { transform: [{ translateY: routeSheetTranslateY }] }]}>
+        <View onLayout={(event) => {
+          const height = event.nativeEvent.layout.height;
+          if (height > 0 && height !== routeSheetHeight) {
+            setRouteSheetHeight(height);
+          }
+        }}>
+          {routes.length > 0 && !isNavigating && (
+            <>
+              <RouteCarousel
+                routes={routes}
+                selectedRoute={selectedRoute}
+                onSelectRoute={setSelectedRoute}
+                onStartNavigation={handleStartNavigation}
+              />
+              <Pressable style={styles.cancelRouteButton} onPress={handleCancelRouteSelection}>
+                <Text style={styles.cancelRouteButtonText}>取消路線</Text>
+              </Pressable>
+            </>
+          )}
+
+          {isNavigating && (
+            <Pressable style={styles.endNavigationButton} onPress={stopNavigation}>
+              <Text style={styles.endNavigationButtonText}>結束導航</Text>
+            </Pressable>
+          )}
+
+          {selectedPoliceStation && (
+            <LocationCard
+              name={selectedPoliceStation.name}
+              address={selectedPoliceStation.address}
+              walkingTime={selectedPoliceStation.walkingTime}
+              onClose={() => {
+                setSelectedPoliceStation(null);
+                setCalloutVisible(null);
               }}
-            >
-              <Text style={styles.confirmationButtonText}>確認</Text>
-            </Pressable>
-            <Pressable
-              style={[styles.confirmationButton, { backgroundColor: '#F44336' }]}
-              onPress={() => setPlaceToConfirm(null)} // Dismiss confirmation
-            >
-              <Text style={styles.confirmationButtonText}>取消</Text>
-            </Pressable>
-          </View>
+              onNavigate={handleNavigateToPoliceStation}
+              locationType="police"
+            />
+          )}
+
+          {selectedLocation && (
+            <LocationCard
+              name={selectedLocation.name}
+              address={selectedLocation.address}
+              onClose={() => setSelectedLocation(null)}
+              onNavigate={handleNavigateToLocation}
+              locationType="general"
+            />
+          )}
         </View>
-      )}
-
-      {/* Location Cards */}
-      <View style={[styles.bottomComponentContainer, { zIndex: 1001 }]}>
-        {selectedPoliceStation && (
-          <LocationCard
-            name={selectedPoliceStation.name}
-            address={selectedPoliceStation.address}
-            walkingTime={selectedPoliceStation.walkingTime}
-            onClose={() => {
-              setSelectedPoliceStation(null);
-              setCalloutVisible(null);
-            }}
-            onNavigate={handleNavigateToPoliceStation}
-            locationType="police"
-          />
-        )}
-
-        {selectedLocation && (
-          <LocationCard
-            name={selectedLocation.name}
-            address={selectedLocation.address}
-            onClose={() => setSelectedLocation(null)}
-            onNavigate={handleNavigateToLocation}
-            locationType="general"
-          />
-        )}
-      </View>
+      </Animated.View>
     </View>
   );
 }
 
 function createStyles(
-  bottomComponentHeight: number,
   tabBarHeight: number,
   hasPoliceStation: boolean,
   hasLocation: boolean
@@ -907,6 +901,22 @@ function createStyles(
   return StyleSheet.create({
     container: {
       ...StyleSheet.absoluteFillObject,
+    },
+    routeSheetContainer: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      backgroundColor: 'white',
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      paddingBottom: tabBarHeight,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: -2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 15,
+      zIndex: 20, // On top
     },
     calloutContainer: {
       minWidth: 150,
@@ -965,7 +975,9 @@ function createStyles(
     },
     toolToggleButton: {
       position: 'absolute',
-      bottom: bottomComponentHeight + tabBarHeight + 90,
+      bottom: (hasPoliceStation || hasLocation) ?
+        (tabBarHeight + 90) :
+        (tabBarHeight + 20),
       right: 20,
       backgroundColor: 'rgba(255,255,255,0.9)',
       width: 50,
@@ -982,14 +994,14 @@ function createStyles(
     },
     topCarouselContainer: {
       position: 'absolute',
-      bottom: bottomComponentHeight + tabBarHeight,
       left: 0,
       right: 0,
-      zIndex: 1,
+      zIndex: 30,
     },
     topScrollViewContent: {
       alignItems: 'center',
       paddingHorizontal: 12,
+      
     },
     recenterBubble: {
       flexDirection: 'row',
@@ -1006,16 +1018,15 @@ function createStyles(
     },
     bottomComponentContainer: {
       position: 'absolute',
-      bottom: tabBarHeight, // Add 10px margin above tab bar
-      padding: 10,
+      bottom: '10%' , // Add 10px margin above tab bar
       left: 0,
       right: 0,
-    }, 
+    },
     endNavigationButton: {
       backgroundColor: 'rgba(255, 100, 100, 0.9)',
       padding: 15,
       borderRadius: 10,
-      margin: 10,
+      margin: 20,
       alignItems: 'center',
     },
     endNavigationButtonText: {

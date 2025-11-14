@@ -1,6 +1,6 @@
 // components/Tracking/track_base.tsx
 import React from 'react';
-import { View, Text, TouchableOpacity, Image } from 'react-native';
+import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
 import { useTracking } from '@/context/TrackProvider';
 import { BlurView } from 'expo-blur';
 import * as Theme from '../../constants/Theme'; // Keep Theme for colors and radii
@@ -24,79 +24,43 @@ export default function TrackModeCard({ id, name, contacts, checkIntervalMinutes
   const defaultReductionMinutes = 3;
 
   return (
-    <View style={{ // Shadow container
-        width: '90%',
-        height: 100,
-        paddingTop: 10,
-        paddingBottom: 10,
-        alignSelf: 'center',
-        marginVertical: 10,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
-        shadowRadius: 5,
-        elevation: 5, // for Android
-    }}>
+    <View style={styles.shadowContainer}>
       <BlurView
         intensity={90}
         tint="light"
-        className="w-full h-full rounded-full overflow-hidden"
+        style={styles.blurView}
       >
-        <View style={{ backgroundColor: uiParameters.mainComponent.background }} className={`w-full h-full flex-row items-center py-3 px-8 ${hasContacts ? 'justify-between' : 'justify-center'}`}>
+        <View style={[styles.innerContainer, { backgroundColor: uiParameters.mainComponent.background, justifyContent: hasContacts ? 'space-between' : 'center' }]}>
           <TouchableOpacity
             onPress={() => startTrackingMode(id, checkIntervalMinutes, defaultReductionMinutes)}
             activeOpacity={0.8}
-            style={[{
-              backgroundColor: uiParameters.buttons.action.background,
-              padding: 10,
-              borderRadius: 50,
-              paddingHorizontal: 30,
-              shadowOpacity: 0.2,
-              shadowRadius: 3
-            }, !hasContacts && { width: '100%' }]}
-            className={`flex-row items-center gap-2 ${!hasContacts ? 'justify-center' : ''}`}
+            style={[
+              styles.button,
+              { backgroundColor: uiParameters.buttons.action.background },
+              !hasContacts && { width: '100%' }
+            ]}
           >
-              <Text style={{ color: Theme.tracking_colors.white }} className="font-bold text-xl">
+              <Text style={[styles.buttonText, { color: Theme.tracking_colors.white }]}>
                 開啟{name}模式
               </Text>
           </TouchableOpacity>
 
           {/* Avatars Row */}
           {hasContacts && (
-            <View className="flex-row items-center">
+            <View style={styles.avatarContainer}>
               {visibleContacts.map((contact, index) =>
                 contact.url ? (
                   <Image
                     key={contact.id}
                     source={contact.url}
-                    style={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: Theme.radii.full,
-                      marginLeft: index > 0 ? -10 : 0,
-                      borderWidth: 2,
-                      borderColor: Theme.colors.primary,
-                      backgroundColor: Theme.colors.gray75,
-                      zIndex: index,
-                    }}
+                    style={[styles.avatar, { marginLeft: index > 0 ? -10 : 0, zIndex: index }]}
                   />
                 ) : (
                   <View
                     key={contact.id}
-                    style={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: Theme.radii.full,
-                      marginLeft: index > 0 ? -10 : 0,
-                      borderWidth: 2,
-                      borderColor: Theme.colors.primary,
-                      backgroundColor: Theme.colors.gray75,
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                      zIndex: index,
-                    }}
+                    style={[styles.avatar, styles.avatarPlaceholder, { marginLeft: index > 0 ? -10 : 0, zIndex: index }]}
                   >
-                    <Text style={{ color: Theme.colors.textPrimary, fontWeight: 'bold', fontSize: 14 }}>
+                    <Text style={styles.avatarText}>
                       {(contact.name || 'U')[0].toUpperCase()}
                     </Text>
                   </View>
@@ -104,26 +68,9 @@ export default function TrackModeCard({ id, name, contacts, checkIntervalMinutes
               )}
               {moreCount > 0 && (
                 <View
-                  style={{
-                    backgroundColor: Theme.colors.gray150,
-                    borderRadius: Theme.radii.full,
-                    width: 32,
-                    height: 32,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    marginLeft: visibleContacts.length > 0 ? -10 : 0, // Apply negative margin if there are visible contacts
-                    borderWidth: 2,
-                    borderColor: Theme.colors.primary,
-                    zIndex: visibleContacts.length,
-                  }}
+                  style={[styles.avatar, styles.moreCount, { marginLeft: visibleContacts.length > 0 ? -10 : 0, zIndex: visibleContacts.length }]}
                 >
-                  <Text
-                    style={{
-                      color: Theme.colors.textPrimary,
-                      fontWeight: Theme.typography.fontWeights.bold,
-                      fontSize: Theme.typography.fontSizes.caption,
-                    }}
-                  >{`+${moreCount}`}</Text>
+                  <Text style={styles.moreCountText}>{`+${moreCount}`}</Text>
                 </View>
               )}
             </View>
@@ -133,3 +80,78 @@ export default function TrackModeCard({ id, name, contacts, checkIntervalMinutes
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  shadowContainer: {
+    width: '90%',
+    height: 100,
+    paddingTop: 10,
+    paddingBottom: 10,
+    alignSelf: 'center',
+    marginVertical: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
+    elevation: 5,
+  },
+  blurView: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 9999,
+    overflow: 'hidden',
+  },
+  innerContainer: {
+    width: '100%',
+    height: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 32,
+  },
+  button: {
+    padding: 10,
+    borderRadius: 50,
+    paddingHorizontal: 30,
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  buttonText: {
+    fontWeight: 'bold',
+    fontSize: 20,
+  },
+  avatarContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  avatar: {
+    width: 32,
+    height: 32,
+    borderRadius: Theme.radii.full,
+    borderWidth: 2,
+    borderColor: Theme.colors.primary,
+    backgroundColor: Theme.colors.gray75,
+  },
+  avatarPlaceholder: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarText: {
+    color: Theme.colors.textPrimary,
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  moreCount: {
+    backgroundColor: Theme.colors.gray150,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  moreCountText: {
+    color: Theme.colors.textPrimary,
+    fontWeight: Theme.typography.fontWeights.bold,
+    fontSize: Theme.typography.fontSizes.caption,
+  },
+});
