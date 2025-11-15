@@ -729,6 +729,9 @@ export default function Map() {
           </>
         ) : (
           routes.map(route => {
+            console.log("目前 routes 陣列長度:", routes.length);
+            console.log("🚀 route.polyline:", route);
+            console.log("😎 Rendering route:", route.mode);
             const isSelected = selectedRoute?.polyline === route.polyline;
             if (!isSelected) {
               return (
