@@ -39,8 +39,8 @@ module.exports = {
       // ...(fs.existsSync(path.join(__dirname, "ios"))
       //   ? ["./PodPatch.ts"]
       //   : []),
-      "./PodPatch.ts",
-      // "./app.plugin.js",
+      // "./PodPatch.ts",
+      "./app.plugin.js",
       [
         "expo-build-properties",
         {

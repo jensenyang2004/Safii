@@ -128,7 +128,7 @@ export default function Map() {
     latitude: number;
     longitude: number;
   } | null>(null);
-  const [destinationMarker, setDestinationMarker] = useState<{latitude: number, longitude: number, name: string} | null>(null);
+  const [destinationMarker, setDestinationMarker] = useState<{ latitude: number, longitude: number, name: string } | null>(null);
 
 
   const handlePoliceStationPress = async (station: any) => {
@@ -166,17 +166,22 @@ export default function Map() {
   const handleNavigateToPoliceStation = () => {
     if (!selectedPoliceStation || !location) return;
 
-    console.log("規劃路線到警察局:", selectedPoliceStation.name);
+    // console.log("規劃路線到警察局:", selectedPoliceStation.name);
     const destinationString = `${selectedPoliceStation.latitude},${selectedPoliceStation.longitude}`;
     setDestination(destinationString);
+
+    // console.log("Calling getRoutes with:", location.coords, destinationString);
     getRoutes(location.coords, destinationString);
+    // console.log("Route planning initiated.");
+
     setDestinationMarker({
-        latitude: selectedPoliceStation.latitude,
-        longitude: selectedPoliceStation.longitude,
-        name: selectedPoliceStation.name,
+      latitude: selectedPoliceStation.latitude,
+      longitude: selectedPoliceStation.longitude,
+      name: selectedPoliceStation.name,
     });
     setSelectedPoliceStation(null); // 關閉警察局卡片
     setCalloutVisible(null); // 隱藏 callout
+    // console.log("finished handleNavigateToPoliceStation");
   };
 
   const handleNavigateToLocation = () => {
@@ -187,9 +192,9 @@ export default function Map() {
     setDestination(destinationString);
     getRoutes(location.coords, destinationString);
     setDestinationMarker({
-        latitude: selectedLocation.latitude,
-        longitude: selectedLocation.longitude,
-        name: selectedLocation.name,
+      latitude: selectedLocation.latitude,
+      longitude: selectedLocation.longitude,
+      name: selectedLocation.name,
     });
     setSelectedLocation(null); // 關閉位置卡片
   };
@@ -220,10 +225,7 @@ export default function Map() {
   // const flatListRef = useRef<FlatList>(null);
   const [activeMarker, setActiveMarker] = useState<string | null>(null);
   const scaleAnimation = useRef(new Animated.Value(1)).current;
-  // Maintain per-marker Animated.Value so scaling one marker doesn't affect layout
-  // or animation state of other markers. Stored in a ref to persist across renders.
-  const markerScales = useRef<Record<string, Animated.Value>>({});
-  const prevActiveRef = useRef<string | null>(null);
+
   const [mapCarouselHeight, setMapCarouselHeight] = useState(0);
   const [routeSheetHeight, setRouteSheetHeight] = useState(0);
   const routeSheetAnimation = useRef(new Animated.Value(0)).current;
@@ -255,31 +257,7 @@ export default function Map() {
   });
 
   const handleMarkerPress = (markerId: string) => {
-    const newActive = activeMarker === markerId ? null : markerId;
-    // ensure animated values exist
-    if (!markerScales.current[markerId]) {
-      markerScales.current[markerId] = new Animated.Value(1);
-    }
-    // animate previous active back to 1
-    const prev = prevActiveRef.current;
-    if (prev && prev !== markerId) {
-      if (!markerScales.current[prev]) markerScales.current[prev] = new Animated.Value(1);
-      Animated.timing(markerScales.current[prev], {
-        toValue: 1,
-        duration: 150,
-        useNativeDriver: true,
-      }).start();
-    }
-
-    // animate current marker to selected or back to normal
-    Animated.timing(markerScales.current[markerId], {
-      toValue: newActive === markerId ? 1.2 : 1,
-      duration: 200,
-      useNativeDriver: true,
-    }).start();
-
-    setActiveMarker(newActive);
-    prevActiveRef.current = newActive;
+    setActiveMarker(markerId);
   };
 
   // const auth = useAuth();
@@ -604,6 +582,8 @@ export default function Map() {
     if (routes.length > 0) {
       const newSelectedRoute = routes.find(r => r.mode === 'safest') || routes[0];
       setSelectedRoute(newSelectedRoute);
+
+      console.log("Auto-selected route:", newSelectedRoute.mode);
       // If we are already navigating, this means this is a reroute.
       // Update the navigation hook with the new route.
       if (isNavigating) {
@@ -626,8 +606,19 @@ export default function Map() {
     );
   }
 
-  const filteredPois = selectedPoiType ? pois.filter(poi => poi.type === selectedPoiType) : [];
-
+  // const filteredPois = selectedPoiType ? pois.filter(poi => poi.type === selectedPoiType) : [];
+  const filteredPois = selectedPoiType && location
+    ? pois.filter(poi => {
+      if (poi.type !== selectedPoiType) {
+        return false;
+      }
+      const distance = haversineDistance(
+        { latitude: location.coords.latitude, longitude: location.coords.longitude },
+        { latitude: poi.latitude, longitude: poi.longitude }
+      );
+      return distance <= 2.2;
+    })
+    : [];
   return (
     <View style={styles.container}>
       <MapView
@@ -654,11 +645,11 @@ export default function Map() {
         )}
 
         {destinationMarker && (
-            <Marker
-                coordinate={destinationMarker}
-                title={destinationMarker.name}
-                pinColor="red"
-            />
+          <Marker
+            coordinate={destinationMarker}
+            title={destinationMarker.name}
+            pinColor="red"
+          />
         )}
 
         {emergencies && emergencies.map(emergency => (
@@ -676,13 +667,14 @@ export default function Map() {
             />
           </Marker>
         ))}
+
         {filteredPois.map(poi => (
           <Marker.Animated
             key={poi.id}
             anchor={{ x: 0.5, y: 1 }}
             coordinate={{ latitude: poi.latitude, longitude: poi.longitude }}
             title={poi.name}
-            tracksViewChanges={false}
+            tracksViewChanges={activeMarker === poi.id}
             onPress={() => {
               handleMarkerPress(poi.id);
               if (calloutVisible === poi.id) {
@@ -696,38 +688,14 @@ export default function Map() {
                 }
               }
             }}
+            zIndex={activeMarker === poi.id ? 999 : 1}
           >
-            {/* Use a fixed-size container so scaling doesn't change the view's layout
-                origin unexpectedly. Setting width/height and centering the image
-                keeps the visual anchor stable (bottom center) when scale changes. */}
-            <View
-              style={{
-                width: 40,
-                height: 40,
-                alignItems: 'center',
-                justifyContent: 'center',
-                position: 'relative',
-              }}
-            >
-              {/* ensure there is an Animated.Value for this marker */}
-              {(() => {
-                if (!markerScales.current[poi.id]) markerScales.current[poi.id] = new Animated.Value(1);
-                const scale = markerScales.current[poi.id];
-                const AnimatedImage = Animated.Image as any;
-                return (
-                  <AnimatedImage
-                    source={poi.type === 'police' ? require('@/assets/icons/police-station.png') : require('@/assets/icons/family-mart.png')}
-                    style={{
-                      width: 32,
-                      height: 32,
-                      position: 'absolute',
-                      bottom: 0,
-                      transform: [{ scale }],
-                    }}
-                  />
-                );
-              })()}
-            </View>
+            <Animated.View style={{ transform: [{ scale: activeMarker === poi.id ? scaleAnimation : 1 }] }}>
+              <Image
+                source={poi.type === 'police' ? require('@/assets/icons/police-station.png') : require('@/assets/icons/family-mart.png')}
+                style={{ width: 32, height: 32 }}
+              />
+            </Animated.View>
             {calloutVisible === poi.id && (
               <Callout tooltip={true}>
                 <View style={styles.calloutContainer}>
@@ -803,15 +771,7 @@ export default function Map() {
           >
             <Text style={[styles.filterButtonText, selectedPoiType === 'police' && styles.selectedFilterButtonText]}>警察局</Text>
           </Pressable>
-          <Pressable
-            style={[styles.filterButton, selectedPoiType === 'store' && styles.selectedFilterButton]}
-            onPress={() => {
-              setSelectedPoiType(selectedPoiType === 'store' ? null : 'store');
-              setCalloutVisible(null);
-            }}
-          >
-            <Text style={[styles.filterButtonText, selectedPoiType === 'store' && styles.selectedFilterButtonText]}>便利商店</Text>
-          </Pressable>
+          {/* <Pㄋ> */}
         </View>
       )}
 
@@ -870,12 +830,12 @@ export default function Map() {
         }}>
           {routes.length > 0 && !isNavigating && (
             <>
-              <RouteCarousel
+              {/* <RouteCarousel
                 routes={routes}
                 selectedRoute={selectedRoute}
                 onSelectRoute={setSelectedRoute}
                 onStartNavigation={handleStartNavigation}
-              />
+              /> */}
               <Pressable style={styles.cancelRouteButton} onPress={handleCancelRouteSelection}>
                 <Text style={styles.cancelRouteButtonText}>取消路線</Text>
               </Pressable>
@@ -1025,7 +985,7 @@ function createStyles(
     topScrollViewContent: {
       alignItems: 'center',
       paddingHorizontal: 12,
-      
+
     },
     recenterBubble: {
       flexDirection: 'row',
@@ -1042,7 +1002,7 @@ function createStyles(
     },
     bottomComponentContainer: {
       position: 'absolute',
-      bottom: '10%' , // Add 10px margin above tab bar
+      bottom: '10%', // Add 10px margin above tab bar
       left: 0,
       right: 0,
     },
