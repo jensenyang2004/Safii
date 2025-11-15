@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, Alert, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, Alert, StyleSheet, Linking } from 'react-native';
 import { useTracking } from '@/context/TrackProvider';
 import { BlurView } from 'expo-blur';
 import { uiParameters } from '../../constants/Theme';
@@ -41,7 +41,20 @@ const ReportSafetyCard = () => {
           Alert.alert('Authentication failed', '請再試一次');
         }
       } else {
-        Alert.alert('No biometrics enrolled', '請先在您的裝置上設定 Face ID');
+        Alert.alert(
+          '設定 Face ID',
+          '您尚未設定 Face ID。請至您的裝置設定中啟用，以使用此功能。',
+          [
+            {
+              text: '取消',
+              style: 'cancel',
+            },
+            {
+              text: '前往設定',
+              onPress: () => Linking.openSettings(),
+            },
+          ]
+        );
       }
     } else {
         // Fallback for devices without biometrics

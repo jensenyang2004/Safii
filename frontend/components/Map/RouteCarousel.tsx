@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, Linking, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, Alert } from 'react-native';
 import * as Speech from 'expo-speech';
 import { RouteInfo } from '../../types';
 
@@ -61,25 +61,14 @@ const RouteCarousel: React.FC<Props> = ({ routes, selectedRoute, onSelectRoute, 
     }
   };
 
-  const openInGoogleMaps = (route: RouteInfo) => {
-    const steps = route.legs[0].steps;
-    const destination = steps[steps.length - 1].end_location;
-    const url = `https://www.google.com/maps/dir/?api=1&destination=${destination.lat},${destination.lng}&travelmode=walking`;
-    Linking.openURL(url);
-  };
-
   const renderItem = ({ item }: { item: RouteInfo }) => (
     <TouchableOpacity onPress={() => onSelectRoute(item)} style={[styles.card, selectedRoute?.polyline === item.polyline && styles.selectedCard]}>
       <Text style={styles.title}>{item.mode.charAt(0).toUpperCase() + item.mode.slice(1)} 路線</Text>
       <Text>預計到達時間: {item.duration.text}</Text>
       <Text>距離: {item.distance.text}</Text>
-      <Text>安全分數: {item.safetyScore.toFixed(0)}/100</Text>
       <View style={styles.buttonContainer}>
         <TouchableOpacity onPress={() => onStartNavigation(item)} style={styles.button}>
           <Text style={styles.buttonText}>開始導航</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => openInGoogleMaps(item)} style={styles.button}>
-          <Text style={styles.buttonText}>在 Google 地圖中打開</Text>
         </TouchableOpacity>
       </View>
     </TouchableOpacity>
@@ -101,6 +90,7 @@ const RouteCarousel: React.FC<Props> = ({ routes, selectedRoute, onSelectRoute, 
 
 const styles = StyleSheet.create({
   container: {
+
     paddingVertical: 10,
   },
   card: {
@@ -116,7 +106,7 @@ const styles = StyleSheet.create({
   },
   selectedCard: {
     borderWidth: 2,
-    borderColor: '#007BFF',
+    borderColor: '#EE8A82',
   },
   title: {
     fontWeight: 'bold',
@@ -126,15 +116,19 @@ const styles = StyleSheet.create({
   buttonContainer: {
     flexDirection: 'row',
     marginTop: 10,
+    justifyContent: 'center',
   },
   button: {
-    backgroundColor: '#007BFF',
+    backgroundColor: '#EE8A82',
     padding: 8,
     borderRadius: 5,
     marginHorizontal: 5,
   },
   buttonText: {
     color: 'white',
+    fontSize: 12,
+  },
+  text: {
     fontSize: 12,
   },
 });

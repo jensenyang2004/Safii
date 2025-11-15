@@ -53,29 +53,20 @@ export default function RootLayout() {
 }
 
 function RootLayoutNav() {
-  const { user, loading: authLoading } = useAuth();
-  const [onboardingComplete, setOnboardingComplete] = useState<boolean | null>(null);
-  const { 
-    notificationStatus, 
-    foregroundLocationStatus, 
-    isLoading: permissionsLoading 
+  const { user, loading: authLoading, onboardingComplete } = useAuth();
+  const {
+    notificationStatus,
+    foregroundLocationStatus,
+    isLoading: permissionsLoading,
   } = usePermissions();
   const segments = useSegments();
-
-  useEffect(() => {
-    async function checkOnboardingStatus() {
-      const status = await SecureStore.getItemAsync(ONBOARDING_COMPLETED_KEY);
-      setOnboardingComplete(status === 'true');
-    }
-    checkOnboardingStatus();
-  }, [segments]);
 
   useEffect(() => {
     const inAuthGroup = segments[0] === '(auth)';
     const inOnboardingGroup = segments[0] === '(onboarding)';
 
-    // Wait until auth, onboarding, and permissions status are loaded
-    if (authLoading || onboardingComplete === null || permissionsLoading) {
+    // Wait until auth and permissions status are loaded
+    if (authLoading || permissionsLoading) {
       return;
     }
 
@@ -84,11 +75,15 @@ function RootLayoutNav() {
       if (!inAuthGroup) {
         router.replace('/(auth)/sign-in');
       }
-    } else { // User is signed in
-      const hasRequiredPermissions = notificationStatus === 'granted' && foregroundLocationStatus === 'granted';
+    } else {
+      // User is signed in
+      const hasRequiredPermissions =
+        notificationStatus === 'granted' && foregroundLocationStatus === 'granted';
       // If onboarding is not complete OR permissions are missing, go to onboarding.
+
       if (!onboardingComplete || !hasRequiredPermissions) {
         if (!inOnboardingGroup) {
+     
           router.replace('/(onboarding)');
         }
       } else {
@@ -99,10 +94,18 @@ function RootLayoutNav() {
         }
       }
     }
-  }, [user, onboardingComplete, notificationStatus, foregroundLocationStatus, segments, authLoading, permissionsLoading]);
+  }, [
+    user,
+    // onboardingComplete,
+    // notificationStatus,
+    // foregroundLocationStatus,
+    // segments,
+    // authLoading,
+    // permissionsLoading,
+  ]);
 
   // Show a loading screen while we check all statuses
-  if (authLoading || onboardingComplete === null || permissionsLoading) {
+  if (authLoading || permissionsLoading) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
         <ActivityIndicator size="large" color="#1E40AF" />

@@ -77,59 +77,18 @@ export default function Map() {
   const { emergencyData: emergencies } = useEmergencyListener();
   const [showToolCard, setShowToolCard] = useState(false);
   const [selectedEmergency, setSelectedEmergency] = useState<EmergencyData | null>(null);
-  const [bottomComponentHeight, setBottomComponentHeight] = useState(0);
   const [showLocationSentCard, setShowLocationSentCard] = useState(false); // New state
 
   const tabBarHeight = screenHeight * 0.09;
 
   const mapRef = useRef<MapView>(null);
 
-  const avatarImg = require('../../assets/avatar-photo/avatar-1.png');
-
-  useEffect(() => {
-    console.log('🔍 [Map] , showToolCard:', showToolCard);
-
-  }, [showToolCard]);
-
-  const { routes, error, getRoutes, loading: isFetchingRoutes, clearRoutes } = useRoutePlanner();
-  const [selectedRoute, setSelectedRoute] = useState<RouteInfo | null>(null);
-  const [destination, setDestination] = useState<string | null>(null);
-  const [placeToConfirm, setPlaceToConfirm] = useState<{ description: string; latitude: number; longitude: number } | null>(null);
-  const lastRecalculation = useRef<number>(0);
-
-  const [selectedPoiType, setSelectedPoiType] = useState<'police' | 'store' | null>(null);
-  const [selectedPoi, setSelectedPoi] = useState<POI | null>(null);
-  const [calloutVisible, setCalloutVisible] = useState<string | null>(null); // 儲存正在顯示 callout 的標記 ID
-  const [selectedPoliceStation, setSelectedPoliceStation] = useState<{
-    name: string;
-    address: string;
-    latitude: number;
-    longitude: number;
-    walkingTime: string | null;
-  } | null>(null);
-
-  const [selectedLocation, setSelectedLocation] = useState<{
-    name: string;
-    address: string;
-    latitude: number;
-    longitude: number;
-  } | null>(null);
-
   const calculateWalkingTime = async (origin: Location.LocationObject, destination: { latitude: number; longitude: number }) => {
     try {
-      console.log('Calculating walking time for:', {
-        origin: `${origin.coords.latitude},${origin.coords.longitude}`,
-        destination: `${destination.latitude},${destination.longitude}`
-      });
-
-      const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${origin.coords.latitude},${origin.coords.longitude}&destination=${destination.latitude},${destination.longitude}&mode=walking&alternatives=true&language=zh-TW&key=${GOOGLE_MAPS_API_KEY}`;
-      console.log('API Key being used:', GOOGLE_MAPS_API_KEY);
-      console.log('Request URL:', url);
-
+      const originStr = `${origin.coords.latitude},${origin.coords.longitude}`;
+      const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${originStr}&destination=${destination.latitude},${destination.longitude}&mode=walking&language=zh-TW&key=${GOOGLE_MAPS_API_KEY}`;
       const response = await fetch(url);
-
       const data = await response.json();
-      console.log('Google Directions API response:', data);
 
       if (data.status !== 'OK') {
         console.error('Google Directions API error:', data.status);
@@ -137,19 +96,39 @@ export default function Map() {
       }
 
       if (data.routes && data.routes[0] && data.routes[0].legs && data.routes[0].legs[0]) {
-        // 只返回文字部分，不返回完整的 duration 對象
-        const durationText = data.routes[0].legs[0].duration.text;
-        console.log('Walking duration:', durationText);
-        return durationText;
+        return data.routes[0].legs[0].duration.text;
       }
 
-      console.log('No valid route found');
       return '無法計算';
     } catch (error) {
       console.error('Error calculating walking time:', error);
       return '計算錯誤';
     }
   };
+
+  // Routing and POI related state (restored)
+  const { routes, error, getRoutes, loading: isFetchingRoutes, clearRoutes } = useRoutePlanner();
+  const [selectedRoute, setSelectedRoute] = useState<RouteInfo | null>(null);
+  const [destination, setDestination] = useState<string | null>(null);
+  const [placeToConfirm, setPlaceToConfirm] = useState<{ description: string; latitude: number; longitude: number } | null>(null);
+  const lastRecalculation = useRef<number>(0);
+  const [selectedPoiType, setSelectedPoiType] = useState<'police' | 'store' | null>(null);
+  const [selectedPoi, setSelectedPoi] = useState<POI | null>(null);
+  const [calloutVisible, setCalloutVisible] = useState<string | null>(null);
+  const [selectedPoliceStation, setSelectedPoliceStation] = useState<{
+    name: string;
+    address: string;
+    latitude: number;
+    longitude: number;
+    walkingTime: string | null;
+  } | null>(null);
+  const [selectedLocation, setSelectedLocation] = useState<{
+    name: string;
+    address: string;
+    latitude: number;
+    longitude: number;
+  } | null>(null);
+
 
   const handlePoliceStationPress = async (station: any) => {
     if (!location) {
@@ -158,11 +137,6 @@ export default function Map() {
     }
 
     console.log('Police station pressed:', station);
-
-    // 清除現有的路線選擇狀態
-    setDestination(null);
-    setSelectedRoute(null);
-    clearRoutes();
 
     // 使用 calculateWalkingTime 來獲取預估時間
     setSelectedPoliceStation({
@@ -235,12 +209,16 @@ export default function Map() {
   // const flatListRef = useRef<FlatList>(null);
   const [activeMarker, setActiveMarker] = useState<string | null>(null);
   const scaleAnimation = useRef(new Animated.Value(1)).current;
-
+  // Maintain per-marker Animated.Value so scaling one marker doesn't affect layout
+  // or animation state of other markers. Stored in a ref to persist across renders.
+  const markerScales = useRef<Record<string, Animated.Value>>({});
+  const prevActiveRef = useRef<string | null>(null);
   const [mapCarouselHeight, setMapCarouselHeight] = useState(0);
   const [routeSheetHeight, setRouteSheetHeight] = useState(0);
   const routeSheetAnimation = useRef(new Animated.Value(0)).current;
 
   const showRouteSheet = routes.length > 0 || !!selectedPoliceStation || !!selectedLocation || isNavigating;
+  const isLocationCardVisible = !!selectedPoliceStation || !!selectedLocation;
 
   useEffect(() => {
     Animated.timing(routeSheetAnimation, {
@@ -266,18 +244,37 @@ export default function Map() {
   });
 
   const handleMarkerPress = (markerId: string) => {
-    setActiveMarker(markerId);
-    Animated.timing(scaleAnimation, {
-      toValue: activeMarker === markerId ? 1 : 1.2,
+    const newActive = activeMarker === markerId ? null : markerId;
+    // ensure animated values exist
+    if (!markerScales.current[markerId]) {
+      markerScales.current[markerId] = new Animated.Value(1);
+    }
+    // animate previous active back to 1
+    const prev = prevActiveRef.current;
+    if (prev && prev !== markerId) {
+      if (!markerScales.current[prev]) markerScales.current[prev] = new Animated.Value(1);
+      Animated.timing(markerScales.current[prev], {
+        toValue: 1,
+        duration: 150,
+        useNativeDriver: true,
+      }).start();
+    }
+
+    // animate current marker to selected or back to normal
+    Animated.timing(markerScales.current[markerId], {
+      toValue: newActive === markerId ? 1.2 : 1,
       duration: 200,
-      useNativeDriver: true
+      useNativeDriver: true,
     }).start();
+
+    setActiveMarker(newActive);
+    prevActiveRef.current = newActive;
   };
 
   // const auth = useAuth();
   // const currentUserId = auth.user?.uid;
 
-  const styles = createStyles(bottomComponentHeight, tabBarHeight, selectedPoliceStation !== null, selectedLocation !== null);
+  const styles = createStyles(tabBarHeight, selectedPoliceStation !== null, selectedLocation !== null);
 
   useEffect(() => {
     const initialLocation = {
@@ -680,6 +677,7 @@ export default function Map() {
         {filteredPois.map(poi => (
           <Marker.Animated
             key={poi.id}
+            anchor={{ x: 0.5, y: 1 }}
             coordinate={{ latitude: poi.latitude, longitude: poi.longitude }}
             title={poi.name}
             tracksViewChanges={false}
@@ -697,19 +695,37 @@ export default function Map() {
               }
             }}
           >
-            <Animated.View style={{ transform: [{ scale: activeMarker === poi.id ? scaleAnimation : 1 }] }}>
-              {poi.type === 'police' ? (
-                <Image
-                  source={require('@/assets/icons/police-station.png')}
-                  style={{ width: 32, height: 32 }}
-                />
-              ) : (
-                <Image
-                  source={require('@/assets/icons/family-mart.png')}
-                  style={{ width: 32, height: 32 }}
-                />
-              )}
-            </Animated.View>
+            {/* Use a fixed-size container so scaling doesn't change the view's layout
+                origin unexpectedly. Setting width/height and centering the image
+                keeps the visual anchor stable (bottom center) when scale changes. */}
+            <View
+              style={{
+                width: 40,
+                height: 40,
+                alignItems: 'center',
+                justifyContent: 'center',
+                position: 'relative',
+              }}
+            >
+              {/* ensure there is an Animated.Value for this marker */}
+              {(() => {
+                if (!markerScales.current[poi.id]) markerScales.current[poi.id] = new Animated.Value(1);
+                const scale = markerScales.current[poi.id];
+                const AnimatedImage = Animated.Image as any;
+                return (
+                  <AnimatedImage
+                    source={poi.type === 'police' ? require('@/assets/icons/police-station.png') : require('@/assets/icons/family-mart.png')}
+                    style={{
+                      width: 32,
+                      height: 32,
+                      position: 'absolute',
+                      bottom: 0,
+                      transform: [{ scale }],
+                    }}
+                  />
+                );
+              })()}
+            </View>
             {calloutVisible === poi.id && (
               <Callout tooltip={true}>
                 <View style={styles.calloutContainer}>
@@ -783,7 +799,7 @@ export default function Map() {
               setCalloutVisible(null);
             }}
           >
-            <Text style={styles.filterButtonText}>警察局</Text>
+            <Text style={[styles.filterButtonText, selectedPoiType === 'police' && styles.selectedFilterButtonText]}>警察局</Text>
           </Pressable>
           <Pressable
             style={[styles.filterButton, selectedPoiType === 'store' && styles.selectedFilterButton]}
@@ -792,7 +808,7 @@ export default function Map() {
               setCalloutVisible(null);
             }}
           >
-            <Text style={styles.filterButtonText}>便利商店</Text>
+            <Text style={[styles.filterButtonText, selectedPoiType === 'store' && styles.selectedFilterButtonText]}>便利商店</Text>
           </Pressable>
         </View>
       )}
@@ -837,7 +853,13 @@ export default function Map() {
       </Animated.View>
 
 
-      <Animated.View style={[styles.routeSheetContainer, { transform: [{ translateY: routeSheetTranslateY }] }]}>
+      <Animated.View
+        style={[
+          styles.routeSheetContainer,
+          isLocationCardVisible && { backgroundColor: 'transparent', shadowOpacity: 0, elevation: 0 },
+          { transform: [{ translateY: routeSheetTranslateY }] },
+        ]}
+      >
         <View onLayout={(event) => {
           const height = event.nativeEvent.layout.height;
           if (height > 0 && height !== routeSheetHeight) {
@@ -1113,11 +1135,14 @@ function createStyles(
       elevation: 3,
     },
     selectedFilterButton: {
-      backgroundColor: '#007BFF',
+      backgroundColor: '#EE8A82',
     },
     filterButtonText: {
       color: 'black',
       fontWeight: 'bold',
+    },
+    selectedFilterButtonText: {
+      color: 'white',
     },
   });
 }

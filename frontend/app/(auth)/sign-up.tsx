@@ -61,8 +61,12 @@ export default function SignUp() {
       // 4) 寫入 Firestore
       await setDoc(doc(db, 'users', user.uid), userDoc);
 
+      // console.log('User registered with UID:', user.uid);
       // 5) 註冊成功，跳到主畫面
-      router.replace('/(onboarding)');
+      setLoading(false);
+
+      // console.log('User registered with UID:', user.uid);
+      // router.replace('/(onboarding)');
 
     } catch (err: unknown) {
       setLoading(false);
@@ -109,7 +113,7 @@ export default function SignUp() {
             }
           }}
         >
-          <AntDesign name="arrowleft" size={28} color="#F18C8E" />
+          <AntDesign name="arrow-left" size={28} color="#F18C8E" />
         </TouchableOpacity>
         <View style={styles.formContainer}>
           <Text style={styles.title}>建立帳號</Text>

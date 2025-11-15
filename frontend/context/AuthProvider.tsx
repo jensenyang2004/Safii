@@ -6,6 +6,9 @@ import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { router } from 'expo-router';
 import { Alert } from 'react-native';
+import * as SecureStore from 'expo-secure-store';
+
+const ONBOARDING_COMPLETED_KEY = 'onboarding_completed';
 
 interface User {
   uid: string;
@@ -20,28 +23,46 @@ interface User {
 const AuthContext = createContext<{
   user: User | null;
   loading: boolean;
+  onboardingComplete: boolean;
+  completeOnboarding: () => void;
   signOut: () => Promise<void>;
   fetchUserInfo: (authUser: FirebaseUser | null) => Promise<void>;
 }>({
   user: null,
   loading: true, // Initial loading state
-  signOut: async () => { }, // Default no-op function
-  fetchUserInfo: async () => { }, // Default no-op function
+  onboardingComplete: false,
+  completeOnboarding: () => {},
+  signOut: async () => {}, // Default no-op function
+  fetchUserInfo: async () => {}, // Default no-op function
 });
 
 // 2. Create the provider component
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [onboardingComplete, setOnboardingComplete] = useState(false);
+
+  const completeOnboarding = () => {
+    if (user) {
+      const userOnboardingKey = `${ONBOARDING_COMPLETED_KEY}_${user.uid}`;
+      SecureStore.setItemAsync(userOnboardingKey, 'true');
+      setOnboardingComplete(true);
+    }
+  };
 
   const signOut = async () => {
     try {
-      console.log("STARTING SIGN OUT");
+      console.log('STARTING SIGN OUT');
       setLoading(true);
+      if (user) {
+        const userOnboardingKey = `${ONBOARDING_COMPLETED_KEY}_${user.uid}`;
+        await SecureStore.deleteItemAsync(userOnboardingKey);
+      }
       await auth.signOut();
-      console.log("FIREBASE SIGN OUT COMPLETE");
+      console.log('FIREBASE SIGN OUT COMPLETE');
       setUser(null); // Force update the user state to null
-      console.log("USER STATE CLEARED");
+      setOnboardingComplete(false);
+      console.log('USER STATE CLEARED');
       router.replace('/(auth)/sign-in');
     } catch (error) {
       console.error('Error signing out:', error);
@@ -49,17 +70,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     } finally {
       setLoading(false); // Hide loading regardless of outcome
     }
-  }
+  };
 
   const fetchUserInfo = async (authUser: FirebaseUser | null) => {
     if (!authUser) {
       setLoading(false);
       setUser(null);
+      setOnboardingComplete(false);
       return;
     }
     setLoading(true);
     try {
-      const docRef = doc(db, "users", authUser.uid);
+      const userOnboardingKey = `${ONBOARDING_COMPLETED_KEY}_${authUser.uid}`;
+      const status = await SecureStore.getItemAsync(userOnboardingKey);
+      setOnboardingComplete(status === 'true');
+
+      const docRef = doc(db, 'users', authUser.uid);
       const docSnap = await getDoc(docRef);
 
       if (docSnap.exists()) {
@@ -82,9 +108,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         });
       }
     } catch (err) {
-      console.error("Error fetching user info:", err);
+      console.error('Error fetching user info:', err);
       // On error, create a minimal user object to avoid breaking the session
-      setUser({ 
+      setUser({
         uid: authUser.uid,
         email: authUser.email,
         displayName: authUser.displayName,
@@ -105,7 +131,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, signOut, fetchUserInfo }}>
+    <AuthContext.Provider value={{ user, loading, signOut, fetchUserInfo, onboardingComplete, completeOnboarding }}>
       {children}
     </AuthContext.Provider>
   );
