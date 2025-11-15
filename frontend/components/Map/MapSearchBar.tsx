@@ -37,19 +37,15 @@ const MapSearchBar: React.FC<MapSearchBarProps> = ({ onSearch, onSuggestionSelec
     setLoading(true);
     setShowSuggestions(true);
     debounceTimeout.current = setTimeout(async () => {
-      console.log(`Fetching suggestions for query: "${query}"`);
       try {
         const response = await fetch(
           `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${query}&key=${GOOGLE_PLACES_API_KEY}&language=zh-TW`
         );
         const data = await response.json();
-        console.log("Google Places API response:", data);
 
         if (data.predictions) {
-          console.log("Setting suggestions:", data.predictions);
           setSuggestions(data.predictions);
         } else {
-          console.log("No predictions found, clearing suggestions.");
           setSuggestions([]);
         }
       } catch (error) {
@@ -68,9 +64,6 @@ const MapSearchBar: React.FC<MapSearchBarProps> = ({ onSearch, onSuggestionSelec
   }, [query]);
 
   const handleSelectSuggestion = async (prediction: PlacePrediction) => {
-
-    console.log("Set query triggered", prediction.description);
-
     setQuery(prediction.description);
     setSuggestions([]);
     setShowSuggestions(false);
@@ -84,10 +77,8 @@ const MapSearchBar: React.FC<MapSearchBarProps> = ({ onSearch, onSuggestionSelec
 
       if (data.result && data.result.geometry) {
         const { lat, lng } = data.result.geometry.location;
-        console.log("onSuggestionSelected triggered.", { description: prediction.description });
         onSuggestionSelected(prediction.description, lat, lng);
       } else {
-        console.log("onSearch triggered.", { description: prediction.description });
         onSearch(prediction.description); // Fallback to just text search if coordinates not found
       }
     } catch (error) {

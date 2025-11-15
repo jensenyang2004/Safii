@@ -52,7 +52,8 @@ export const useRoutePlanner = () => {
               return {
                 distance: leg.distance,
                 duration: leg.duration,
-                polyline: route.overview_polyline.points,
+                polyline: decodedPolyline,
+                encodedPolyline: route.overview_polyline.points,
                 safetyScore,
                 legs: route.legs,
               };
@@ -67,9 +68,9 @@ export const useRoutePlanner = () => {
             const polylineSet = new Set<string>();
 
             const addRoute = (route: any, mode: 'fastest' | 'shortest' | 'safest') => {
-              if (route && !polylineSet.has(route.polyline)) {
+              if (route && !polylineSet.has(route.encodedPolyline)) {
                 uniqueRoutes.push({ ...route, mode });
-                polylineSet.add(route.polyline);
+                polylineSet.add(route.encodedPolyline);
               }
             };
 

@@ -39,7 +39,7 @@ import MapSearchBar from '@/components/Map/MapSearchBar';
 import { useRoutePlanner } from '@/apis/useRoutePlanner';
 import RouteCarousel from '@/components/Map/RouteCarousel';
 import { RouteInfo } from '@/types';
-import { decodePolyline } from '@/utils/polyline';
+
 import LocationCard from '@/components/Map/LocationCard';
 import { useAuth } from '@/context/AuthProvider';
 import { useLiveNavigation } from '@/hooks/useLiveNavigation';
@@ -78,7 +78,9 @@ export default function Map() {
   const { emergencyData: emergencies } = useEmergencyListener();
   const [showToolCard, setShowToolCard] = useState(false);
   const [selectedEmergency, setSelectedEmergency] = useState<EmergencyData | null>(null);
+  const [bottomComponentHeight, setBottomComponentHeight] = useState(0);
   const [showLocationSentCard, setShowLocationSentCard] = useState(false); // New state
+  
 
   const tabBarHeight = screenHeight * 0.09;
 
@@ -131,7 +133,12 @@ export default function Map() {
   } | null>(null);
   const [showDestinationCard, setShowDestinationCard] = useState(false);
   const [destinationMarker, setDestinationMarker] = useState<{ latitude: number, longitude: number, name: string } | null>(null);
-
+  const [selectedLocation, setSelectedLocation] = useState<{
+    name: string;
+    address: string;
+    latitude: number;
+    longitude: number;
+  } | null>(null);
 
   const handlePoliceStationPress = async (station: any) => {
     if (!location) {
@@ -279,7 +286,8 @@ export default function Map() {
   // const auth = useAuth();
   // const currentUserId = auth.user?.uid;
 
-  const styles = createStyles(tabBarHeight, selectedPoliceStation !== null, destinationInfo !== null);
+  const styles = createStyles(bottomComponentHeight, tabBarHeight, selectedPoliceStation !== null, destinationInfo !== null);
+
 
   useEffect(() => {
     const initialLocation = {
@@ -749,12 +757,12 @@ export default function Map() {
           </>
         ) : (
           routes.map(route => {
-            const isSelected = selectedRoute?.polyline === route.polyline;
+            const isSelected = selectedRoute?.encodedPolyline === route.encodedPolyline;
             if (!isSelected) {
               return (
                 <Polyline
-                  key={route.polyline}
-                  coordinates={decodePolyline(route.polyline)}
+                  key={route.encodedPolyline}
+                  coordinates={route.polyline}
                   strokeColor={getRouteColor(route.mode, false)}
                   strokeWidth={3}
                   onPress={() => setSelectedRoute(route)}
@@ -765,8 +773,8 @@ export default function Map() {
             }
             return (
               <Polyline
-                key={`${route.polyline}-selected`}
-                coordinates={decodePolyline(route.polyline)}
+                key={`${route.encodedPolyline}-selected`}
+                coordinates={route.polyline}
                 strokeColor={getRouteColor(route.mode, true)}
                 strokeWidth={6}
                 onPress={() => setSelectedRoute(route)}
@@ -1012,7 +1020,7 @@ function createStyles(
     topScrollViewContent: {
       alignItems: 'center',
       paddingHorizontal: 12,
-
+      
     },
     recenterBubble: {
       flexDirection: 'row',
@@ -1123,14 +1131,11 @@ function createStyles(
       elevation: 3,
     },
     selectedFilterButton: {
-      backgroundColor: '#EE8A82',
+      backgroundColor: '#007BFF',
     },
     filterButtonText: {
       color: 'black',
       fontWeight: 'bold',
-    },
-    selectedFilterButtonText: {
-      color: 'white',
     },
   });
 }
