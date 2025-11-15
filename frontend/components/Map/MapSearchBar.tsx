@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, TextInput, TouchableOpacity, Text, StyleSheet, FlatList, ActivityIndicator } from 'react-native';
 import Constants from 'expo-constants';
+import { BlurView } from 'expo-blur';
 
 const GOOGLE_PLACES_API_KEY = Constants.expoConfig?.extra?.GOOGLE_MAPS_API_KEY ?? '';
 
@@ -99,38 +100,42 @@ const MapSearchBar: React.FC<MapSearchBarProps> = ({ onSearch, onSuggestionSelec
 
   return (
     <View style={styles.container}>
-      <View style={styles.searchContainer}>
-        <TextInput
-          style={styles.input}
-          placeholder="輸入目的地"
-          value={query}
-          onChangeText={setQuery}
-          onFocus={() => query.length > 0 && setShowSuggestions(true)}
-          onBlur={() => setTimeout(() => setShowSuggestions(false), 100)} // Delay hiding to allow click
-        />
-      </View>
+      <BlurView intensity={90} tint="light" style={styles.blurView}>
+        <View style={styles.searchContainer}>
+          <TextInput
+            style={styles.input}
+            placeholder="輸入目的地"
+            value={query}
+            onChangeText={setQuery}
+            onFocus={() => query.length > 0 && setShowSuggestions(true)}
+            onBlur={() => setTimeout(() => setShowSuggestions(false), 100)} // Delay hiding to allow click
+          />
+        </View>
+      </BlurView>
       {showSuggestions && (suggestions.length > 0 || loading) && (
         <View style={styles.suggestionsContainer}>
-          {loading ? (
-            <ActivityIndicator size="small" color="#0000ff" style={styles.loadingIndicator} />
-          ) : (
-            <FlatList
-              data={suggestions}
-              keyExtractor={(item) => item.place_id}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={styles.suggestionItem}
-                  onPress={() => handleSelectSuggestion(item)}
-                >
-                  <Text style={styles.suggestionText}>{item.description}</Text>
-                </TouchableOpacity>
-              )}
-              keyboardShouldPersistTaps="always"
-            />
-          )}
+          <BlurView intensity={90} tint="light" style={styles.suggestionsBlurView}>
+            {loading ? (
+              <ActivityIndicator size="small" color="#0000ff" style={styles.loadingIndicator} />
+            ) : (
+              <FlatList
+                data={suggestions}
+                keyExtractor={(item) => item.place_id}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={styles.suggestionItem}
+                    onPress={() => handleSelectSuggestion(item)}
+                  >
+                    <Text style={styles.suggestionText}>{item.description}</Text>
+                  </TouchableOpacity>
+                )}
+                keyboardShouldPersistTaps="always"
+              />
+            )}
+          </BlurView>
         </View>
       )}
-      </View>
+    </View>
   );
 };
 
@@ -140,8 +145,6 @@ const styles = StyleSheet.create({
     top: 60,
     width: '90%',
     alignSelf: 'center',
-    backgroundColor: 'white',
-    borderRadius: 10,
     elevation: 5,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -149,18 +152,24 @@ const styles = StyleSheet.create({
     shadowRadius: 3.84,
     zIndex: 1000, // Ensure search bar is above other map elements
   },
+  blurView: {
+    borderRadius: 50,
+    overflow: 'hidden',
+  },
   searchContainer: {
     flexDirection: 'row',
   },
   input: {
     flex: 1,
-    padding: 15,
+    padding: 20,
   },
   suggestionsContainer: {
     maxHeight: 200, // Limit height of suggestions list
     borderColor: '#ccc',
     borderTopWidth: 1,
-    backgroundColor: 'white', // Added for visibility
+  },
+  suggestionsBlurView: {
+    overflow: 'hidden',
   },
   suggestionItem: {
     padding: 15,
