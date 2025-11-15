@@ -61,9 +61,22 @@ const RouteCarousel: React.FC<Props> = ({ routes, selectedRoute, onSelectRoute, 
     }
   };
 
+  const getTranslatedMode = (mode: string) => {
+    switch (mode) {
+        case 'safest':
+            return '最安全';
+        case 'fastest':
+            return '最快';
+        case 'shortest':
+            return '最短';
+        default:
+            return mode;
+    }
+  };
+
   const renderItem = ({ item }: { item: RouteInfo }) => (
     <TouchableOpacity onPress={() => onSelectRoute(item)} style={[styles.card, selectedRoute?.polyline === item.polyline && styles.selectedCard]}>
-      <Text style={styles.title}>{item.mode.charAt(0).toUpperCase() + item.mode.slice(1)} 路線</Text>
+      <Text style={styles.title}>{getTranslatedMode(item.mode)} 路線</Text>
       <Text>預計到達時間: {item.duration.text}</Text>
       <Text>距離: {item.distance.text}</Text>
       <View style={styles.buttonContainer}>

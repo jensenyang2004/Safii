@@ -128,6 +128,7 @@ export default function Map() {
     latitude: number;
     longitude: number;
   } | null>(null);
+  const [destinationMarker, setDestinationMarker] = useState<{latitude: number, longitude: number, name: string} | null>(null);
 
 
   const handlePoliceStationPress = async (station: any) => {
@@ -169,6 +170,11 @@ export default function Map() {
     const destinationString = `${selectedPoliceStation.latitude},${selectedPoliceStation.longitude}`;
     setDestination(destinationString);
     getRoutes(location.coords, destinationString);
+    setDestinationMarker({
+        latitude: selectedPoliceStation.latitude,
+        longitude: selectedPoliceStation.longitude,
+        name: selectedPoliceStation.name,
+    });
     setSelectedPoliceStation(null); // 關閉警察局卡片
     setCalloutVisible(null); // 隱藏 callout
   };
@@ -180,6 +186,11 @@ export default function Map() {
     const destinationString = `${selectedLocation.latitude},${selectedLocation.longitude}`;
     setDestination(destinationString);
     getRoutes(location.coords, destinationString);
+    setDestinationMarker({
+        latitude: selectedLocation.latitude,
+        longitude: selectedLocation.longitude,
+        name: selectedLocation.name,
+    });
     setSelectedLocation(null); // 關閉位置卡片
   };
 
@@ -533,6 +544,8 @@ export default function Map() {
 
   const handleSearch = (query: string, latitude?: number, longitude?: number) => {
     if (location) {
+      setDestinationMarker(null);
+      setSelectedLocation(null);
       setDestination(query); // Keep the query for display purposes if needed
 
       if (latitude !== undefined && longitude !== undefined) {
@@ -547,12 +560,14 @@ export default function Map() {
   };
 
   const handleSuggestionSelected = (description: string, latitude: number, longitude: number) => {
-    setSelectedLocation({
+    const locationData = {
       name: description.split(',')[0], // 取第一部分作为名称
       address: description,
       latitude: latitude,
       longitude: longitude
-    });
+    };
+    setSelectedLocation(locationData);
+    setDestinationMarker(locationData);
 
     // 移动地图到选定位置
     if (mapRef.current) {
@@ -579,6 +594,8 @@ export default function Map() {
     setDestination(null);
     setSelectedRoute(null);
     setSelectedPoliceStation(null); // 清除警察局卡片
+    setSelectedLocation(null);
+    setDestinationMarker(null);
     setCalloutVisible(null); // 隱藏 callout
     clearRoutes();
   };
@@ -634,6 +651,14 @@ export default function Map() {
             title="My Location"
             pinColor="blue"
           />
+        )}
+
+        {destinationMarker && (
+            <Marker
+                coordinate={destinationMarker}
+                title={destinationMarker.name}
+                pinColor="red"
+            />
         )}
 
         {emergencies && emergencies.map(emergency => (
