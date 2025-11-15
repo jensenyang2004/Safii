@@ -291,29 +291,6 @@ export default function Map() {
     } as Location.LocationObject;
     setLocation(initialLocation);
   }, []);
-  // useEffect(() => {
-  //   (async () => {
-  //     let { status } = await requestForegroundPermissionsAsync();
-  //     if (status === 'granted') {
-  //       let currentLocation = await getCurrentPositionAsync();
-  //       setLocation({
-  //         latitude: currentLocation.coords.latitude,
-  //         longitude: currentLocation.coords.longitude,
-  //         latitudeDelta: 0.01,
-  //         longitudeDelta: 0.01,
-  //       });
-  //     } else {
-  //       console.log('Location permission not granted');
-  //       // Optionally, set a default location or show an error message
-  //       setLocation({
-  //         latitude: 23, // Fallback to a default if permission not granted
-  //         longitude: 120.2,
-  //         latitudeDelta: 0.0922,
-  //         longitudeDelta: 0.0421,
-  //       });
-  //     }
-  //   })();
-  // }, []);
 
   const getDynamicZoom = (speed: number | null) => {
     if (speed === null || speed < 0) return 18; // Default zoom if speed is unavailable

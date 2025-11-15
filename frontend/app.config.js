@@ -7,6 +7,10 @@ module.exports = {
   expo: {
     name: "Safii",
     slug: "Safii",
+    version: "1.0.0",
+    runtimeVersion: {
+      "policy": "appVersion"
+    },
     ios: {
       bundleIdentifier: "com.nightbase.firebase",
       supportsTablet: true,
@@ -35,8 +39,8 @@ module.exports = {
       // ...(fs.existsSync(path.join(__dirname, "ios"))
       //   ? ["./PodPatch.ts"]
       //   : []),
-      // "./PodPatch.ts",
-      "./app.plugin.js",
+      "./PodPatch.ts",
+      // "./app.plugin.js",
       [
         "expo-build-properties",
         {
