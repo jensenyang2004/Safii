@@ -122,3 +122,4 @@ node_modules/
 
 # dataconnect generated files
 .dataconnect
+frontend/.env.example

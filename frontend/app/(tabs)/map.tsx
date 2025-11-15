@@ -44,6 +44,7 @@ import LocationCard from '@/components/Map/LocationCard';
 import { useAuth } from '@/context/AuthProvider';
 import { useLiveNavigation } from '@/hooks/useLiveNavigation';
 import NavigationInstructionsCard from '@/components/Map/NavigationInstructionsCard';
+import Theme from '@/constants/Theme';
 
 
 
@@ -122,12 +123,13 @@ export default function Map() {
     longitude: number;
     walkingTime: string | null;
   } | null>(null);
-  const [selectedLocation, setSelectedLocation] = useState<{
+  const [destinationInfo, setDestinationInfo] = useState<{
     name: string;
     address: string;
     latitude: number;
     longitude: number;
   } | null>(null);
+  const [showDestinationCard, setShowDestinationCard] = useState(false);
   const [destinationMarker, setDestinationMarker] = useState<{ latitude: number, longitude: number, name: string } | null>(null);
 
 
@@ -185,10 +187,10 @@ export default function Map() {
   };
 
   const handleNavigateToLocation = () => {
-    if (!selectedLocation || !location) return;
+    if (!destinationInfo || !location) return;
 
-    console.log("規劃路線到:", selectedLocation.name);
-    const destinationString = `${selectedLocation.latitude},${selectedLocation.longitude}`;
+    console.log("規劃路線到:", destinationInfo.name);
+    const destinationString = `${destinationInfo.latitude},${destinationInfo.longitude}`;
     setDestination(destinationString);
     getRoutes(location.coords, destinationString);
     setDestinationMarker({
@@ -227,10 +229,26 @@ export default function Map() {
   const scaleAnimation = useRef(new Animated.Value(1)).current;
 
   const [mapCarouselHeight, setMapCarouselHeight] = useState(0);
-  const [routeSheetHeight, setRouteSheetHeight] = useState(0);
   const routeSheetAnimation = useRef(new Animated.Value(0)).current;
 
-  const showRouteSheet = routes.length > 0 || !!selectedPoliceStation || !!selectedLocation || isNavigating;
+  // --- Heights for different bottom sheet stages ---
+  // You can manually adjust these values after testing
+  const LOCATION_CARD_HEIGHT = 150;
+  const ROUTE_CAROUSEL_HEIGHT = 180;
+  const END_NAVIGATION_BUTTON_HEIGHT = 35;
+  // -------------------------------------------------
+
+  let currentContentHeight = 0;
+  if ((destinationInfo && showDestinationCard) || selectedPoliceStation) {
+    currentContentHeight = LOCATION_CARD_HEIGHT;
+  } else if (routes.length > 0 && !isNavigating) {
+    currentContentHeight = ROUTE_CAROUSEL_HEIGHT;
+  } else if (isNavigating) {
+    currentContentHeight = END_NAVIGATION_BUTTON_HEIGHT;
+  }
+
+  const routeSheetHeight = currentContentHeight > 0 ? currentContentHeight + tabBarHeight : 0;
+  const showRouteSheet = currentContentHeight > 0;
   const isLocationCardVisible = !!selectedPoliceStation || !!selectedLocation;
 
   useEffect(() => {
@@ -243,17 +261,15 @@ export default function Map() {
 
   const topCarouselBottom = routeSheetAnimation.interpolate({
     inputRange: [0, 1],
-    outputRange: [mapCarouselHeight + tabBarHeight, routeSheetHeight + tabBarHeight],
+    outputRange: [
+      mapCarouselHeight + tabBarHeight,
+      routeSheetHeight + mapCarouselHeight + tabBarHeight,
+    ],
   });
 
-  const mapCarouselOpacity = routeSheetAnimation.interpolate({
+  const routeSheetHeightAnim = routeSheetAnimation.interpolate({
     inputRange: [0, 1],
-    outputRange: [1, 0],
-  });
-
-  const routeSheetTranslateY = routeSheetAnimation.interpolate({
-    inputRange: [0, 1],
-    outputRange: [routeSheetHeight > 0 ? routeSheetHeight : 1000, 0],
+    outputRange: [0, routeSheetHeight],
   });
 
   const handleMarkerPress = (markerId: string) => {
@@ -263,7 +279,7 @@ export default function Map() {
   // const auth = useAuth();
   // const currentUserId = auth.user?.uid;
 
-  const styles = createStyles(tabBarHeight, selectedPoliceStation !== null, selectedLocation !== null);
+  const styles = createStyles(tabBarHeight, selectedPoliceStation !== null, destinationInfo !== null);
 
   useEffect(() => {
     const initialLocation = {
@@ -414,12 +430,14 @@ export default function Map() {
 
     if (bestRoute) {
       // 設置選中的位置為最近的安全地點
-      setSelectedLocation({
+      setDestinationInfo({
         name: bestRoute.name,
         address: `${bestRoute.type === 'police' ? '警察局' : '便利商店'} - ${bestRoute.duration.text}步行距離`,
         latitude: bestRoute.latitude,
         longitude: bestRoute.longitude
       });
+      setShowDestinationCard(true);
+
 
       // 移動地圖到選定位置
       mapRef.current?.fitToCoordinates([origin, { latitude: bestRoute.latitude, longitude: bestRoute.longitude }], {
@@ -546,6 +564,7 @@ export default function Map() {
     };
     setSelectedLocation(locationData);
     setDestinationMarker(locationData);
+    setShowDestinationCard(true);
 
     // 移动地图到选定位置
     if (mapRef.current) {
@@ -565,6 +584,8 @@ export default function Map() {
       // 清除 POI 選擇和 callout
       setSelectedPoiType(null);
       setCalloutVisible(null);
+      setDestinationInfo(null);
+      setShowDestinationCard(false);
     }
   };
 
@@ -576,6 +597,8 @@ export default function Map() {
     setDestinationMarker(null);
     setCalloutVisible(null); // 隱藏 callout
     clearRoutes();
+    setDestinationInfo(null);
+    setShowDestinationCard(false);
   };
 
   useEffect(() => {
@@ -708,6 +731,17 @@ export default function Map() {
             )}
           </Marker.Animated>
         ))}
+        {destinationInfo && (
+          <Marker
+            coordinate={{
+              latitude: destinationInfo.latitude,
+              longitude: destinationInfo.longitude,
+            }}
+            title={destinationInfo.name}
+            pinColor="green"
+            onPress={() => setShowDestinationCard(true)}
+          />
+        )}
         {isNavigating ? (
           <>
             <Polyline coordinates={remainingPath} strokeColor="#007BFF" strokeWidth={6} />
@@ -801,78 +835,68 @@ export default function Map() {
         </View>
       )}
 
-      <Animated.View
-        style={[styles.bottomComponentContainer, { opacity: mapCarouselOpacity }]}
-        onLayout={(event) => {
-          const height = event.nativeEvent.layout.height;
-          if (height > 0 && height !== mapCarouselHeight) {
-            setMapCarouselHeight(height);
-          }
-        }}
-        pointerEvents={showRouteSheet ? 'none' : 'auto'}
-      >
-        <MapCarousel data={carouselData} />
-      </Animated.View>
-
-
-      <Animated.View
-        style={[
-          styles.routeSheetContainer,
-          isLocationCardVisible && { backgroundColor: 'transparent', shadowOpacity: 0, elevation: 0 },
-          { transform: [{ translateY: routeSheetTranslateY }] },
-        ]}
-      >
-        <View onLayout={(event) => {
-          const height = event.nativeEvent.layout.height;
-          if (height > 0 && height !== routeSheetHeight) {
-            setRouteSheetHeight(height);
-          }
-        }}>
-          {routes.length > 0 && !isNavigating && (
-            <>
-              {/* <RouteCarousel
-                routes={routes}
-                selectedRoute={selectedRoute}
-                onSelectRoute={setSelectedRoute}
-                onStartNavigation={handleStartNavigation}
-              /> */}
-              <Pressable style={styles.cancelRouteButton} onPress={handleCancelRouteSelection}>
-                <Text style={styles.cancelRouteButtonText}>取消路線</Text>
-              </Pressable>
-            </>
-          )}
-
-          {isNavigating && (
-            <Pressable style={styles.endNavigationButton} onPress={stopNavigation}>
-              <Text style={styles.endNavigationButtonText}>結束導航</Text>
-            </Pressable>
-          )}
-
-          {selectedPoliceStation && (
-            <LocationCard
-              name={selectedPoliceStation.name}
-              address={selectedPoliceStation.address}
-              walkingTime={selectedPoliceStation.walkingTime}
-              onClose={() => {
-                setSelectedPoliceStation(null);
-                setCalloutVisible(null);
-              }}
-              onNavigate={handleNavigateToPoliceStation}
-              locationType="police"
-            />
-          )}
-
-          {selectedLocation && (
-            <LocationCard
-              name={selectedLocation.name}
-              address={selectedLocation.address}
-              onClose={() => setSelectedLocation(null)}
-              onNavigate={handleNavigateToLocation}
-              locationType="general"
-            />
-          )}
+      <View style={styles.masterBottomSheet}>
+        <View
+          style={styles.bottomComponentContainer}
+          onLayout={(event) => {
+            const height = event.nativeEvent.layout.height;
+            if (height > 0 && height !== mapCarouselHeight) {
+              setMapCarouselHeight(height);
+            }
+          }}
+        >
+          <MapCarousel data={carouselData} />
         </View>
-      </Animated.View>
+        <Animated.View
+          style={[styles.routeSheetContainer, { height: routeSheetHeightAnim, opacity: routeSheetAnimation }]}
+        >
+          <View>
+            {routes.length > 0 && !isNavigating && (
+              <>
+                <RouteCarousel
+                  routes={routes}
+                  selectedRoute={selectedRoute}
+                  onSelectRoute={setSelectedRoute}
+                  onStartNavigation={handleStartNavigation}
+                />
+                <Pressable style={styles.cancelRouteButton} onPress={handleCancelRouteSelection}>
+                  <Text style={styles.cancelRouteButtonText}>取消路線</Text>
+                </Pressable>
+              </>
+            )}
+
+            {isNavigating && (
+              <Pressable style={styles.endNavigationButton} onPress={stopNavigation}>
+                <Text style={styles.endNavigationButtonText}>結束導航</Text>
+              </Pressable>
+            )}
+
+            {selectedPoliceStation && (
+              <LocationCard
+                name={selectedPoliceStation.name}
+                address={selectedPoliceStation.address}
+                walkingTime={selectedPoliceStation.walkingTime}
+                onClose={() => {
+                  setSelectedPoliceStation(null);
+                  setCalloutVisible(null);
+                }}
+                onNavigate={handleNavigateToPoliceStation}
+                locationType="police"
+              />
+            )}
+
+            {destinationInfo && showDestinationCard && (
+              <LocationCard
+                name={destinationInfo.name}
+                address={destinationInfo.address}
+                onClose={() => setShowDestinationCard(false)}
+                onNavigate={handleNavigateToLocation}
+                locationType="general"
+              />
+            )}
+          </View>
+        </Animated.View>
+      </View>
     </View>
   );
 }
@@ -886,21 +910,24 @@ function createStyles(
     container: {
       ...StyleSheet.absoluteFillObject,
     },
-    routeSheetContainer: {
+    masterBottomSheet: {
       position: 'absolute',
       bottom: 0,
       left: 0,
       right: 0,
-      backgroundColor: 'white',
+      zIndex: 20,
+      paddingBottom: tabBarHeight + 80,
+    },
+    routeSheetContainer: {
+      backgroundColor: 'transparent',
       borderTopLeftRadius: 20,
       borderTopRightRadius: 20,
-      paddingBottom: tabBarHeight,
       shadowColor: '#000',
       shadowOffset: { width: 0, height: -2 },
       shadowOpacity: 0.1,
       shadowRadius: 4,
       elevation: 15,
-      zIndex: 20, // On top
+      overflow: 'hidden',
     },
     calloutContainer: {
       minWidth: 150,
@@ -1001,15 +1028,12 @@ function createStyles(
       elevation: 3,
     },
     bottomComponentContainer: {
-      position: 'absolute',
-      bottom: '10%', // Add 10px margin above tab bar
-      left: 0,
-      right: 0,
+      // This container no longer needs absolute positioning or margin
     },
     endNavigationButton: {
-      backgroundColor: 'rgba(255, 100, 100, 0.9)',
+      backgroundColor: Theme.colors.primary,
       padding: 15,
-      borderRadius: 10,
+      borderRadius: 50,
       margin: 20,
       alignItems: 'center',
     },
@@ -1028,8 +1052,10 @@ function createStyles(
     cancelRouteButton: {
       backgroundColor: 'gray',
       padding: 15,
-      borderRadius: 10,
+      borderRadius: 50,
       margin: 10,
+      width: '90%',
+      alignSelf: 'center',
       alignItems: 'center',
     },
     cancelRouteButtonText: {

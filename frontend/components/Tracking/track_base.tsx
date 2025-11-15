@@ -115,6 +115,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 30,
     shadowOpacity: 0.2,
     shadowRadius: 3,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 5,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
