@@ -30,7 +30,7 @@ import LocationSentCard from '@/components/Tracking/LocationSentCard';
 import SharingSessionCard from '@/components/Tracking/SharingSessionCard';
 import EmergencyContactMarker from '@/components/Map/EmergencyContactMarker';
 import { EmergencyBubble } from '@/components/Emergency/EmergencyBubbles';
-
+import { decodePolyline } from '@/utils/polyline';
 
 import { pois } from '../../constants/pois';
 import { POI } from '@/types';
@@ -623,10 +623,16 @@ export default function Map() {
     }
   }, [routes]);
 
+  useEffect(() => {
+    console.log('IS_NAVIGATING:', isNavigating);
+  }, [isNavigating]);
+
   const getRouteColor = (mode: string, isSelected: boolean) => {
     if (isSelected) return '#007BFF'; // 選中的路線顯示藍色
     return '#808080'; // 未選中的路線統一顯示灰色
   };
+
+  
 
   if (!location) {
     return (
@@ -636,6 +642,10 @@ export default function Map() {
       </View>
     );
   }
+
+  // ***
+  
+  // ***
 
   // const filteredPois = selectedPoiType ? pois.filter(poi => poi.type === selectedPoiType) : [];
   const filteredPois = selectedPoiType && location
@@ -650,6 +660,7 @@ export default function Map() {
       return distance <= 2.2;
     })
     : [];
+  console.log("Map component rendering...");
   return (
     <View style={styles.container}>
       <MapView
@@ -757,6 +768,43 @@ export default function Map() {
           </>
         ) : (
           routes.map(route => {
+            console.log("🚀 route.polyline:", route);
+            console.log("😎 Rendering route:", route.mode);
+            const isSelected = selectedRoute?.polyline === route.polyline;
+            if (!isSelected) {
+              return (
+                <Polyline
+                  key={route.polyline}
+                  coordinates={decodePolyline(route.polyline)}
+                  strokeColor={getRouteColor(route.mode, false)}
+                  strokeWidth={3}
+                  onPress={() => setSelectedRoute(route)}
+                  tappable
+                  zIndex={1}
+                />
+              );
+            }
+            return (
+              <Polyline
+                key={`${route.polyline}-selected`}
+                coordinates={decodePolyline(route.polyline)}
+                strokeColor={getRouteColor(route.mode, true)}
+                strokeWidth={6}
+                onPress={() => setSelectedRoute(route)}
+                tappable
+                zIndex={999}
+              />
+            )
+          })
+        )}
+        {/* {isNavigating ? (
+          <>
+            <Polyline coordinates={remainingPath} strokeColor="#007BFF" strokeWidth={6} />
+            <Polyline coordinates={traveledPath} strokeColor="gray" strokeWidth={6} />
+          </>
+        ) : (
+          routes.map(route => {
+            console.log("Rendering route:", route.mode);
             const isSelected = selectedRoute?.encodedPolyline === route.encodedPolyline;
             if (!isSelected) {
               return (
@@ -783,7 +831,7 @@ export default function Map() {
               />
             )
           })
-        )}
+        )} */}
       </MapView>
 
       <Animated.View style={[styles.topCarouselContainer, { bottom: topCarouselBottom }]}>
