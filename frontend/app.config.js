@@ -11,9 +11,9 @@ module.exports = {
     icon: "./assets/images/icon.png",
     scheme: "myapp",
     userInterfaceStyle: "automatic",
-    
+
     // ❌ 絕對不要在這裡寫 newArchEnabled: true
-    
+
     runtimeVersion: {
       policy: "appVersion"
     },
@@ -127,9 +127,9 @@ module.exports = {
           photosPermission: "The app accesses your photos to let you share them with your friends."
         }
       ],
-      
 
-      "./app.plugin.js", 
+
+      "./app.plugin.js",
       [
         "expo-build-properties",
         {
@@ -137,8 +137,10 @@ module.exports = {
 
             newArchEnabled: false,
             flipper: false,
-            useFrameworks: "static"  
-            // newArchEnabled: true 
+            useFrameworks: "static",
+            modularHeaders: true,    
+            fabricEnabled: false      
+
           },
           android: {
             newArchEnabled: false
