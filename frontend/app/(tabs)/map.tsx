@@ -310,19 +310,16 @@ export default function Map() {
 
 
   useEffect(() => {
-    const initialLocation = {
-      coords: {
-        latitude: 25.03,
-        longitude: 121.54,
-        altitude: null,
-        accuracy: null,
-        altitudeAccuracy: null,
-        heading: null,
-        speed: null,
-      },
-      timestamp: Date.now(),
-    } as Location.LocationObject;
-    setLocation(initialLocation);
+    (async () => {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission to access location was denied');
+        return;
+      }
+
+      let currentLocation = await Location.getCurrentPositionAsync({});
+      setLocation(currentLocation);
+    })();
   }, []);
 
   const getDynamicZoom = (speed: number | null) => {
@@ -939,7 +936,7 @@ export default function Map() {
 
       {!isNavigating && <MapSearchBar onSearch={handleSearch} onSuggestionSelected={handleSuggestionSelected} />}
 
-      {showLocationSentCard && <LocationCard onDismiss={handleDismissLocationSentCard} />}
+      {showLocationSentCard && <LocationSentCard onDismiss={handleDismissLocationSentCard} />}
 
       {isSearchingSafeSpot && (
         <View style={styles.loadingContainer}>
