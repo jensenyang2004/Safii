@@ -129,7 +129,7 @@ module.exports = {
       ],
       
 
-      // "./app.plugin.js", 
+      "./app.plugin.js", 
       [
         "expo-build-properties",
         {
@@ -137,6 +137,7 @@ module.exports = {
 
             newArchEnabled: false,
             flipper: false,
+            useFrameworks: "static"  
             // newArchEnabled: true 
           },
           android: {
