@@ -129,12 +129,14 @@ module.exports = {
       ],
       
 
-      "./app.plugin.js", 
+      // "./app.plugin.js", 
       [
         "expo-build-properties",
         {
           ios: {
-            newArchEnabled: false 
+
+            newArchEnabled: false,
+            flipper: false,
             // newArchEnabled: true 
           },
           android: {
