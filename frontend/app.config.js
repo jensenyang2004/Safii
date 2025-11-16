@@ -1,3 +1,4 @@
+// frontend/app.config.js
 const fs = require("fs");
 const path = require("path");
 
@@ -127,19 +128,14 @@ module.exports = {
         }
       ],
       
-      // 👇 你的自定義 Plugin
-      "./app.plugin.js", 
-      
-      // 👇 解決 Reanimated 崩潰
-      "react-native-reanimated/plugin", 
 
-      // 👇 解決地圖閃退的關鍵設定 (放在最後面比較保險)
+      "./app.plugin.js", 
       [
         "expo-build-properties",
         {
           ios: {
-            useFrameworks: "static",
-            newArchEnabled: false // ✅ 強制關閉新架構
+            newArchEnabled: false 
+            // newArchEnabled: true 
           },
           android: {
             newArchEnabled: false
