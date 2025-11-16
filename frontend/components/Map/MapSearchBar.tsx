@@ -21,6 +21,7 @@ const MapSearchBar: React.FC<MapSearchBarProps> = ({ onSearch, onSuggestionSelec
   const [loading, setLoading] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const debounceTimeout = useRef<NodeJS.Timeout | null>(null);
+  const isSuggestionSelectedRef = useRef(false); // New ref to track suggestion selection
 
   useEffect(() => {
     if (debounceTimeout.current) {
@@ -64,9 +65,10 @@ const MapSearchBar: React.FC<MapSearchBarProps> = ({ onSearch, onSuggestionSelec
   }, [query]);
 
   const handleSelectSuggestion = async (prediction: PlacePrediction) => {
+    isSuggestionSelectedRef.current = true; // Set flag immediately
     setQuery(prediction.description);
     setSuggestions([]);
-    setShowSuggestions(false);
+    setShowSuggestions(false); // Explicitly hide
     setLoading(true);
 
     try {
@@ -86,6 +88,10 @@ const MapSearchBar: React.FC<MapSearchBarProps> = ({ onSearch, onSuggestionSelec
       onSearch(prediction.description); // Fallback to just text search on error
     } finally {
       setLoading(false);
+      // Reset flag after a short delay to ensure onBlur has fired and checked it
+      setTimeout(() => {
+        isSuggestionSelectedRef.current = false;
+      }, 150); // Increased delay
     }
   };
 
@@ -99,7 +105,15 @@ const MapSearchBar: React.FC<MapSearchBarProps> = ({ onSearch, onSuggestionSelec
             value={query}
             onChangeText={setQuery}
             onFocus={() => query.length > 0 && setShowSuggestions(true)}
-            onBlur={() => setTimeout(() => setShowSuggestions(false), 100)} // Delay hiding to allow click
+            onBlur={() => {
+              // Use a small delay to allow handleSelectSuggestion's onPress to register
+              // and potentially set isSuggestionSelectedRef.current to true
+              setTimeout(() => {
+                if (!isSuggestionSelectedRef.current) {
+                  setShowSuggestions(false);
+                }
+              }, 100); // Keep a small delay for onBlur
+            }}
           />
         </View>
       </BlurView>

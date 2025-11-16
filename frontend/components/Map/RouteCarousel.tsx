@@ -87,9 +87,7 @@ const RouteCarousel: React.FC<Props> = ({ routes, selectedRoute, onSelectRoute, 
           <TouchableOpacity onPress={() => onStartNavigation(item)} style={styles.button}>
             <Text style={styles.buttonText}>開始導航</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => openInGoogleMaps(item)} style={styles.button}>
-            <Text style={styles.buttonText}>在 Google 地圖中打開</Text>
-          </TouchableOpacity>
+          
         </View>
       </BlurView>
     </TouchableOpacity>

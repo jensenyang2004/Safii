@@ -80,7 +80,7 @@ export default function Map() {
   const [selectedEmergency, setSelectedEmergency] = useState<EmergencyData | null>(null);
   const [bottomComponentHeight, setBottomComponentHeight] = useState(0);
   const [showLocationSentCard, setShowLocationSentCard] = useState(false); // New state
-  
+
 
   const tabBarHeight = screenHeight * 0.09;
 
@@ -139,6 +139,7 @@ export default function Map() {
     latitude: number;
     longitude: number;
   } | null>(null);
+  const [showFindSafeSpotCard, setShowFindSafeSpotCard] = useState(false);
 
   const handlePoliceStationPress = async (station: any) => {
     if (!location) {
@@ -229,6 +230,19 @@ export default function Map() {
   } = useLiveNavigation({ onReroute: handleReroute });
 
   const [isSearchingSafeSpot, setIsSearchingSafeSpot] = useState(false);
+  const [showIntermediateSafeSpotCard, setShowIntermediateSafeSpotCard] = useState(false);
+  const [showNearestSafeSpotCard, setShowNearestSafeSpotCard] = useState(false);
+  const [nearestSafeSpotData, setNearestSafeSpotData] = useState<{
+    name: string;
+    address: string;
+    latitude: number;
+    longitude: number;
+    walkingTime?: string | null;
+  } | null>(null);
+
+  // When we trigger a navigation from a LocationCard (nearest spot), we set this
+  // so that when `routes` are populated we can auto-start navigation like other flows.
+  const [pendingAutoNavigateTo, setPendingAutoNavigateTo] = useState<{ latitude: number; longitude: number } | null>(null);
 
 
   // const flatListRef = useRef<FlatList>(null);
@@ -246,7 +260,10 @@ export default function Map() {
   // -------------------------------------------------
 
   let currentContentHeight = 0;
-  if ((destinationInfo && showDestinationCard) || selectedPoliceStation) {
+  // If the Find Safe Spot card or nearest-spot card is requested, reserve the location card height so the route sheet opens
+  if (showFindSafeSpotCard || showNearestSafeSpotCard) {
+    currentContentHeight = LOCATION_CARD_HEIGHT;
+  } else if ((destinationInfo && showDestinationCard) || selectedPoliceStation) {
     currentContentHeight = LOCATION_CARD_HEIGHT;
   } else if (routes.length > 0 && !isNavigating) {
     currentContentHeight = ROUTE_CAROUSEL_HEIGHT;
@@ -285,6 +302,9 @@ export default function Map() {
 
   // const auth = useAuth();
   // const currentUserId = auth.user?.uid;
+
+  // const styles = createStyles(tabBarHeight, selectedPoliceStation !== null, destinationInfo !== null);
+  // createStyles expects (tabBarHeight, hasPoliceStation, hasLocation)
 
   const styles = createStyles(bottomComponentHeight, tabBarHeight, selectedPoliceStation !== null, destinationInfo !== null);
 
@@ -437,14 +457,21 @@ export default function Map() {
     }
 
     if (bestRoute) {
+      // Clear any existing destination info card
+      setDestinationInfo(null);
+      setShowDestinationCard(false);
+      setSelectedPoliceStation(null); // Also clear police station card if it was showing
+
       // 設置選中的位置為最近的安全地點
-      setDestinationInfo({
+      setNearestSafeSpotData({
         name: bestRoute.name,
         address: `${bestRoute.type === 'police' ? '警察局' : '便利商店'} - ${bestRoute.duration.text}步行距離`,
         latitude: bestRoute.latitude,
-        longitude: bestRoute.longitude
+        longitude: bestRoute.longitude,
+        walkingTime: bestRoute.duration.text,
       });
-      setShowDestinationCard(true);
+      setShowNearestSafeSpotCard(true);
+      setShowIntermediateSafeSpotCard(false); // Hide intermediate card
 
 
       // 移動地圖到選定位置
@@ -524,6 +551,14 @@ export default function Map() {
         </Pressable>
       ),
     },
+    {
+      id: 'find-safe-spot',
+      component: (
+        <Pressable style={styles.findSafeBubble} onPress={() => setShowFindSafeSpotCard(true)}>
+          <MaterialIcons name="warning" size={22} color="black" />
+        </Pressable>
+      ),
+    },
     ...(emergencies ?? []).map((emergency: any) => ({
       id: emergency.emergencyDocId,
       component: (
@@ -565,16 +600,18 @@ export default function Map() {
 
   const handleSuggestionSelected = (description: string, latitude: number, longitude: number) => {
     const locationData = {
-      name: description.split(',')[0], // 取第一部分作为名称
+      name: description.split(',')[0], // 取第一部分作為名稱
       address: description,
       latitude: latitude,
       longitude: longitude
     };
+    console.log('handleSuggestionSelected called with:', { description, latitude, longitude });
     setSelectedLocation(locationData);
     setDestinationMarker(locationData);
+  setDestinationInfo(locationData);
     setShowDestinationCard(true);
 
-    // 移动地图到选定位置
+    // 移動地圖到選定位置
     if (mapRef.current) {
       mapRef.current.animateToRegion({
         latitude: latitude,
@@ -584,6 +621,11 @@ export default function Map() {
       }, 1000);
     }
   };
+
+  // Debug: track destinationInfo / showDestinationCard changes to help diagnose why the LocationCard may not appear
+  useEffect(() => {
+    console.log('DESTINATION STATE CHANGE ->', { destinationInfo, showDestinationCard });
+  }, [destinationInfo, showDestinationCard]);
 
   const handleStartNavigation = (route: RouteInfo) => {
     if (location) {
@@ -620,8 +662,17 @@ export default function Map() {
       if (isNavigating) {
         updateRoute(newSelectedRoute);
       }
+
+      // If a UI action requested immediate navigation (e.g. user tapped LocationCard -> Navigate),
+      // start navigation automatically when routes become available.
+      if (pendingAutoNavigateTo && !isNavigating && location) {
+        console.log('Auto-starting navigation to pending destination');
+        // Use the existing handler so behavior matches other start-navigation flows
+        handleStartNavigation(newSelectedRoute);
+        setPendingAutoNavigateTo(null);
+      }
     }
-  }, [routes]);
+  }, [routes, pendingAutoNavigateTo, isNavigating, location]);
 
   useEffect(() => {
     console.log('IS_NAVIGATING:', isNavigating);
@@ -632,7 +683,35 @@ export default function Map() {
     return '#808080'; // 未選中的路線統一顯示灰色
   };
 
-  
+  // Helper to normalize route.polyline into an array of {latitude, longitude}
+  const getCoordinatesFromPolyline = (polyline: any) => {
+    if (!polyline) return [];
+    // If it's a string, assume encoded polyline
+    if (typeof polyline === 'string') {
+      try {
+        return decodePolyline(polyline);
+      } catch (e) {
+        console.warn('Failed to decode polyline string, returning empty coords.', e);
+        return [];
+      }
+    }
+    // If it's already an array
+    if (Array.isArray(polyline)) {
+      const first = polyline[0];
+      if (!first) return [];
+      // case: array of [lat, lng]
+      if (Array.isArray(first) && first.length >= 2) {
+        return (polyline as Array<[number, number]>).map(([lat, lng]) => ({ latitude: lat, longitude: lng }));
+      }
+      // case: array of { latitude, longitude }
+      if (typeof first === 'object' && 'latitude' in first && 'longitude' in first) {
+        return polyline as Array<{ latitude: number; longitude: number }>;
+      }
+    }
+    return [];
+  };
+
+
 
   if (!location) {
     return (
@@ -644,7 +723,7 @@ export default function Map() {
   }
 
   // ***
-  
+
   // ***
 
   // const filteredPois = selectedPoiType ? pois.filter(poi => poi.type === selectedPoiType) : [];
@@ -692,6 +771,21 @@ export default function Map() {
             title={destinationMarker.name}
             pinColor="red"
           />
+        )}
+
+        {/* Marker for the nearest safe spot found by findNearestSafeSpot() */}
+        {nearestSafeSpotData && showNearestSafeSpotCard && (
+          <Marker
+            coordinate={{ latitude: nearestSafeSpotData.latitude, longitude: nearestSafeSpotData.longitude }}
+            title={nearestSafeSpotData.name}
+            onPress={() => setShowNearestSafeSpotCard(true)}
+            zIndex={999}
+          >
+            <Image
+              source={require('@/assets/icons/police-station.png')}
+              style={{ width: 32, height: 32 }}
+            />
+          </Marker>
         )}
 
         {emergencies && emergencies.map(emergency => (
@@ -750,6 +844,7 @@ export default function Map() {
             )}
           </Marker.Animated>
         ))}
+
         {destinationInfo && (
           <Marker
             coordinate={{
@@ -761,77 +856,38 @@ export default function Map() {
             onPress={() => setShowDestinationCard(true)}
           />
         )}
+
         {isNavigating ? (
           <>
             <Polyline coordinates={remainingPath} strokeColor="#007BFF" strokeWidth={6} />
             <Polyline coordinates={traveledPath} strokeColor="gray" strokeWidth={6} />
           </>
         ) : (
-          routes.map(route => {
-            console.log("🚀 route.polyline:", route);
-            console.log("😎 Rendering route:", route.mode);
+          routes.map((route, index) => {
+            const stableKey = `route-${route.mode}-${index}`;
             const isSelected = selectedRoute?.polyline === route.polyline;
-            if (!isSelected) {
-              return (
-                <Polyline
-                  key={route.polyline}
-                  coordinates={decodePolyline(route.polyline)}
-                  strokeColor={getRouteColor(route.mode, false)}
-                  strokeWidth={3}
-                  onPress={() => setSelectedRoute(route)}
-                  tappable
-                  zIndex={1}
-                />
-              );
+
+            const points = route.polyline;
+
+            if (!points || points.length < 2) {
+              console.warn('Invalid polyline points');
+              return null;
             }
+
             return (
               <Polyline
-                key={`${route.polyline}-selected`}
-                coordinates={decodePolyline(route.polyline)}
-                strokeColor={getRouteColor(route.mode, true)}
-                strokeWidth={6}
+                key={stableKey}           
+                coordinates={points}
+                strokeColor={getRouteColor(route.mode, isSelected)}
+                strokeWidth={isSelected ? 6 : 3}
+                zIndex={isSelected ? 999 : 1}
                 onPress={() => setSelectedRoute(route)}
-                tappable
-                zIndex={999}
+                tappable={true}
               />
-            )
+            );
           })
         )}
-        {/* {isNavigating ? (
-          <>
-            <Polyline coordinates={remainingPath} strokeColor="#007BFF" strokeWidth={6} />
-            <Polyline coordinates={traveledPath} strokeColor="gray" strokeWidth={6} />
-          </>
-        ) : (
-          routes.map(route => {
-            console.log("Rendering route:", route.mode);
-            const isSelected = selectedRoute?.encodedPolyline === route.encodedPolyline;
-            if (!isSelected) {
-              return (
-                <Polyline
-                  key={route.encodedPolyline}
-                  coordinates={route.polyline}
-                  strokeColor={getRouteColor(route.mode, false)}
-                  strokeWidth={3}
-                  onPress={() => setSelectedRoute(route)}
-                  tappable
-                  zIndex={1}
-                />
-              );
-            }
-            return (
-              <Polyline
-                key={`${route.encodedPolyline}-selected`}
-                coordinates={route.polyline}
-                strokeColor={getRouteColor(route.mode, true)}
-                strokeWidth={6}
-                onPress={() => setSelectedRoute(route)}
-                tappable
-                zIndex={999}
-              />
-            )
-          })
-        )} */}
+
       </MapView>
 
       <Animated.View style={[styles.topCarouselContainer, { bottom: topCarouselBottom }]}>
@@ -845,6 +901,8 @@ export default function Map() {
           )}
         </ScrollView>
       </Animated.View>
+
+      {/* Top button now opens the bottom route-sheet LocationCard via showFindSafeSpotCard */}
 
       {selectedEmergency && (
         <EmergencyInfoModal emergency={selectedEmergency} onClose={() => setSelectedEmergency(null)} />
@@ -861,7 +919,6 @@ export default function Map() {
           >
             <Text style={[styles.filterButtonText, selectedPoiType === 'police' && styles.selectedFilterButtonText]}>警察局</Text>
           </Pressable>
-          {/* <Pㄋ> */}
         </View>
       )}
 
@@ -882,7 +939,7 @@ export default function Map() {
 
       {!isNavigating && <MapSearchBar onSearch={handleSearch} onSuggestionSelected={handleSuggestionSelected} />}
 
-      {showLocationSentCard && <LocationSentCard onDismiss={handleDismissLocationSentCard} />}
+      {showLocationSentCard && <LocationCard onDismiss={handleDismissLocationSentCard} />}
 
       {isSearchingSafeSpot && (
         <View style={styles.loadingContainer}>
@@ -927,6 +984,21 @@ export default function Map() {
               </Pressable>
             )}
 
+            {showFindSafeSpotCard && (
+              <LocationCard
+                name="尋找安全地點"
+                address="按下搜尋以尋找附近安全地點"
+                onClose={() => setShowFindSafeSpotCard(false)}
+                onNavigate={async () => {
+                  // Wait for the search to finish and the nearestSpot card to be set
+                  await findNearestSafeSpot();
+                  // Close the Find Safe Spot card after nearest spot data is available.
+                  setShowFindSafeSpotCard(false);
+                }}
+                locationType="general"
+              />
+            )}
+
             {selectedPoliceStation && (
               <LocationCard
                 name={selectedPoliceStation.name}
@@ -948,6 +1020,45 @@ export default function Map() {
                 onClose={() => setShowDestinationCard(false)}
                 onNavigate={handleNavigateToLocation}
                 locationType="general"
+              />
+            )}
+
+            {showIntermediateSafeSpotCard && (
+              <Pressable
+                style={styles.intermediateCard}
+                onPress={findNearestSafeSpot}
+              >
+                <Text style={styles.intermediateCardText}>尋找安全地點</Text>
+                <MaterialIcons name="arrow-forward" size={24} color="black" />
+              </Pressable>
+            )}
+
+            {nearestSafeSpotData && showNearestSafeSpotCard && (
+              <LocationCard
+                name={nearestSafeSpotData.name}
+                address={nearestSafeSpotData.address}
+                walkingTime={nearestSafeSpotData.walkingTime}
+                onClose={() => {
+                  setShowNearestSafeSpotCard(false);
+                  setNearestSafeSpotData(null);
+                }}
+                onNavigate={() => {
+                  if (nearestSafeSpotData && location) {
+                    const destinationString = `${nearestSafeSpotData.latitude},${nearestSafeSpotData.longitude}`;
+                    setDestination(destinationString);
+                    // Request routes — when routes arrive we'll auto-start navigation
+                    getRoutes(location.coords, destinationString);
+                    setDestinationMarker({
+                      latitude: nearestSafeSpotData.latitude,
+                      longitude: nearestSafeSpotData.longitude,
+                      name: nearestSafeSpotData.name,
+                    });
+                    // mark pending auto-start so the routes useEffect will begin navigation
+                    setPendingAutoNavigateTo({ latitude: nearestSafeSpotData.latitude, longitude: nearestSafeSpotData.longitude });
+                    setShowNearestSafeSpotCard(false); // Close the card after initiating route planning
+                  }
+                }}
+                locationType={nearestSafeSpotData.name.includes('警察局') ? 'police' : 'general'}
               />
             )}
           </View>
@@ -1068,7 +1179,7 @@ function createStyles(
     topScrollViewContent: {
       alignItems: 'center',
       paddingHorizontal: 12,
-      
+
     },
     recenterBubble: {
       flexDirection: 'row',
@@ -1184,6 +1295,42 @@ function createStyles(
     filterButtonText: {
       color: 'black',
       fontWeight: 'bold',
+    },
+    findSafeSpotButton: {
+      backgroundColor: Theme.colors.primary, // Use a distinct color
+      paddingVertical: 10,
+      paddingHorizontal: 15,
+      borderRadius: 20,
+      marginHorizontal: 5,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.2,
+      shadowRadius: 2,
+      elevation: 3,
+    },
+    findSafeSpotButtonText: {
+      color: 'white',
+      fontWeight: 'bold',
+    },
+    findSafeBubble: {
+      flexDirection: 'row',
+      backgroundColor: '#FFD54F',
+      borderRadius: 30,
+      padding: 10,
+      alignItems: 'center',
+      marginHorizontal: 5,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.2,
+      shadowRadius: 2,
+      elevation: 3,
+    },
+    findSafeOverlay: {
+      position: 'absolute',
+      left: 12,
+      right: 12,
+      bottom: tabBarHeight + 80,
+      zIndex: 999,
     },
   });
 }

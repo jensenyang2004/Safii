@@ -3,7 +3,7 @@ import * as Location from 'expo-location';
 import * as Speech from 'expo-speech';
 import { RouteInfo, Step } from '../types';
 import { findNearestPointOnPolyline, getDistance } from '../utils/route';
-import { decodePolyline } from '../utils/polyline';
+// import { decodePolyline } from '../utils/polyline'; // No longer needed here
 
 // Helper to strip HTML tags for speech
 const stripHtml = (html: string) => {
@@ -45,8 +45,9 @@ export const useLiveNavigation = ({ onReroute }: UseLiveNavigationProps) => {
       return;
     }
 
-    const decodedPolyline = decodePolyline(activeRoute.polyline);
-    const nearestPoint = findNearestPointOnPolyline(userLocation.coords, decodedPolyline);
+    // activeRoute.polyline is now expected to be an array of coordinates
+    const polylineCoordinates = activeRoute.polyline;
+    const nearestPoint = findNearestPointOnPolyline(userLocation.coords, polylineCoordinates);
 
     // --- Deviation Detection ---
     const DEVIATION_THRESHOLD = 40; // meters
@@ -63,11 +64,11 @@ export const useLiveNavigation = ({ onReroute }: UseLiveNavigationProps) => {
     }
 
     // --- Path and Progress Update ---
-    const newTraveledPath = decodedPolyline.slice(0, nearestPoint.index + 1);
+    const newTraveledPath = polylineCoordinates.slice(0, nearestPoint.index + 1);
     newTraveledPath.push({ latitude: nearestPoint.latitude, longitude: nearestPoint.longitude });
     setTraveledPath(newTraveledPath);
 
-    const newRemainingPath = decodedPolyline.slice(nearestPoint.index);
+    const newRemainingPath = polylineCoordinates.slice(nearestPoint.index);
     newRemainingPath.unshift({ latitude: nearestPoint.latitude, longitude: nearestPoint.longitude });
     setRemainingPath(newRemainingPath);
 
@@ -178,8 +179,8 @@ export const useLiveNavigation = ({ onReroute }: UseLiveNavigationProps) => {
   
   useEffect(() => {
     if (isNavigating && activeRoute) {
-        const decoded = decodePolyline(activeRoute.polyline);
-        setRemainingPath(decoded);
+        // activeRoute.polyline is already decoded
+        setRemainingPath(activeRoute.polyline);
         setTraveledPath([]);
     }
   }, [activeRoute]);
