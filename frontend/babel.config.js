@@ -1,11 +1,8 @@
+// frontend/babel.config.js
 module.exports = function (api) {
   api.cache(true);
   return {
     presets: ['babel-preset-expo'],
-    plugins: [
-      // (other plugins like module-resolver, nativewind, dotenv, etc.)
-      'react-native-reanimated/plugin', // must be last
-    ],
     plugins: [
       "expo-router/babel",
       [
@@ -26,6 +23,8 @@ module.exports = function (api) {
           ],
         },
       ],
+      // (other plugins like module-resolver, nativewind, dotenv, etc.)
+      'react-native-reanimated/plugin', // must be last
     ],
   };
 };

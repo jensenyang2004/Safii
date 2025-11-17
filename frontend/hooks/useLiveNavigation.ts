@@ -28,7 +28,6 @@ export const useLiveNavigation = ({ onReroute }: UseLiveNavigationProps) => {
   const [remainingPath, setRemainingPath] = useState<any[]>([]);
 
   const locationSubscription = useRef<Location.LocationSubscription | null>(null);
-  const testInterval = useRef<any>(null);
   const lastRerouteTime = useRef<number>(0);
 
   useEffect(() => {
@@ -138,28 +137,6 @@ export const useLiveNavigation = ({ onReroute }: UseLiveNavigationProps) => {
     );
   };
 
-  const startTestNavigation = (route: RouteInfo, startLocation: any) => {
-    console.log('Starting test navigation...');
-    setActiveRoute(route);
-    setIsNavigating(true);
-    setCurrentStepIndex(0);
-    setUserLocation({ coords: startLocation, timestamp: Date.now() });
-
-    testInterval.current = setInterval(() => {
-      // Just update the location, the useEffect will handle the rest
-      setUserLocation(prevLocation => {
-        if (!prevLocation) return null;
-        const newCoords = {
-          ...prevLocation.coords,
-          latitude: prevLocation.coords.latitude + 0.0001,
-          longitude: prevLocation.coords.longitude + 0.0001,
-          heading: 45,
-        };
-        return { ...prevLocation, coords: newCoords, timestamp: Date.now() };
-      });
-    }, 2000);
-  };
-
   const stopNavigation = () => {
     console.log('Stopping navigation...');
     Speech.stop();
@@ -171,9 +148,6 @@ export const useLiveNavigation = ({ onReroute }: UseLiveNavigationProps) => {
     setCurrentStepIndex(0);
     if (locationSubscription.current) {
       locationSubscription.current.remove();
-    }
-    if (testInterval.current) {
-      clearInterval(testInterval.current);
     }
   };
   
@@ -193,7 +167,6 @@ export const useLiveNavigation = ({ onReroute }: UseLiveNavigationProps) => {
     traveledPath,
     remainingPath,
     startNavigation,
-    startTestNavigation,
     stopNavigation,
     updateRoute,
     currentStep,
