@@ -69,14 +69,14 @@
     "nativewind": "^4.1.23",
     "react": "19.1.0",
     "react-dom": "19.1.0",
-    "react-native": "0.81.4",
+    "react-native": "0.81.5",
     "react-native-gesture-handler": "~2.28.0",
     "react-native-live-audio-stream": "^1.1.1",
     "react-native-maps": "1.20.1",
     "react-native-modal": "^14.0.0-rc.1",
     "react-native-pager-view": "6.9.1",
     "react-native-permissions": "^5.4.1",
-    "react-native-reanimated": "~3.10.0",
+    "react-native-reanimated": "~4.1.1",
     "react-native-reanimated-carousel": "^4.0.2",
     "react-native-safe-area-context": "~5.6.0",
     "react-native-screens": "~4.16.0",
@@ -110,7 +110,7 @@
     "typescript": "~5.9.2"
   },
   "private": true,
-  "packageManager": "yarn@1.22.15+sha512.033a040f18f6e7a04e4bf8ea0d7037a63ca19a2e054410543206284c7238108b7612144492f1f4b283d512d9c3f8340825f53947d6ca85c6751fd97cccf59ea0",
+  "packageManager": "yarn@4.11.0",
   "resolutions": {
     "string-width": "^4.1.0"
   }
