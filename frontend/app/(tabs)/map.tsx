@@ -221,7 +221,7 @@ export default function Map() {
     userLocation: navUserLocation,
     traveledPath,
     remainingPath,
-    startTestNavigation,
+    startNavigation,
     stopNavigation,
     updateRoute,
     currentStep,
@@ -626,8 +626,8 @@ export default function Map() {
 
   const handleStartNavigation = (route: RouteInfo) => {
     if (location) {
-      console.log("--- Starting Test Navigation ---");
-      startTestNavigation(route, location.coords);
+      console.log("--- Starting Real Navigation ---");
+      startNavigation(route);
       // 清除 POI 選擇和 callout
       setSelectedPoiType(null);
       setCalloutVisible(null);
