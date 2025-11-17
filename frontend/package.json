@@ -95,6 +95,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.28.0",
+    "@expo/ngrok": "^4.1.0",
     "@types/nodemailer": "^6.4.17",
     "@types/react": "~19.1.10",
     "@types/react-native-push-notification": "^8.1.4",
