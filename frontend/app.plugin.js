@@ -5,14 +5,7 @@ module.exports = function withSafiiNativeTweaks(config) {
   return withPodfile(config, (config) => {
     let contents = config.modResults.contents;
 
-    // 1️⃣ 關掉 Fabric：在 ENV 區塊裡插入 RN_FABRIC_ENABLED
-    if (!contents.includes("RN_FABRIC_ENABLED")) {
-      contents = contents.replace(
-        `ENV['RCT_NEW_ARCH_ENABLED'] ||= '0' if podfile_properties['newArchEnabled'] == 'false'`,
-        `ENV['RCT_NEW_ARCH_ENABLED'] ||= '0' if podfile_properties['newArchEnabled'] == 'false'
-ENV['RN_FABRIC_ENABLED'] = '0'  # SAFII: Disable Fabric to avoid folly/coro issues`
-      );
-    }
+    // Fabric is now enabled for Reanimated, so the explicit disable has been removed.
 
     // 2️⃣（如果你還想保留原本的 SAFII Patch for use_frameworks，可以在這裡接著塞）
     // 例如：
