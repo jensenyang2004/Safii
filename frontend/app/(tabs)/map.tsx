@@ -12,6 +12,7 @@ import {
   Image,
   Animated,
 } from 'react-native';
+
 // 直接使用 Image 组件，不需要导入 SVG
 import Constants from "expo-constants";
 import React, { useEffect, useState, useRef } from 'react';
