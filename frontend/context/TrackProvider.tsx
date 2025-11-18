@@ -709,14 +709,19 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
 
       // --- CRITICAL: Only stop tracking if it is NOT an emergency ---
       if (!isEmergency) {
-        if (await Location.hasStartedLocationUpdatesAsync(BACKGROUND_LOCATION_TASK)) {
-          await Location.stopLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
-          console.log('✅ Background location tracking stopped for safe shutdown.');
-        }
-        if (foregroundWatcher) {
-          foregroundWatcher.remove();
-          setForegroundWatcher(null);
-          console.log('✅ Foreground location watcher stopped for safe shutdown.');
+        const normalSessionId = await AsyncStorage.getItem('active_sharing_session_doc_id');
+        if (normalSessionId) {
+          console.log('Emergency mode stopped, but leaving background task running for normal sharing session.');
+        } else {
+          if (await Location.hasStartedLocationUpdatesAsync(BACKGROUND_LOCATION_TASK)) {
+            await Location.stopLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
+            console.log('✅ Background location tracking stopped for safe shutdown.');
+          }
+          if (foregroundWatcher) {
+            foregroundWatcher.remove();
+            setForegroundWatcher(null);
+            console.log('✅ Foreground location watcher stopped for safe shutdown.');
+          }
         }
         if (modeId) {
           const modeRef = doc(db, 'TrackingMode', modeId);
