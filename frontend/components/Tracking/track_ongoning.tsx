@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTracking } from '@/context/TrackProvider';
+import { useFriendSharing } from '@/hooks/useFriendSharing';
 import { BlurView } from 'expo-blur';
 import { uiParameters } from '../../constants/Theme';
 
@@ -15,6 +16,7 @@ interface TrackingMode {
 
 const Card_ongoing = ({ trackingMode }: { trackingMode: TrackingMode }) => {
   const { stopTrackingMode, currentStrike, nextCheckInTime } = useTracking();
+  const { createSharingSession } = useFriendSharing();
 
   const [remainingTime, setRemainingTime] = React.useState(0);
 
@@ -33,6 +35,15 @@ const Card_ongoing = ({ trackingMode }: { trackingMode: TrackingMode }) => {
       setRemainingTime(0);
     }
   }, [nextCheckInTime]);
+
+  const handleShareImmediate = () => {
+    const emergencyContactIds = trackingMode.contacts.map(contact => contact.id);
+    if (emergencyContactIds.length > 0) {
+      createSharingSession(emergencyContactIds);
+    } else {
+      Alert.alert("No Contacts", "This tracking mode has no emergency contacts to share with.");
+    }
+  };
 
   const totalDuration = trackingMode.checkIntervalMinutes * 60;
   const progressPercentage = totalDuration > 0 ? ((totalDuration - remainingTime) / totalDuration) * 100 : 0;
@@ -87,6 +98,7 @@ const Card_ongoing = ({ trackingMode }: { trackingMode: TrackingMode }) => {
             {/* Location Button */}
             <TouchableOpacity
               style={[styles.iconButton, { backgroundColor: uiParameters.buttons.locationShare.default.background }]}
+              onPress={handleShareImmediate}
             >
               <Ionicons name="location-sharp" size={24} color={uiParameters.buttons.locationShare.default.icon} />
             </TouchableOpacity>

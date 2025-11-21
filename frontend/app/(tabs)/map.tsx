@@ -25,11 +25,12 @@ import MapCarousel from '@/components/Map/carousel';
 import ToolCard from '@/components/Safety_tools/tools_card';
 import { useTracking } from '@/context/TrackProvider';
 import { useEmergencyListener } from '@/hooks/useEmergencyListener';
+import { useFriendSharing } from '@/hooks/useFriendSharing';
 import EmergencyList from '@/components/Emergency/EmergencyList';
 import EmergencyInfoModal from '@/components/Emergency/EmergencyInfoModal';
 import LocationSentCard from '@/components/Tracking/LocationSentCard';
 import SharingSessionCard from '@/components/Tracking/SharingSessionCard';
-import EmergencyContactMarker from '@/components/Map/EmergencyContactMarker';
+import AvatarMarker from '@/components/Map/AvatarMarker';
 import { EmergencyBubble } from '@/components/Emergency/EmergencyBubbles';
 import { decodePolyline } from '@/utils/polyline';
 
@@ -77,6 +78,7 @@ export default function Map() {
 
   const { trackingModes, isTracking, trackingModeId, isReportDue, isInfoSent, stopTrackingMode } = useTracking();
   const { emergencyData: emergencies } = useEmergencyListener();
+  const { sharedByFriends } = useFriendSharing();
   const [showToolCard, setShowToolCard] = useState(false);
   const [selectedEmergency, setSelectedEmergency] = useState<EmergencyData | null>(null);
   const [bottomComponentHeight, setBottomComponentHeight] = useState(0);
@@ -795,9 +797,26 @@ export default function Map() {
             }}
             onPress={() => handleSelectEmergency(emergency)}
           >
-            <EmergencyContactMarker
-              trackedUserName={emergency.trackedUserName}
+            <AvatarMarker
+              userName={emergency.trackedUserName}
               avatarUrl={emergency.trackedUserAvatarUrl}
+              outlineColor="red"
+            />
+          </Marker>
+        ))}
+
+        {sharedByFriends && sharedByFriends.map(friend => (
+          <Marker
+            key={friend.sessionId}
+            coordinate={{
+              latitude: friend.lat,
+              longitude: friend.long,
+            }}
+          >
+            <AvatarMarker
+              userName={friend.sharingUserName}
+              avatarUrl={friend.sharingUserAvatarUrl}
+              outlineColor="white"
             />
           </Marker>
         ))}
