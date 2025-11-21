@@ -21,9 +21,11 @@ module.exports = {
     // --- iOS 設定 ---
     ios: {
       bundleIdentifier: "com.nightbase.firebase",
+      buildNumber: "2", 
       supportsTablet: true,
       config: {
-        googleMapsApiKey: "AIzaSyDeiltvsroXFIU0YWpNVnphyxv0V60_wTM" // Hardcoded for safety as per your request
+        googleMapsApiKey: "AIzaSyDeiltvsroXFIU0YWpNVnphyxv0V60_wTM",
+        usesNonExemptEncryption: false
       },
       googleServicesFile: "./GoogleService-Info.plist",
       infoPlist: {

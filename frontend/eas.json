@@ -24,5 +24,12 @@
         "resourceClass": "m-medium"
       }
     }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "appleId": "safiihsu@gmail.com"
+      }
+    }
   }
 }

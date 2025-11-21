@@ -498,8 +498,8 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
       const modeRef = doc(db, 'TrackingMode', modeId);
       await updateDoc(modeRef, { On: true });
 
-      const sessionMs = sessionMinutes * 3 * 1000;
-      // const sessionMs = sessionMinutes * 60 * 1000;
+      
+      const sessionMs = sessionMinutes * 60 * 1000i;
       const reductionMs = reductionMinutes * 60 * 1000;
       const reportMs = 3 * 60 * 1000;
       const startTime = Date.now();
@@ -884,18 +884,14 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
     };
   }, [user]);
 
-  const createTrackingMode = async (newMode: Omit<TrackingMode, 'id' | 'userId' | 'On'>) => {
+  const createTrackingMode = async (newMode: any) => {
     if (!user?.uid) {
       Alert.alert('Error', 'User not authenticated.');
       return;
     }
     try {
       const trackingModeCollection = collection(db, 'TrackingMode');
-      await addDoc(trackingModeCollection, {
-        ...newMode,
-        userId: user.uid,
-        On: false,
-      });
+      await addDoc(trackingModeCollection, newMode);
       // Refetch tracking modes to update the list
       // No need to call fetchTrackingModesWithContacts here, onSnapshot will handle it
     } catch (error) {
