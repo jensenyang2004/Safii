@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { View, Text, TextInput, Switch, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons'; // Added Ionicons import
+import * as Theme from '@/constants/Theme';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/libs/firebase';
 import { useAuth } from '@/context/AuthProvider';
@@ -11,18 +12,25 @@ import { router } from 'expo-router';
 import { useTracking } from '@/context/TrackProvider';
 
 async function handleCreateAndPickContacts(userUid: string, fields: any) {
-    // 1) 先建空殼
+    // Persist a full TrackingMode document, then navigate to select contacts
     const docRef = await addDoc(collection(db, 'TrackingMode'), {
         userId: userUid,
         name: fields.name,
         On: fields.on ?? false,
-        autoStart: fields.autoStart ?? true,
+        autoStart: fields.autoStart ?? false,
+        checkIntervalMinutes: Number(fields.checkIntervalMinutes) || 5,
+        unresponsiveThreshold: Number(fields.unresponsiveThreshold) || 3,
+        intervalReductionMinutes: Number(fields.intervalReductionMinutes) || 1,
+        startTime: {
+          dayOfWeek: fields.dayOfWeek ? [fields.dayOfWeek] : [],
+          time: fields.startTime || '00:00',
+        },
         emergencyContactIds: [],
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
     });
 
-    // 2) 帶著 modeId 去選人
+    // Navigate to contact picker with the new mode id
     router.push({ pathname: '/tracking-mode/select-contacts', params: { modeId: docRef.id } });
 }
 
@@ -33,8 +41,7 @@ export default function CreateTrackingModeScreen() {
 
     // 基本欄位（可依你的 schema 調整）
     const [name, setName] = useState('');
-    const [autoStart, setAutoStart] = useState(true);
-    const [on, setOn] = useState(false);
+    // `On` and `autoStart` are no longer configurable at creation time
     const [checkIntervalMinutes, setCheckIntervalMinutes] = useState('5');          // string → 存檔時轉 number
     const [unresponsiveThreshold, setUnresponsiveThreshold] = useState('3');        // string → 存檔時轉 number
     const [intervalReductionMinutes, setIntervalReductionMinutes] = useState('1');  // string → 存檔時轉 number
@@ -89,11 +96,9 @@ export default function CreateTrackingModeScreen() {
 
 
         saving.current = true;
-        const newMode = {
+            const newMode = {
             name: name.trim(),
             userId: user.uid,
-            On: on,
-            autoStart,
             checkIntervalMinutes: Number(checkIntervalMinutes) || 5,
             unresponsiveThreshold: Number(unresponsiveThreshold) || 3,
             intervalReductionMinutes: Number(intervalReductionMinutes) || 1,
@@ -104,6 +109,7 @@ export default function CreateTrackingModeScreen() {
             emergencyContactIds: [],
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
+            On: false, // default to false on creation
         };
 
         try {
@@ -124,7 +130,7 @@ export default function CreateTrackingModeScreen() {
                 <TouchableOpacity onPress={() => router.back()} style={{ position: 'absolute', left: 16, top: 8 }}>
                     <Ionicons name="arrow-back" size={24} color="#111827" />
                 </TouchableOpacity>
-                <Text style={styles.title}>建立 Tracking 模式</Text>
+                <Text style={styles.title}>建立追蹤模式</Text>
                 <Text style={styles.sub}>填寫模式名稱與基本參數</Text>
             </View>
 
@@ -139,15 +145,7 @@ export default function CreateTrackingModeScreen() {
                 />
             </View>
 
-            <View style={styles.row}>
-                <Text style={styles.label}>啟用中</Text>
-                <Switch value={on} onValueChange={setOn} />
-            </View>
-
-            <View style={styles.row}>
-                <Text style={styles.label}>自動開始</Text>
-                <Switch value={autoStart} onValueChange={setAutoStart} />
-            </View>
+            {/* `On` and `autoStart` removed from creation UI; frontend controls activation */}
 
             <View style={styles.inline}>
                 <View style={styles.inlineItem}>
@@ -169,7 +167,7 @@ export default function CreateTrackingModeScreen() {
                     />
                 </View>
                 <View style={styles.inlineItem}>
-                    <Text style={styles.labelSmall}>縮短間隔(分)</Text>
+                    <Text style={styles.labelSmall}>回報到數間隔(分)</Text>
                     <TextInput
                         style={styles.input}
                         keyboardType="number-pad"
@@ -203,6 +201,31 @@ export default function CreateTrackingModeScreen() {
             {/* <TouchableOpacity onPress={() => handleCreateAndPickContacts(user.uid, formValues)}>
                 <Text>建立並選擇聯絡人</Text>
             </TouchableOpacity> */}
+            <TouchableOpacity style={[styles.saveBtn, { backgroundColor: Theme.tracking_colors.coralRed, marginBottom: 8 }]} onPress={async () => {
+                if (saving.current) return;
+                if (!user?.uid) { Alert.alert('錯誤', '尚未登入'); return; }
+                if (!name.trim()) { Alert.alert('請輸入模式名稱'); return; }
+                saving.current = true;
+                try {
+                    await handleCreateAndPickContacts(user.uid, {
+                        name: name.trim(),
+                        on: false,
+                        autoStart: false,
+                        checkIntervalMinutes,
+                        unresponsiveThreshold,
+                        intervalReductionMinutes,
+                        dayOfWeek,
+                        startTime,
+                    });
+                } catch (e) {
+                    console.error('Failed to create and pick contacts', e);
+                    Alert.alert('錯誤', '建立失敗，請稍後再試');
+                } finally {
+                    saving.current = false;
+                }
+            }}>
+                <Text style={[styles.saveText, { fontWeight: '700' }]}>建立並選擇聯絡人</Text>
+            </TouchableOpacity>
             <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
                 <Text style={styles.saveText}>儲存</Text>
             </TouchableOpacity>

@@ -1,6 +1,6 @@
 // app/(tabs)/home.tsx
 
-import { ActivityIndicator, View, Text, Pressable, Alert, StyleSheet, Image, FlatList, TouchableOpacity, RefreshControl, ScrollView, Dimensions } from 'react-native';
+import { ActivityIndicator, View, Text, Pressable, Alert, StyleSheet, FlatList, TouchableOpacity, RefreshControl, ScrollView, Dimensions } from 'react-native';
 
 import { useEffect, useCallback, useMemo, useState } from 'react';
 import { router } from 'expo-router';
@@ -174,7 +174,7 @@ export default function HomeScreen() {
         </View>
 
         <View style={homeStyles.settingsRow}>
-          <Text style={homeStyles.settingsLabel}>無回應閾值 / 縮短間隔</Text>
+          <Text style={homeStyles.settingsLabel}>無回應閾值 / 回報倒數間隔</Text>
           <Text style={homeStyles.settingsValue}>
             {item.unresponsiveThreshold ?? '—'} 次 / {item.intervalReductionMinutes ?? '—'} 分
           </Text>
@@ -187,10 +187,10 @@ export default function HomeScreen() {
 
         <View style={{ flexDirection: 'row', marginTop: 10 }}>
           <TouchableOpacity
-            style={homeStyles.settingsSmallBtn}
-            onPress={() => router.push({ pathname: '/tracking-mode/select-contacts', params: { modeId: item.id } })}
+            style={[homeStyles.settingsSmallBtn, { backgroundColor: Theme.tracking_colors.coralRed }]}
+            onPress={() => router.push({ pathname: '/tracking-mode/edit', params: { modeId: item.id } })}
           >
-            <Text style={homeStyles.settingsSmallBtnText}>編輯聯絡人</Text>
+            <Text style={homeStyles.settingsSmallBtnText}>編輯模式</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -223,32 +223,11 @@ export default function HomeScreen() {
         {/* <View style={homeStyles.container}> */}
 
         <View style={homeStyles.headerContainer}>
-          <Pressable onPress={() => { }}>
-            {user?.avatarUrl ? (
-              <Image
-                source={{ uri: user.avatarUrl }}
-                style={homeStyles.avatar}
-              />
-            ) : (
-              <View style={[homeStyles.avatar, homeStyles.avatarPlaceholder]}>
-                <Text style={homeStyles.avatarPlaceholderText}>
-                  {user?.displayName?.[0] || user?.username?.[0] || 'U'}
-                </Text>
-              </View>
-            )}
-          </Pressable>
-
-          {/* for testiing onboarding, can be removed */}
-          {/* <Pressable onPress={() => { router.replace('/(onboarding)'); }} >
-
-        <Text>Edit Profile</Text>
-      </Pressable> */}
+          <ProfilePhotoUploader />
 
           <Text style={homeStyles.username}>
             {user?.displayName || user?.username || user?.nickname || user?.email || 'Unknown User'}
           </Text>
-
-          <ProfilePhotoUploader />
         </View>
 
         {/* Settings content starts here */}
@@ -256,7 +235,7 @@ export default function HomeScreen() {
           <View style={homeStyles.settingsHeader}>
 
             <Text style={homeStyles.settingsTitle}>設定</Text>
-            <Text style={homeStyles.settingsSub}>目前的 Tracking 模式</Text>
+            <Text style={homeStyles.settingsSub}>目前的追蹤模式</Text>
           </View>
 
           {settingsLoading ? (
@@ -268,7 +247,7 @@ export default function HomeScreen() {
             <>
               {modes.length === 0 ? (
                 <View style={homeStyles.settingsEmpty}>
-                  <Text style={homeStyles.settingsEmptyTitle}>尚未建立任何 Tracking 模式</Text>
+                  <Text style={homeStyles.settingsEmptyTitle}>尚未建立任何追蹤模式</Text>
                   <Text style={homeStyles.settingsDim}>點擊下方按鈕新增一個吧！</Text>
                 </View>
               ) : (
@@ -295,7 +274,7 @@ export default function HomeScreen() {
                 onPress={() => router.push('/tracking-mode/new')}
                 activeOpacity={0.8}
               >
-                <Text style={homeStyles.settingsPrimaryText}>+ 建立 Tracking 模式</Text>
+                <Text style={homeStyles.settingsPrimaryText}>+ 建立追蹤模式</Text>
               </TouchableOpacity>
             </>
           )}

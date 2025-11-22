@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Pressable, Text, Image, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, Pressable, Text, Image, StyleSheet, ActivityIndicator, Alert, Modal, TouchableOpacity } from 'react-native';
+import * as Theme from '@/constants/Theme';
 import * as ImagePicker from 'expo-image-picker';
 import { storage, db, auth } from '@/libs/firebase';
 import { ref, uploadBytesResumable, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -10,6 +11,7 @@ import { FontAwesome } from '@expo/vector-icons';
 export default function ProfilePhotoUploader() {
     const { user, fetchUserInfo } = useAuth();
     const [uploading, setUploading] = useState(false);
+    const [showOptions, setShowOptions] = useState(false);
 
     const pickImage = async () => {
         try {
@@ -112,17 +114,40 @@ export default function ProfilePhotoUploader() {
             {uploading ? (
                 <ActivityIndicator size="large" color="#1E40AF" />
             ) : (
-                <View style={styles.options}>
-                    <Pressable onPress={pickImage} style={styles.option}>
-                        <FontAwesome name="photo" size={24} color="#1E40AF" />
-                        <Text style={styles.optionText}>Choose Photo</Text>
+                <>
+                    <Pressable onPress={() => setShowOptions(true)} style={styles.avatarWrapper}>
+                        {user?.avatarUrl ? (
+                            <Image source={{ uri: user.avatarUrl }} style={styles.avatar} />
+                        ) : (
+                            <View style={[styles.avatar, styles.avatarPlaceholder]}>
+                                <Text style={styles.avatarInitial}>{(user?.displayName || user?.username || 'U')[0]}</Text>
+                            </View>
+                        )}
                     </Pressable>
 
-                    <Pressable onPress={takePhoto} style={styles.option}>
-                        <FontAwesome name="camera" size={24} color="#1E40AF" />
-                        <Text style={styles.optionText}>Take Photo</Text>
-                    </Pressable>
-                </View>
+                    <Modal
+                        visible={showOptions}
+                        animationType="fade"
+                        transparent
+                        onRequestClose={() => setShowOptions(false)}
+                    >
+                        <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={() => setShowOptions(false)}>
+                            <View style={styles.modalContent}>
+                                <TouchableOpacity style={styles.modalButton} onPress={async () => { setShowOptions(false); await pickImage(); }}>
+                                    <FontAwesome name="photo" size={20} color="#1E40AF" />
+                                    <Text style={styles.modalButtonText}>選擇照片</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity style={styles.modalButton} onPress={async () => { setShowOptions(false); await takePhoto(); }}>
+                                    <FontAwesome name="camera" size={20} color="#1E40AF" />
+                                    <Text style={styles.modalButtonText}>拍照</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity style={[styles.modalButton, styles.modalCancel]} onPress={() => setShowOptions(false)}>
+                                    <Text style={[styles.modalButtonText, { color: '#374151' }]}>取消</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </TouchableOpacity>
+                    </Modal>
+                </>
             )}
         </View>
     );
@@ -147,5 +172,55 @@ const styles = StyleSheet.create({
     optionText: {
         marginTop: 5,
         color: '#1E40AF',
+    }
+    ,
+    avatarWrapper: {
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    avatar: {
+        width: 120,
+        height: 120,
+        borderRadius: 60,
+        borderWidth: 3,
+        borderColor: Theme.tracking_colors.coralRed,
+        backgroundColor: '#E5E7EB',
+    },
+    avatarPlaceholder: {
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    avatarInitial: {
+        fontSize: 48,
+        color: '#6B7280',
+        fontWeight: '700',
+    },
+    modalBackdrop: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.3)',
+        justifyContent: 'flex-end',
+    },
+    modalContent: {
+        backgroundColor: '#fff',
+        padding: 16,
+        borderTopLeftRadius: 12,
+        borderTopRightRadius: 12,
+    },
+    modalButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 12,
+        paddingHorizontal: 8,
+        gap: 12,
+    },
+    modalButtonText: {
+        marginLeft: 12,
+        fontSize: 16,
+        color: '#1E40AF',
+    },
+    modalCancel: {
+        marginTop: 8,
+        borderTopWidth: 1,
+        borderTopColor: '#f3f4f6',
     }
 });

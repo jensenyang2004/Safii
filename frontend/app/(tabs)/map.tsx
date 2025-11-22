@@ -308,7 +308,6 @@ export default function Map() {
 
   // const styles = createStyles(tabBarHeight, selectedPoliceStation !== null, destinationInfo !== null);
   // createStyles expects (tabBarHeight, hasPoliceStation, hasLocation)
-
   const styles = createStyles(bottomComponentHeight, tabBarHeight, selectedPoliceStation !== null, destinationInfo !== null);
 
 
@@ -536,6 +535,7 @@ export default function Map() {
           name={mode.name}
           contacts={mode.contacts.map((c: any) => ({ id: c.id, name: c.username, url: 'none' }))}
           checkIntervalMinutes={mode.checkIntervalMinutes}
+          intervalReductionMinutes={mode.intervalReductionMinutes}
         />
       ),
     }));

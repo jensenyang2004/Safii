@@ -11,17 +11,18 @@ type TrackModeCardProps = {
   name: string;
   contacts: { id: string; url: any; name: string }[];
   checkIntervalMinutes: number;
+  intervalReductionMinutes: number;
 };
 
-export default function TrackModeCard({ id, name, contacts, checkIntervalMinutes }: TrackModeCardProps) {
+export default function TrackModeCard({ id, name, contacts, checkIntervalMinutes, intervalReductionMinutes }: TrackModeCardProps) {
   const { startTrackingMode } = useTracking();
 
   const visibleContacts = contacts.slice(0, 3);
   const moreCount = contacts.length - visibleContacts.length;
   const hasContacts = contacts && contacts.length > 0;
 
-  // Default reduction minutes for now, ideally this comes from tracking mode config
-  const defaultReductionMinutes = 3;
+  // Use reduction minutes from the mode config (passed in). Fallback to 3 if missing.
+  const defaultReductionMinutes = intervalReductionMinutes ?? 3;
 
   return (
     <View style={styles.shadowContainer}>
@@ -44,6 +45,8 @@ export default function TrackModeCard({ id, name, contacts, checkIntervalMinutes
                 開啟{name}模式
               </Text>
           </TouchableOpacity>
+
+          {/* Edit button removed — edit flow moved to Home */}
 
           {/* Avatars Row */}
           {hasContacts && (

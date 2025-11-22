@@ -51,7 +51,8 @@ type TrackingContextType = {
   startTrackingMode: (modeId: any, sessionMinutes: number, reductionMinutes: number) => Promise<void>;
   stopTrackingMode: (options?: { isEmergency: boolean }) => Promise<void>;
   reportSafety: () => Promise<void>;
-  createTrackingMode: (newMode: Omit<TrackingMode, 'id' | 'userId' | 'On'>) => Promise<void>;
+  createTrackingMode: (newMode: Omit<TrackingMode, 'id' | 'userId'>) => Promise<void>;
+  updateTrackingMode: (modeId: string, updates: Partial<TrackingMode>) => Promise<void>;
   deleteTrackingMode: (modeId: string) => Promise<void>;
   isTracking: boolean;
   trackingModeId: string | null;
@@ -496,12 +497,19 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
     }
     try {
       const modeRef = doc(db, 'TrackingMode', modeId);
-      await updateDoc(modeRef, { On: true });
+      // Mark mode as On in Firestore so the mode's state is consistent with the frontend
+      try {
+        await updateDoc(modeRef, { On: true });
+        console.log('✅ Set TrackingMode.On = true in Firestore');
+      } catch (e) {
+        console.warn('Could not update TrackingMode.On to true:', e);
+      }
 
       // const sessionMs = sessionMinutes * 3 * 1000;
       const sessionMs = sessionMinutes * 60 * 1000;
       const reductionMs = reductionMinutes * 60 * 1000;
       const reportMs = 3 * 60 * 1000;
+      // const reportMs= reductionMinutes * 60 * 1000;
       const startTime = Date.now();
 
       const activeMode = trackingModes.find(mode => mode.id === modeId);
@@ -631,7 +639,8 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
 
       const sessionMs = initialSessionMinutesStr ? parseInt(initialSessionMinutesStr) * 60 * 1000 : 30 * 60 * 1000;
       const reductionMs = initialReductionMinutesStr ? parseInt(initialReductionMinutesStr) * 60 * 1000 : 10 * 60 * 1000;
-      const reportMs = 3 * 60 * 1000;
+      const reportMs = 1 * 60 * 1000;
+      // const reportMs = 3 * 60 * 1000;
       const newStartTime = Date.now();
       const strikeThreshold = unresponsiveThresholdStr ? parseInt(unresponsiveThresholdStr) : 3; // Default to 3 if not found
 
@@ -723,7 +732,16 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
             console.log('✅ Foreground location watcher stopped for safe shutdown.');
           }
         }
-        // Do not update DB `On` flag; frontend controls active state locally.
+        // Update the TrackingMode document to mark it as Off (frontend requested this behavior)
+        try {
+          if (modeId) {
+            const modeRef = doc(db, 'TrackingMode', modeId);
+            await updateDoc(modeRef, { On: false });
+            console.log('✅ Set TrackingMode.On = false in Firestore');
+          }
+        } catch (e) {
+          console.warn('Could not update TrackingMode.On to false:', e);
+        }
       } else {
         console.log('🚨 Emergency active: Background location tracking will CONTINUE.');
       }
@@ -892,8 +910,11 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
     }
     try {
       const trackingModeCollection = collection(db, 'TrackingMode');
+      // Persist the mode, defaulting `On` to false if not provided.
+      const { On, ...rest } = newMode as any;
       await addDoc(trackingModeCollection, {
-        ...newMode,
+        ...rest,
+        On: On ?? false,
         userId: user.uid,
       });
       // Refetch tracking modes to update the list
@@ -916,6 +937,40 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
     }
   };
 
+  const updateTrackingMode = async (modeId: string, updates: Partial<TrackingMode>) => {
+    if (!user?.uid) {
+      Alert.alert('Error', 'User not authenticated.');
+      return;
+    }
+    try {
+      const allowedFields = [
+        'name',
+        'checkIntervalMinutes',
+        'unresponsiveThreshold',
+        'intervalReductionMinutes',
+        'startTime',
+        'emergencyContactIds',
+        'On',
+        'autoStart',
+      ];
+
+      const payload: Record<string, any> = {};
+      Object.keys(updates).forEach((key) => {
+        if (allowedFields.includes(key)) {
+          payload[key] = (updates as any)[key];
+        }
+      });
+      payload.updatedAt = serverTimestamp();
+
+      const modeRef = doc(db, 'TrackingMode', modeId);
+      await updateDoc(modeRef, payload);
+      console.log(`✅ Updated TrackingMode ${modeId} with`, payload);
+    } catch (error) {
+      console.error('Error updating tracking mode:', error);
+      Alert.alert('Error', 'Failed to update tracking mode.');
+    }
+  };
+
   return (
     <TrackingContext.Provider value={{
       trackingModes,
@@ -923,8 +978,9 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
       startTrackingMode,
       stopTrackingMode,
       reportSafety,
-      createTrackingMode, // Expose the new function
-      deleteTrackingMode, // Expose the delete function
+    createTrackingMode, // Expose the new function
+    updateTrackingMode,
+    deleteTrackingMode, // Expose the delete function
       isTracking,
       trackingModeId,
       timeline,
