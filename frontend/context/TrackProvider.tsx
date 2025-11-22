@@ -190,8 +190,8 @@ type TrackingMode = {
   id: string;
   name: string;
   userId: string;
-  On: boolean;
-  autoStart: boolean;
+  On?: boolean;
+  autoStart?: boolean;
   checkIntervalMinutes: number;
   unresponsiveThreshold: number;
   intervalReductionMinutes: number;
@@ -498,8 +498,8 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
       const modeRef = doc(db, 'TrackingMode', modeId);
       await updateDoc(modeRef, { On: true });
 
-      
-      const sessionMs = sessionMinutes * 60 * 1000i;
+      // const sessionMs = sessionMinutes * 3 * 1000;
+      const sessionMs = sessionMinutes * 60 * 1000;
       const reductionMs = reductionMinutes * 60 * 1000;
       const reportMs = 3 * 60 * 1000;
       const startTime = Date.now();
@@ -723,11 +723,7 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
             console.log('✅ Foreground location watcher stopped for safe shutdown.');
           }
         }
-        if (modeId) {
-          const modeRef = doc(db, 'TrackingMode', modeId);
-          await updateDoc(modeRef, { On: false });
-          console.log('✅ TrackingMode set to OFF.');
-        }
+        // Do not update DB `On` flag; frontend controls active state locally.
       } else {
         console.log('🚨 Emergency active: Background location tracking will CONTINUE.');
       }
@@ -889,14 +885,17 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
     };
   }, [user]);
 
-  const createTrackingMode = async (newMode: any) => {
+  const createTrackingMode = async (newMode: Omit<TrackingMode, 'id' | 'userId'>) => {
     if (!user?.uid) {
       Alert.alert('Error', 'User not authenticated.');
       return;
     }
     try {
       const trackingModeCollection = collection(db, 'TrackingMode');
-      await addDoc(trackingModeCollection, newMode);
+      await addDoc(trackingModeCollection, {
+        ...newMode,
+        userId: user.uid,
+      });
       // Refetch tracking modes to update the list
       // No need to call fetchTrackingModesWithContacts here, onSnapshot will handle it
     } catch (error) {

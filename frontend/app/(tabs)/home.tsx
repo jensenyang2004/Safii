@@ -18,8 +18,8 @@ type TrackingMode = {
   id: string;
   name: string;
   userId: string;
-  On: boolean;
-  autoStart: boolean;
+  On?: boolean;
+  autoStart?: boolean;
   checkIntervalMinutes: number;
   unresponsiveThreshold: number;
   intervalReductionMinutes: number;

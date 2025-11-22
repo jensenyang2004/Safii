@@ -144,6 +144,11 @@ export default function CreateTrackingModeScreen() {
                 <Switch value={on} onValueChange={setOn} />
             </View>
 
+            <View style={styles.row}>
+                <Text style={styles.label}>自動開始</Text>
+                <Switch value={autoStart} onValueChange={setAutoStart} />
+            </View>
+
             <View style={styles.inline}>
                 <View style={styles.inlineItem}>
                     <Text style={styles.labelSmall}>檢查間隔(分)</Text>
