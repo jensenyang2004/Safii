@@ -83,10 +83,10 @@ export default function EditTrackingModeScreen() {
           <Text style={styles.labelSmall}>無回應閾值</Text>
           <TextInput style={styles.input} keyboardType="number-pad" value={unresponsiveThreshold} onChangeText={setUnresponsiveThreshold} />
         </View>
-        <View style={styles.inlineItem}>
+        {/* <View style={styles.inlineItem}>
           <Text style={styles.labelSmall}>回報到數間隔(分)</Text>
           <TextInput style={styles.input} keyboardType="number-pad" value={intervalReductionMinutes} onChangeText={setIntervalReductionMinutes} />
-        </View>
+        </View> */}
       </View>
 
       

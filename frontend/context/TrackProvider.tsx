@@ -89,7 +89,7 @@ Notifications.setNotificationHandler({
       console.log(`❌ Missed report ${data.strike} - Starting next session`);
       await handleMissedReport(data.strike);
     }
-    
+
     return {
       shouldShowAlert: true,
       shouldPlaySound: true,
@@ -137,7 +137,7 @@ const updateLocationInFirestore = async (location: Location.LocationObject, user
     const updateTime = new Date(location.timestamp);
 
     console.log('📍 Location Update:', { latitude, longitude, timestamp: updateTime.toISOString() });
-    
+
     const userDocRef = doc(db, 'users', userId);
     await setDoc(userDocRef, {}, { merge: true });
 
@@ -277,7 +277,7 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
       if (timelineStr && isActiveStr === 'true' && startTimeStr) {
         const timeline: TimelineEvent[] = JSON.parse(timelineStr);
         const now = Date.now();
-        
+
         const finalEvent = timeline[timeline.length - 1];
         const unresponsiveThresholdStr = await AsyncStorage.getItem(STORAGE_KEYS.UNRESPONSIVE_THRESHOLD);
         const strikeThreshold = unresponsiveThresholdStr ? parseInt(unresponsiveThresholdStr) : 3; // Default to 3
@@ -290,7 +290,7 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
           setIsInfoSent(false);
         }
 
-        
+
 
         let currentStrikeCount = 0;
         for (const event of timeline) {
@@ -298,7 +298,7 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
             currentStrikeCount = event.strike;
           }
         }
-        
+
         console.log(`🔄 Resumed session. Re-calculated strikes: ${currentStrikeCount}`);
 
         await AsyncStorage.setItem(STORAGE_KEYS.CURRENT_STRIKE, currentStrikeCount.toString());
@@ -331,7 +331,7 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
         } else {
           setNextCheckInTime(null);
         }
-        
+
         console.log('📱 Resumed existing tracking session and reconciled state.');
       } else {
         setIsActive(false);
@@ -396,17 +396,17 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
   }, [isTracking, isReportDue, nextCheckInTime, reportDeadline, timeline]);
 
 
-  const calculateFullTimeline = ( 
-    startTime: number, 
-    sessionDurationMs: number, 
-    reportDurationMs: number, 
+  const calculateFullTimeline = (
+    startTime: number,
+    sessionDurationMs: number,
+    reportDurationMs: number,
     reductionMs: number,
-    strikeThreshold: number 
+    strikeThreshold: number
   ): TimelineEvent[] => {
     const timeline: TimelineEvent[] = [];
     let currentTime = startTime;
     let currentSessionDuration = sessionDurationMs;
-    
+
     for (let strike = 0; strike < strikeThreshold; strike++) {
       const sessionEndTime = currentTime + currentSessionDuration;
       const reportDeadlineTime = sessionEndTime + reportDurationMs;
@@ -436,7 +436,7 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
 
   const scheduleAllNotifications = async (timeline: TimelineEvent[]): Promise<string[]> => {
     const notificationIds: string[] = [];
-    
+
     for (const event of timeline) {
       const now = Date.now();
       if (event.time <= now) {
@@ -446,7 +446,7 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
       let title: string, body: string;
       if (event.type === 'session_end') {
         title = `⏰ 請回報安全`;
-        body = '請在三分鐘內回報安全狀態';
+        body = '請在一分鐘內回報安全狀態';
       } else if (event.type === 'missed_report') {
         if (event.strike < (event.strikeThreshold ?? 3)) {
           title = `⚠️ 錯過安全回報`;
@@ -505,10 +505,10 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
         console.warn('Could not update TrackingMode.On to true:', e);
       }
 
-      // const sessionMs = sessionMinutes * 3 * 1000;
-      const sessionMs = sessionMinutes * 60 * 1000;
+      const sessionMs = sessionMinutes * 3 * 1000;
+      // const sessionMs = sessionMinutes * 60 * 1000;
       const reductionMs = reductionMinutes * 60 * 1000;
-      const reportMs = 3 * 60 * 1000;
+      const reportMs = 1 * 10 * 1000;
       // const reportMs= reductionMinutes * 60 * 1000;
       const startTime = Date.now();
 
@@ -522,10 +522,10 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
       const strikeThreshold = activeMode.unresponsiveThreshold; // Get the value from the DB
 
       console.log('🚀 Starting tracking with pre-calculated timeline...');
-      
+
       const calculatedTimeline = calculateFullTimeline(startTime, sessionMs, reportMs, reductionMs, strikeThreshold);
       const notificationIds = await scheduleAllNotifications(calculatedTimeline);
-      
+
       const finalEvent = calculatedTimeline[calculatedTimeline.length - 1];
       if (finalEvent) {
         const emergencyActivationTime = Timestamp.fromMillis(finalEvent.time);
@@ -552,7 +552,7 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
         await AsyncStorage.setItem(STORAGE_KEYS.ACTIVE_TRACKING_DOC_ID, trackingDocRef.id);
         console.log("✅ Dead man's switch set in Firestore.");
       }
-      
+
       await AsyncStorage.setItem(STORAGE_KEYS.TIMELINE, JSON.stringify(calculatedTimeline));
       await AsyncStorage.setItem(STORAGE_KEYS.IS_ACTIVE, 'true');
       await AsyncStorage.setItem(STORAGE_KEYS.START_TIME, startTime.toString());
@@ -564,7 +564,7 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
       await AsyncStorage.setItem(STORAGE_KEYS.CURRENT_USER_ID, user.uid);
       await AsyncStorage.setItem(STORAGE_KEYS.EMERGENCY_CONTACT_IDS, JSON.stringify(emergencyContactIds));
       await AsyncStorage.setItem(STORAGE_KEYS.UNRESPONSIVE_THRESHOLD, strikeThreshold.toString());
-      
+
       setTimeline(calculatedTimeline);
       setIsTracking(true);
       setCurrentStrike(0);
@@ -576,7 +576,7 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
       } else {
         setNextCheckInTime(null);
       }
-      
+
       console.log('✅ Tracking started with full timeline pre-calculated');
 
       // NEW CONDITIONAL LOGIC
@@ -623,7 +623,7 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
     if (!user?.uid) return;
     try {
       console.log('✅ USER REPORTED SAFETY!');
-      
+
       const notificationIdsStr = await AsyncStorage.getItem(STORAGE_KEYS.NOTIFICATION_IDS);
       if (notificationIdsStr) {
         const notificationIds = JSON.parse(notificationIdsStr);
@@ -647,27 +647,27 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
       console.log('🔄 Recalculating timeline from current time...');
       const newTimeline = calculateFullTimeline(newStartTime, sessionMs, reportMs, reductionMs, strikeThreshold);
       const newNotificationIds = await scheduleAllNotifications(newTimeline);
-      
+
       const newFinalEvent = newTimeline[newTimeline.length - 1];
       if (newFinalEvent) {
-          const trackingDocId = await AsyncStorage.getItem(STORAGE_KEYS.ACTIVE_TRACKING_DOC_ID);
-          if (trackingDocId) {
-            const newEmergencyActivationTime = Timestamp.fromMillis(newFinalEvent.time);
-            const trackingDocRef = doc(db, 'active_tracking', trackingDocId);
-            await updateDoc(trackingDocRef, {
-                emergencyActivationTime: newEmergencyActivationTime,
-                lastUpdateTime: serverTimestamp()
-            });
-            console.log("✅ Dead man's switch updated in Firestore.");
-          }
+        const trackingDocId = await AsyncStorage.getItem(STORAGE_KEYS.ACTIVE_TRACKING_DOC_ID);
+        if (trackingDocId) {
+          const newEmergencyActivationTime = Timestamp.fromMillis(newFinalEvent.time);
+          const trackingDocRef = doc(db, 'active_tracking', trackingDocId);
+          await updateDoc(trackingDocRef, {
+            emergencyActivationTime: newEmergencyActivationTime,
+            lastUpdateTime: serverTimestamp()
+          });
+          console.log("✅ Dead man's switch updated in Firestore.");
+        }
       }
-      
+
       await AsyncStorage.setItem(STORAGE_KEYS.TIMELINE, JSON.stringify(newTimeline));
       await AsyncStorage.setItem(STORAGE_KEYS.START_TIME, newStartTime.toString());
       await AsyncStorage.setItem(STORAGE_KEYS.CURRENT_STRIKE, '0');
       await AsyncStorage.setItem(STORAGE_KEYS.NOTIFICATION_IDS, JSON.stringify(newNotificationIds));
       await AsyncStorage.removeItem(STORAGE_KEYS.REPORT_DEADLINE);
-      
+
       setTimeline(newTimeline);
       setCurrentStrike(0);
       setIsReportDue(false);
@@ -680,7 +680,7 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
       } else {
         setNextCheckInTime(null);
       }
-      
+
       await Notifications.scheduleNotificationAsync({
         content: {
           title: '✅ Safety Reported',
@@ -767,7 +767,7 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
       } else {
         await AsyncStorage.multiRemove(keys);
       }
-      
+
       setIsTracking(false);
       setTrackingModeId(null);
       setTimeline([]);
@@ -775,9 +775,9 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
       setIsReportDue(false);
       setReportDeadline(null);
       setNextCheckInTime(null);
-      
+
       console.log('🛑 Tracking stopped and local state cleared');
-      
+
     } catch (error) {
       console.error('❌ Error stopping tracking:', error);
     }
@@ -869,7 +869,7 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
               overallStatus: 'cancelled_by_sign_out'
             });
             console.log("✅ Dead man's switch deactivated in Firestore for sign-out.");
-          } catch(e) {
+          } catch (e) {
             console.error("Failed to update tracking doc on sign-out", e)
           }
         }
@@ -978,9 +978,9 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
       startTrackingMode,
       stopTrackingMode,
       reportSafety,
-    createTrackingMode, // Expose the new function
-    updateTrackingMode,
-    deleteTrackingMode, // Expose the delete function
+      createTrackingMode, // Expose the new function
+      updateTrackingMode,
+      deleteTrackingMode, // Expose the delete function
       isTracking,
       trackingModeId,
       timeline,
@@ -999,9 +999,9 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
 };
 
 export const useTracking = () => {
-    const context = useContext(TrackingContext);
-    if (!context) {
-      throw new Error('useTracking must be used within a TrackingProvider');
-    }
-    return context;
-  };
+  const context = useContext(TrackingContext);
+  if (!context) {
+    throw new Error('useTracking must be used within a TrackingProvider');
+  }
+  return context;
+};

@@ -20,7 +20,7 @@ const LocationSentCard: React.FC<LocationSentCardProps> = ({ onDismiss }) => {
         <Text style={styles.title}>已發送自動通報</Text>
 
         {/* Details */}
-        <Text style={styles.detail}>台北市大安區和平東路二段</Text>
+        <Text style={styles.detail}>活動地點：台北市大安區和平東路二段</Text>
         <Text style={styles.detail}>活動：平日下午班</Text>
         <Text style={styles.detail}>備註：走路從公司到家裡</Text>
 

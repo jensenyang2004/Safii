@@ -22,7 +22,8 @@ export default function TrackModeCard({ id, name, contacts, checkIntervalMinutes
   const hasContacts = contacts && contacts.length > 0;
 
   // Use reduction minutes from the mode config (passed in). Fallback to 3 if missing.
-  const defaultReductionMinutes = intervalReductionMinutes ?? 3;
+  // const defaultReductionMinutes = intervalReductionMinutes ?? 3;
+  const defaultReductionMinutes = 1;
 
   return (
     <View style={styles.shadowContainer}>

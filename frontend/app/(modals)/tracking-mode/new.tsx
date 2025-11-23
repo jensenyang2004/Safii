@@ -166,7 +166,7 @@ export default function CreateTrackingModeScreen() {
                         onChangeText={setUnresponsiveThreshold}
                     />
                 </View>
-                <View style={styles.inlineItem}>
+                {/* <View style={styles.inlineItem}>
                     <Text style={styles.labelSmall}>回報到數間隔(分)</Text>
                     <TextInput
                         style={styles.input}
@@ -174,7 +174,7 @@ export default function CreateTrackingModeScreen() {
                         value={intervalReductionMinutes}
                         onChangeText={setIntervalReductionMinutes}
                     />
-                </View>
+                </View> */}
             </View>
 
             {/* <View style={styles.inline}>
