@@ -8841,7 +8841,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"expo-speech@npm:~14.0.7":
+"expo-speech@npm:^14.0.7":
   version: 14.0.7
   resolution: "expo-speech@npm:14.0.7"
   peerDependencies:
@@ -9348,7 +9348,7 @@ __metadata:
     expo-notifications: "npm:~0.32.11"
     expo-router: "npm:^6.0.7"
     expo-secure-store: "npm:~15.0.7"
-    expo-speech: "npm:~14.0.7"
+    expo-speech: "npm:^14.0.7"
     expo-splash-screen: "npm:~31.0.10"
     expo-status-bar: "npm:~3.0.8"
     expo-symbols: "npm:~1.0.7"
