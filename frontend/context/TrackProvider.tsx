@@ -204,7 +204,7 @@ type TrackingMode = {
 };
 
 export const TrackingProvider = ({ children }: { children: React.ReactNode }) => {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { backgroundLocationStatus, foregroundLocationStatus } = usePermissions(); // ADDED
   const [trackingModes, setTrackingModes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -830,7 +830,7 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
         unsubscribeFromTrackingModes = await fetchTrackingModesWithContacts(user.uid);
       };
       setupListener();
-    } else {
+    } else if (!authLoading && !user) {
       // User has signed out, so we need to perform a full cleanup.
       const signOutCleanup = async () => {
         console.log('Auth state changed: User signed out. Cleaning up all tracking tasks and data.');
@@ -901,7 +901,7 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
         console.log('🧹 Unsubscribed from tracking modes listener on unmount/dependency change.');
       }
     };
-  }, [user]);
+  }, [user, authLoading]);
 
   const createTrackingMode = async (newMode: Omit<TrackingMode, 'id' | 'userId'>) => {
     if (!user?.uid) {
