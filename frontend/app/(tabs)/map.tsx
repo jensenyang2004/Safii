@@ -77,6 +77,7 @@ export default function Map() {
   // const { trackingModes, isTracking, trackingModeId, isReportDue, isInfoSent, stopTrackingMode, justReportedSafety, setJustReportedSafety } = useTracking();
 
   const { trackingModes, isTracking, trackingModeId, isReportDue, isInfoSent, stopTrackingMode } = useTracking();
+  const activeMode = trackingModes.find(mode => mode.id === trackingModeId);
   const { emergencyData: emergencies } = useEmergencyListener();
   const { sharedByFriends } = useFriendSharing();
   const [showToolCard, setShowToolCard] = useState(false);
@@ -608,7 +609,7 @@ export default function Map() {
     console.log('handleSuggestionSelected called with:', { description, latitude, longitude });
     setSelectedLocation(locationData);
     setDestinationMarker(locationData);
-  setDestinationInfo(locationData);
+    setDestinationInfo(locationData);
     setShowDestinationCard(true);
 
     // 移動地圖到選定位置
@@ -893,7 +894,7 @@ export default function Map() {
 
             return (
               <Polyline
-                key={stableKey}           
+                key={stableKey}
                 coordinates={points}
                 strokeColor={getRouteColor(route.mode, isSelected)}
                 strokeWidth={isSelected ? 6 : 3}
@@ -956,7 +957,14 @@ export default function Map() {
 
       {!isNavigating && <MapSearchBar onSearch={handleSearch} onSuggestionSelected={handleSuggestionSelected} />}
 
-      {showLocationSentCard && <LocationSentCard onDismiss={handleDismissLocationSentCard} />}
+      {showLocationSentCard && activeMode && (
+        <LocationSentCard
+          onDismiss={handleDismissLocationSentCard}
+          activityLocation={activeMode.activityLocation}
+          activity={activeMode.activity}
+          notes={activeMode.notes}
+        />
+      )}
 
       {isSearchingSafeSpot && (
         <View style={styles.loadingContainer}>
@@ -1231,6 +1239,26 @@ function createStyles(
       flex: 1,
       justifyContent: 'center',
       alignItems: 'center',
+    },
+    intermediateCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: '#fff',
+      padding: 12,
+      marginHorizontal: 16,
+      marginVertical: 8,
+      borderRadius: 12,
+      elevation: 3, // android shadow
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+    },
+    intermediateCardText: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: '#111',
     },
 
     cancelRouteButton: {

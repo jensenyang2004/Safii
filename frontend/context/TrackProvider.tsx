@@ -201,6 +201,9 @@ type TrackingMode = {
     time: string;
   };
   emergencyContactIds: string[];
+  activityLocation?: string;
+  activity?: string;
+  notes?: string;
 };
 
 export const TrackingProvider = ({ children }: { children: React.ReactNode }) => {
@@ -952,6 +955,9 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
         'emergencyContactIds',
         'On',
         'autoStart',
+        'activityLocation',
+        'activity',
+        'notes',
       ];
 
       const payload: Record<string, any> = {};

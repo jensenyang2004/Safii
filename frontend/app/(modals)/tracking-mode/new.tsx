@@ -16,6 +16,9 @@ async function handleCreateAndPickContacts(userUid: string, fields: any) {
     const docRef = await addDoc(collection(db, 'TrackingMode'), {
         userId: userUid,
         name: fields.name,
+        activityLocation: fields.activityLocation,
+        activity: fields.activity,
+        notes: fields.notes,
         On: fields.on ?? false,
         autoStart: fields.autoStart ?? false,
         checkIntervalMinutes: Number(fields.checkIntervalMinutes) || 5,
@@ -41,6 +44,9 @@ export default function CreateTrackingModeScreen() {
 
     // 基本欄位（可依你的 schema 調整）
     const [name, setName] = useState('');
+    const [activityLocation, setActivityLocation] = useState('');
+    const [activity, setActivity] = useState('');
+    const [notes, setNotes] = useState('');
     // `On` and `autoStart` are no longer configurable at creation time
     const [checkIntervalMinutes, setCheckIntervalMinutes] = useState('5');          // string → 存檔時轉 number
     const [unresponsiveThreshold, setUnresponsiveThreshold] = useState('3');        // string → 存檔時轉 number
@@ -98,6 +104,9 @@ export default function CreateTrackingModeScreen() {
         saving.current = true;
             const newMode = {
             name: name.trim(),
+            activityLocation: activityLocation.trim(),
+            activity: activity.trim(),
+            notes: notes.trim(),
             userId: user.uid,
             checkIntervalMinutes: Number(checkIntervalMinutes) || 5,
             unresponsiveThreshold: Number(unresponsiveThreshold) || 3,
@@ -142,6 +151,39 @@ export default function CreateTrackingModeScreen() {
                     value={name}
                     onChangeText={setName}
                     maxLength={30}
+                />
+            </View>
+
+            <View style={styles.section}>
+                <Text style={styles.label}>活動地點</Text>
+                <TextInput
+                    style={styles.input}
+                    placeholder="例如：台北市大安區和平東路二段"
+                    value={activityLocation}
+                    onChangeText={setActivityLocation}
+                    maxLength={50}
+                />
+            </View>
+
+            <View style={styles.section}>
+                <Text style={styles.label}>活動</Text>
+                <TextInput
+                    style={styles.input}
+                    placeholder="例如：平日下午班"
+                    value={activity}
+                    onChangeText={setActivity}
+                    maxLength={30}
+                />
+            </View>
+
+            <View style={styles.section}>
+                <Text style={styles.label}>備註</Text>
+                <TextInput
+                    style={styles.input}
+                    placeholder="例如：走路從公司到家裡"
+                    value={notes}
+                    onChangeText={setNotes}
+                    maxLength={100}
                 />
             </View>
 
@@ -209,6 +251,9 @@ export default function CreateTrackingModeScreen() {
                 try {
                     await handleCreateAndPickContacts(user.uid, {
                         name: name.trim(),
+                        activityLocation: activityLocation.trim(),
+                        activity: activity.trim(),
+                        notes: notes.trim(),
                         on: false,
                         autoStart: false,
                         checkIntervalMinutes,

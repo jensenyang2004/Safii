@@ -12,6 +12,9 @@ export default function EditTrackingModeScreen() {
   const [loading, setLoading] = useState(true);
 
   const [name, setName] = useState('');
+  const [activityLocation, setActivityLocation] = useState('');
+  const [activity, setActivity] = useState('');
+  const [notes, setNotes] = useState('');
   const [checkIntervalMinutes, setCheckIntervalMinutes] = useState('5');
   const [unresponsiveThreshold, setUnresponsiveThreshold] = useState('3');
   const [intervalReductionMinutes, setIntervalReductionMinutes] = useState('1');
@@ -23,6 +26,9 @@ export default function EditTrackingModeScreen() {
     const mode = trackingModes.find((m: any) => m.id === modeId);
     if (mode) {
       setName(mode.name || '');
+      setActivityLocation(mode.activityLocation || '');
+      setActivity(mode.activity || '');
+      setNotes(mode.notes || '');
       setCheckIntervalMinutes(String(mode.checkIntervalMinutes ?? 5));
       setUnresponsiveThreshold(String(mode.unresponsiveThreshold ?? 3));
       setIntervalReductionMinutes(String(mode.intervalReductionMinutes ?? 1));
@@ -37,6 +43,9 @@ export default function EditTrackingModeScreen() {
     try {
       await updateTrackingMode(modeId, {
         name: name.trim(),
+        activityLocation: activityLocation.trim(),
+        activity: activity.trim(),
+        notes: notes.trim(),
         checkIntervalMinutes: Number(checkIntervalMinutes) || 5,
         unresponsiveThreshold: Number(unresponsiveThreshold) || 3,
         intervalReductionMinutes: Number(intervalReductionMinutes) || 1,
@@ -72,6 +81,21 @@ export default function EditTrackingModeScreen() {
       <View style={styles.section}>
         <Text style={styles.label}>模式名稱</Text>
         <TextInput style={styles.input} value={name} onChangeText={setName} />
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.label}>活動地點</Text>
+        <TextInput style={styles.input} value={activityLocation} onChangeText={setActivityLocation} />
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.label}>活動</Text>
+        <TextInput style={styles.input} value={activity} onChangeText={setActivity} />
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.label}>備註</Text>
+        <TextInput style={styles.input} value={notes} onChangeText={setNotes} />
       </View>
 
       <View style={styles.inline}>

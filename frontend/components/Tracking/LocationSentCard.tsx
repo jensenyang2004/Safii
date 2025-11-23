@@ -4,9 +4,12 @@ import { BlurView } from 'expo-blur';
 
 interface LocationSentCardProps {
   onDismiss: () => void;
+  activityLocation?: string;
+  activity?: string;
+  notes?: string;
 }
 
-const LocationSentCard: React.FC<LocationSentCardProps> = ({ onDismiss }) => {
+const LocationSentCard: React.FC<LocationSentCardProps> = ({ onDismiss, activityLocation, activity, notes }) => {
   return (
     <BlurView intensity={80} tint="dark" style={styles.overlayContainer} pointerEvents="auto">
       <View style={styles.card}>
@@ -20,9 +23,9 @@ const LocationSentCard: React.FC<LocationSentCardProps> = ({ onDismiss }) => {
         <Text style={styles.title}>已發送自動通報</Text>
 
         {/* Details */}
-        <Text style={styles.detail}>活動地點：台北市大安區和平東路二段</Text>
-        <Text style={styles.detail}>活動：平日下午班</Text>
-        <Text style={styles.detail}>備註：走路從公司到家裡</Text>
+        {activityLocation ? <Text style={styles.detail}>活動地點：{activityLocation}</Text> : null}
+        {activity ? <Text style={styles.detail}>活動：{activity}</Text> : null}
+        {notes ? <Text style={styles.detail}>備註：{notes}</Text> : null}
 
         {/* Cancel button */}
         <TouchableOpacity style={styles.cancelButton} onPress={() => { console.log('關閉 button pressed'); onDismiss(); }}>
