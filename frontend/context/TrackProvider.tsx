@@ -582,6 +582,11 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
       // NEW CONDITIONAL LOGIC
       if (backgroundLocationStatus === 'granted') {
         console.log('✅ Background permission granted. Starting background location task.');
+        // Check if task is already running and stop it to prevent duplicates
+        if (await Location.hasStartedLocationUpdatesAsync(BACKGROUND_LOCATION_TASK)) {
+          console.log('⚠️ Duplicate background location task found. Stopping existing task before starting a new one.');
+          await Location.stopLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
+        }
         await Location.startLocationUpdatesAsync(BACKGROUND_LOCATION_TASK, {
           accuracy: Location.Accuracy.Balanced,
           timeInterval: 5000,
