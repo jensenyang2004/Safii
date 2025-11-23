@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { collection, query, where, onSnapshot, doc, getDoc, updateDoc, arrayRemove } from 'firebase/firestore';
 import { db } from '@/libs/firebase';
 import { useAuth } from '@/context/AuthProvider';
 
-export interface UnifiedSharingContact {
+// Internal representation of a single sharing instance
+interface SharingInstance {
   userId: string;
   username: string;
   avatarUrl?: string;
@@ -11,9 +12,23 @@ export interface UnifiedSharingContact {
   sessionId: string;
 }
 
+// Data structure for a single session
+export interface SessionInfo {
+  sessionId: string;
+  type: 'emergency' | 'normal';
+}
+
+// The public-facing contact object with grouped sessions
+export interface GroupedSharingContact {
+  userId: string;
+  username: string;
+  avatarUrl?: string;
+  sessions: SessionInfo[];
+}
+
 export const useAllSharing = () => {
   const { user } = useAuth();
-  const [unifiedList, setUnifiedList] = useState<UnifiedSharingContact[]>([]);
+  const [unifiedList, setUnifiedList] = useState<GroupedSharingContact[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -25,13 +40,32 @@ export const useAllSharing = () => {
     }
 
     const unsubscribes: (() => void)[] = [];
-    let emergencyContacts: UnifiedSharingContact[] = [];
-    let normalContacts: UnifiedSharingContact[] = [];
+    let emergencyContacts: SharingInstance[] = [];
+    let normalContacts: SharingInstance[] = [];
 
     const updateUserList = () => {
-        const allContacts = [...emergencyContacts, ...normalContacts];
-        const uniqueContacts = Array.from(new Map(allContacts.map(c => [c.userId, c])).values());
-        setUnifiedList(uniqueContacts);
+        const allInstances = [...emergencyContacts, ...normalContacts];
+        
+        const groupedContacts = new Map<string, GroupedSharingContact>();
+
+        for (const instance of allInstances) {
+            if (groupedContacts.has(instance.userId)) {
+                const existing = groupedContacts.get(instance.userId)!;
+                // Avoid adding duplicate session info if a listener fires multiple times
+                if (!existing.sessions.some(s => s.sessionId === instance.sessionId)) {
+                    existing.sessions.push({ sessionId: instance.sessionId, type: instance.type });
+                }
+            } else {
+                groupedContacts.set(instance.userId, {
+                    userId: instance.userId,
+                    username: instance.username,
+                    avatarUrl: instance.avatarUrl,
+                    sessions: [{ sessionId: instance.sessionId, type: instance.type }],
+                });
+            }
+        }
+        
+        setUnifiedList(Array.from(groupedContacts.values()));
         setIsLoading(false);
     };
 
@@ -57,7 +91,7 @@ export const useAllSharing = () => {
                 }
                 return null;
             });
-            return (await Promise.all(contactPromises)).filter(Boolean) as UnifiedSharingContact[];
+            return (await Promise.all(contactPromises)).filter(Boolean) as SharingInstance[];
         });
         emergencyContacts = (await Promise.all(promises)).flat();
         updateUserList();
@@ -89,7 +123,7 @@ export const useAllSharing = () => {
                 }
                 return null;
             });
-            return (await Promise.all(contactPromises)).filter(Boolean) as UnifiedSharingContact[];
+            return (await Promise.all(contactPromises)).filter(Boolean) as SharingInstance[];
         });
         normalContacts = (await Promise.all(promises)).flat();
         updateUserList();
@@ -105,29 +139,41 @@ export const useAllSharing = () => {
 
   }, [user]);
 
-  const stopSharingWithContact = async (contact: UnifiedSharingContact) => {
+  const stopSharingWithContact = async (contact: GroupedSharingContact) => {
     if (!user?.uid) return;
 
-    const { sessionId, userId, type } = contact;
-    
-    if (type === 'emergency') {
-        const sessionRef = doc(db, 'active_tracking', sessionId);
-        await updateDoc(sessionRef, {
-            emergencyContactIds: arrayRemove(userId)
-        });
+    const { userId, sessions } = contact;
 
-    } else if (type === 'normal') {
-        const sessionRef = doc(db, 'active_sharing_sessions', sessionId);
-        await updateDoc(sessionRef, {
-            sharedWithUserIds: arrayRemove(userId)
-        });
-
-        const updatedSession = await getDoc(sessionRef);
-        if (updatedSession.exists() && updatedSession.data().sharedWithUserIds.length === 0) {
-            await updateDoc(sessionRef, {
-                isActive: false
+    const stopPromises = sessions.map(session => {
+        if (session.type === 'emergency') {
+            const sessionRef = doc(db, 'active_tracking', session.sessionId);
+            return updateDoc(sessionRef, {
+                emergencyContactIds: arrayRemove(userId)
+            });
+        } else if (session.type === 'normal') {
+            const sessionRef = doc(db, 'active_sharing_sessions', session.sessionId);
+            
+            // The update and subsequent check needs to be atomic per session
+            return updateDoc(sessionRef, {
+                sharedWithUserIds: arrayRemove(userId)
+            }).then(async () => {
+                // After removing the user, check if the session is now empty
+                const updatedSession = await getDoc(sessionRef);
+                if (updatedSession.exists() && updatedSession.data().sharedWithUserIds.length === 0) {
+                    console.log(`Normal sharing session ${session.sessionId} is now empty. Deactivating.`);
+                    await updateDoc(sessionRef, { isActive: false });
+                }
             });
         }
+        return Promise.resolve();
+    });
+
+    try {
+        await Promise.all(stopPromises);
+        console.log(`Successfully stopped sharing with ${contact.username} across ${sessions.length} sessions.`);
+    } catch (e) {
+        console.error(`Failed to stop sharing with ${contact.username}`, e);
+        setError(`Failed to stop sharing with ${contact.username}. Please try again.`);
     }
   };
 
