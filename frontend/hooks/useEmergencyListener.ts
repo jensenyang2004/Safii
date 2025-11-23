@@ -3,7 +3,7 @@ import { collection, query, where, onSnapshot, doc, getDoc, Timestamp } from 'fi
 import { db } from '@/libs/firebase';
 import { useAuth } from '@/context/AuthProvider';
 
-interface EmergencyData {
+export interface EmergencyData {
   lat: number;
   long: number;
   updateTime: Timestamp;
@@ -12,6 +12,9 @@ interface EmergencyData {
   trackedUserAvatarUrl?: string; // Added avatarUrl
   emergencyDocId: string;
   contactStatus: Record<string, { status: string; notificationCount: number }>;
+  activity?: string;
+  activityLocation?: string;
+  notes?: string;
 }
 
 export const useEmergencyListener = () => {
@@ -70,7 +73,7 @@ export const useEmergencyListener = () => {
       for (const docSnap of activeEmergencyDocs) {
         const emergencyDocId = docSnap.id;
         const session = docSnap.data();
-        const { trackedUserId, contactStatus } = session;
+        const { trackedUserId, contactStatus, activity, activityLocation, notes } = session;
 
         // If we are not already listening for this emergency's location, set up a new listener
         if (!locationListenersRef.current[emergencyDocId]) {
@@ -99,6 +102,9 @@ export const useEmergencyListener = () => {
                   trackedUserAvatarUrl, // Added here
                   emergencyDocId,
                   contactStatus,
+                  activity,
+                  activityLocation,
+                  notes,
               }
           }));
 

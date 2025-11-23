@@ -508,11 +508,11 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
         console.warn('Could not update TrackingMode.On to true:', e);
       }
 
-      // const sessionMs = sessionMinutes * 3 * 1000;
-      const sessionMs = sessionMinutes * 60 * 1000;
+      const sessionMs = sessionMinutes * 3 * 1000;
+      // const sessionMs = sessionMinutes * 60 * 1000;
       const reductionMs = reductionMinutes * 60 * 1000;
-      // const reportMs = 1 * 10 * 1000;
-      const reportMs= reductionMinutes * 60 * 1000;
+      const reportMs = 1 * 10 * 1000;
+      // const reportMs= reductionMinutes * 60 * 1000;
       const startTime = Date.now();
 
       const activeMode = trackingModes.find(mode => mode.id === modeId);
@@ -550,7 +550,10 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
           isActive: true,
           nextNotificationTime: emergencyActivationTime,
           overallStatus: 'notifying', // The whole event is active
-          contactStatus: contactStatusMap // The detailed map
+          contactStatus: contactStatusMap, // The detailed map
+          activity: activeMode.activity || '',
+          activityLocation: activeMode.activityLocation || '',
+          notes: activeMode.notes || '',
         });
         await AsyncStorage.setItem(STORAGE_KEYS.ACTIVE_TRACKING_DOC_ID, trackingDocRef.id);
         console.log("✅ Dead man's switch set in Firestore.");

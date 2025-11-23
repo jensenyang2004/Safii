@@ -38,8 +38,6 @@ interface TrackingContext {
 export default function HomeScreen() {
   const { user, loading, signOut } = useAuth();
 
-
-
   const handleSignOut = async () => {
     try {
       await signOut();

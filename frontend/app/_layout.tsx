@@ -70,9 +70,12 @@ function RootLayoutNav() {
       return;
     }
 
+    console.log(`🔄 current user: ${user}`);
     if (!user) {
+      console.log('😇 User not signed in, redirecting to sign-in screen.');
       // User is not signed in, redirect to sign-in screen.
       if (!inAuthGroup) {
+        console.log('🚪 Redirecting to sign-in screen...');
         router.replace('/(auth)/sign-in');
       }
     } else {
@@ -96,12 +99,12 @@ function RootLayoutNav() {
     }
   }, [
     user,
-    // onboardingComplete,
-    // notificationStatus,
-    // foregroundLocationStatus,
-    // segments,
-    // authLoading,
-    // permissionsLoading,
+    onboardingComplete,
+    notificationStatus,
+    foregroundLocationStatus,
+    segments,
+    authLoading,
+    permissionsLoading,
   ]);
 
   // Show a loading screen while we check all statuses
