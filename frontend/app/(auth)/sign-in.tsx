@@ -5,7 +5,7 @@ import { router } from 'expo-router';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc, Timestamp } from 'firebase/firestore';
 import React, { useState } from 'react';
-import { View, Text, TextInput, StyleSheet, Alert, TouchableOpacity } from 'react-native';
+import { View, Text, TextInput, StyleSheet, Alert, TouchableOpacity, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import { FirebaseError } from 'firebase/app';
 
 const SignInScreen = () => {
@@ -54,7 +54,8 @@ const SignInScreen = () => {
   }
 
   return (
-    <View style={styles.container}>
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+      <View style={styles.container}>
         <Text style={styles.title}>登入</Text>
         <View style={styles.inputWrapper}>
           <TextInput
@@ -85,7 +86,8 @@ const SignInScreen = () => {
         <TouchableOpacity style={styles.secondaryButton} onPress={() => { router.push('/(auth)/sign-up') }}>
           <Text style={styles.secondaryButtonText}>還沒有帳號？註冊</Text>
         </TouchableOpacity>
-    </View>
+      </View>
+    </TouchableWithoutFeedback>
   );
 };
 

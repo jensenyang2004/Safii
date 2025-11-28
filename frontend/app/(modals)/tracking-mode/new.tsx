@@ -1,7 +1,7 @@
 // app/tracking-mode/new.tsx
 import React, { useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { View, Text, TextInput, Switch, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, Text, TextInput, Switch, TouchableOpacity, StyleSheet, Alert, ScrollView, TouchableWithoutFeedback, Keyboard } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons'; // Added Ionicons import
 import * as Theme from '@/constants/Theme';
@@ -135,80 +135,82 @@ export default function CreateTrackingModeScreen() {
 
     return (
         <SafeAreaView style={styles.safe}>
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => router.back()} style={{ position: 'absolute', left: 16, top: 8 }}>
-                    <Ionicons name="arrow-back" size={24} color="#111827" />
-                </TouchableOpacity>
-                <Text style={styles.title}>建立追蹤模式</Text>
-                <Text style={styles.sub}>填寫模式名稱與基本參數</Text>
-            </View>
+            <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+                <ScrollView showsVerticalScrollIndicator={false}>
+                    <View style={styles.header}>
+                        <TouchableOpacity onPress={() => router.back()} style={{ position: 'absolute', left: 16, top: 8 }}>
+                            <Ionicons name="arrow-back" size={24} color="#111827" />
+                        </TouchableOpacity>
+                        <Text style={styles.title}>建立追蹤模式</Text>
+                        <Text style={styles.sub}>填寫模式名稱與基本參數</Text>
+                    </View>
 
-            <View style={styles.section}>
-                <Text style={styles.label}>模式名稱</Text>
-                <TextInput
-                    style={styles.input}
-                    placeholder="例如：下班回家、夜跑、搭計程車"
-                    value={name}
-                    onChangeText={setName}
-                    maxLength={30}
-                />
-            </View>
+                    <View style={styles.section}>
+                        <Text style={styles.label}>模式名稱</Text>
+                        <TextInput
+                            style={styles.input}
+                            placeholder="例如：下班回家、夜跑、搭計程車"
+                            value={name}
+                            onChangeText={setName}
+                            maxLength={30}
+                        />
+                    </View>
 
-            <View style={styles.section}>
-                <Text style={styles.label}>活動地點</Text>
-                <TextInput
-                    style={styles.input}
-                    placeholder="例如：台北市大安區和平東路二段"
-                    value={activityLocation}
-                    onChangeText={setActivityLocation}
-                    maxLength={50}
-                />
-            </View>
+                    <View style={styles.section}>
+                        <Text style={styles.label}>活動地點</Text>
+                        <TextInput
+                            style={styles.input}
+                            placeholder="例如：台北市大安區和平東路二段"
+                            value={activityLocation}
+                            onChangeText={setActivityLocation}
+                            maxLength={50}
+                        />
+                    </View>
 
-            <View style={styles.section}>
-                <Text style={styles.label}>活動</Text>
-                <TextInput
-                    style={styles.input}
-                    placeholder="例如：平日下午班"
-                    value={activity}
-                    onChangeText={setActivity}
-                    maxLength={30}
-                />
-            </View>
+                    <View style={styles.section}>
+                        <Text style={styles.label}>活動</Text>
+                        <TextInput
+                            style={styles.input}
+                            placeholder="例如：平日下午班"
+                            value={activity}
+                            onChangeText={setActivity}
+                            maxLength={30}
+                        />
+                    </View>
 
-            <View style={styles.section}>
-                <Text style={styles.label}>備註</Text>
-                <TextInput
-                    style={styles.input}
-                    placeholder="例如：走路從公司到家裡"
-                    value={notes}
-                    onChangeText={setNotes}
-                    maxLength={100}
-                />
-            </View>
+                    <View style={styles.section}>
+                        <Text style={styles.label}>備註</Text>
+                        <TextInput
+                            style={styles.input}
+                            placeholder="例如：走路從公司到家裡"
+                            value={notes}
+                            onChangeText={setNotes}
+                            maxLength={100}
+                        />
+                    </View>
 
-            {/* `On` and `autoStart` removed from creation UI; frontend controls activation */}
+                    {/* `On` and `autoStart` removed from creation UI; frontend controls activation */}
 
-            <View style={styles.inline}>
-                <View style={styles.inlineItem}>
-                    <Text style={styles.labelSmall}>檢查間隔(分)</Text>
-                    <TextInput
-                        style={styles.input}
-                        keyboardType="number-pad"
-                        value={checkIntervalMinutes}
-                        onChangeText={setCheckIntervalMinutes}
-                    />
-                </View>
-                <View style={styles.inlineItem}>
-                    <Text style={styles.labelSmall}>無回應閾值</Text>
-                    <TextInput
-                        style={styles.input}
-                        keyboardType="number-pad"
-                        value={unresponsiveThreshold}
-                        onChangeText={setUnresponsiveThreshold}
-                    />
-                </View>
-                {/* <View style={styles.inlineItem}>
+                    <View style={styles.inline}>
+                        <View style={styles.inlineItem}>
+                            <Text style={styles.labelSmall}>檢查間隔(分)</Text>
+                            <TextInput
+                                style={styles.input}
+                                keyboardType="number-pad"
+                                value={checkIntervalMinutes}
+                                onChangeText={setCheckIntervalMinutes}
+                            />
+                        </View>
+                        <View style={styles.inlineItem}>
+                            <Text style={styles.labelSmall}>無回應閾值</Text>
+                            <TextInput
+                                style={styles.input}
+                                keyboardType="number-pad"
+                                value={unresponsiveThreshold}
+                                onChangeText={setUnresponsiveThreshold}
+                            />
+                        </View>
+                        {/* <View style={styles.inlineItem}>
                     <Text style={styles.labelSmall}>回報到數間隔(分)</Text>
                     <TextInput
                         style={styles.input}
@@ -217,9 +219,9 @@ export default function CreateTrackingModeScreen() {
                         onChangeText={setIntervalReductionMinutes}
                     />
                 </View> */}
-            </View>
+                    </View>
 
-            {/* <View style={styles.inline}>
+                    {/* <View style={styles.inline}>
                 <View style={[styles.inlineItem, { flex: 1.2 }]}>
                     <Text style={styles.labelSmall}>星期</Text>
                     <TextInput
@@ -240,40 +242,42 @@ export default function CreateTrackingModeScreen() {
                 </View>
             </View> */}
 
-            {/* <TouchableOpacity onPress={() => handleCreateAndPickContacts(user.uid, formValues)}>
+                    {/* <TouchableOpacity onPress={() => handleCreateAndPickContacts(user.uid, formValues)}>
                 <Text>建立並選擇聯絡人</Text>
             </TouchableOpacity> */}
-            <TouchableOpacity style={[styles.saveBtn, { backgroundColor: Theme.tracking_colors.coralRed, marginBottom: 8 }]} onPress={async () => {
-                if (saving.current) return;
-                if (!user?.uid) { Alert.alert('錯誤', '尚未登入'); return; }
-                if (!name.trim()) { Alert.alert('請輸入模式名稱'); return; }
-                saving.current = true;
-                try {
-                    await handleCreateAndPickContacts(user.uid, {
-                        name: name.trim(),
-                        activityLocation: activityLocation.trim(),
-                        activity: activity.trim(),
-                        notes: notes.trim(),
-                        on: false,
-                        autoStart: false,
-                        checkIntervalMinutes,
-                        unresponsiveThreshold,
-                        intervalReductionMinutes,
-                        dayOfWeek,
-                        startTime,
-                    });
-                } catch (e) {
-                    console.error('Failed to create and pick contacts', e);
-                    Alert.alert('錯誤', '建立失敗，請稍後再試');
-                } finally {
-                    saving.current = false;
-                }
-            }}>
-                <Text style={[styles.saveText, { fontWeight: '700' }]}>建立並選擇聯絡人</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
-                <Text style={styles.saveText}>儲存</Text>
-            </TouchableOpacity>
+                    <TouchableOpacity style={[styles.saveBtn, { backgroundColor: Theme.tracking_colors.coralRed, marginBottom: 8 }]} onPress={async () => {
+                        if (saving.current) return;
+                        if (!user?.uid) { Alert.alert('錯誤', '尚未登入'); return; }
+                        if (!name.trim()) { Alert.alert('請輸入模式名稱'); return; }
+                        saving.current = true;
+                        try {
+                            await handleCreateAndPickContacts(user.uid, {
+                                name: name.trim(),
+                                activityLocation: activityLocation.trim(),
+                                activity: activity.trim(),
+                                notes: notes.trim(),
+                                on: false,
+                                autoStart: false,
+                                checkIntervalMinutes,
+                                unresponsiveThreshold,
+                                intervalReductionMinutes,
+                                dayOfWeek,
+                                startTime,
+                            });
+                        } catch (e) {
+                            console.error('Failed to create and pick contacts', e);
+                            Alert.alert('錯誤', '建立失敗，請稍後再試');
+                        } finally {
+                            saving.current = false;
+                        }
+                    }}>
+                        <Text style={[styles.saveText, { fontWeight: '700' }]}>建立並選擇聯絡人</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
+                        <Text style={styles.saveText}>儲存</Text>
+                    </TouchableOpacity>
+                </ScrollView>
+            </TouchableWithoutFeedback>
         </SafeAreaView>
     );
 }

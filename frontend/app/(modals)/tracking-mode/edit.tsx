@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTracking } from '@/context/TrackProvider';
 import { useLocalSearchParams, router } from 'expo-router';
@@ -70,62 +70,66 @@ export default function EditTrackingModeScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={{ position: 'absolute', left: 16, top: 8 }}>
-          <Ionicons name="arrow-back" size={24} color="#111827" />
-        </TouchableOpacity>
-        <Text style={styles.title}>編輯追蹤模式</Text>
-        <Text style={styles.sub}>調整參數後儲存</Text>
-      </View>
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+        <ScrollView showsVerticalScrollIndicator={false}>
+          <View style={styles.header}>
+            <TouchableOpacity onPress={() => router.back()} style={{ position: 'absolute', left: 16, top: 8 }}>
+              <Ionicons name="arrow-back" size={24} color="#111827" />
+            </TouchableOpacity>
+            <Text style={styles.title}>編輯追蹤模式</Text>
+            <Text style={styles.sub}>調整參數後儲存</Text>
+          </View>
 
-      <View style={styles.section}>
-        <Text style={styles.label}>模式名稱</Text>
-        <TextInput style={styles.input} value={name} onChangeText={setName} />
-      </View>
+          <View style={styles.section}>
+            <Text style={styles.label}>模式名稱</Text>
+            <TextInput style={styles.input} value={name} onChangeText={setName} />
+          </View>
 
-      <View style={styles.section}>
-        <Text style={styles.label}>活動地點</Text>
-        <TextInput style={styles.input} value={activityLocation} onChangeText={setActivityLocation} />
-      </View>
+          <View style={styles.section}>
+            <Text style={styles.label}>活動地點</Text>
+            <TextInput style={styles.input} value={activityLocation} onChangeText={setActivityLocation} />
+          </View>
 
-      <View style={styles.section}>
-        <Text style={styles.label}>活動</Text>
-        <TextInput style={styles.input} value={activity} onChangeText={setActivity} />
-      </View>
+          <View style={styles.section}>
+            <Text style={styles.label}>活動</Text>
+            <TextInput style={styles.input} value={activity} onChangeText={setActivity} />
+          </View>
 
-      <View style={styles.section}>
-        <Text style={styles.label}>備註</Text>
-        <TextInput style={styles.input} value={notes} onChangeText={setNotes} />
-      </View>
+          <View style={styles.section}>
+            <Text style={styles.label}>備註</Text>
+            <TextInput style={styles.input} value={notes} onChangeText={setNotes} />
+          </View>
 
-      <View style={styles.inline}>
-        <View style={styles.inlineItem}>
-          <Text style={styles.labelSmall}>檢查間隔(分)</Text>
-          <TextInput style={styles.input} keyboardType="number-pad" value={checkIntervalMinutes} onChangeText={setCheckIntervalMinutes} />
-        </View>
-        <View style={styles.inlineItem}>
-          <Text style={styles.labelSmall}>無回應閾值</Text>
-          <TextInput style={styles.input} keyboardType="number-pad" value={unresponsiveThreshold} onChangeText={setUnresponsiveThreshold} />
-        </View>
-        {/* <View style={styles.inlineItem}>
+          <View style={styles.inline}>
+            <View style={styles.inlineItem}>
+              <Text style={styles.labelSmall}>檢查間隔(分)</Text>
+              <TextInput style={styles.input} keyboardType="number-pad" value={checkIntervalMinutes} onChangeText={setCheckIntervalMinutes} />
+            </View>
+            <View style={styles.inlineItem}>
+              <Text style={styles.labelSmall}>無回應閾值</Text>
+              <TextInput style={styles.input} keyboardType="number-pad" value={unresponsiveThreshold} onChangeText={setUnresponsiveThreshold} />
+            </View>
+            {/* <View style={styles.inlineItem}>
           <Text style={styles.labelSmall}>回報到數間隔(分)</Text>
           <TextInput style={styles.input} keyboardType="number-pad" value={intervalReductionMinutes} onChangeText={setIntervalReductionMinutes} />
         </View> */}
-      </View>
+          </View>
 
-      
-      <TouchableOpacity
-        style={[styles.saveBtn, { backgroundColor: Theme.tracking_colors.coralRed, marginTop: 12 }]}
-        onPress={() => {
-          if (!modeId) return;
-          router.push({ pathname: '/tracking-mode/select-contacts', params: { modeId } });
-        }}
-      >
-        <Text style={styles.saveText}>編輯聯絡人</Text>
-      </TouchableOpacity>
-      <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
-        <Text style={styles.saveText}>儲存變更</Text>
-      </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={[styles.saveBtn, { backgroundColor: Theme.tracking_colors.coralRed, marginTop: 12 }]}
+            onPress={() => {
+              if (!modeId) return;
+              router.push({ pathname: '/tracking-mode/select-contacts', params: { modeId } });
+            }}
+          >
+            <Text style={styles.saveText}>編輯聯絡人</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
+            <Text style={styles.saveText}>儲存變更</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </TouchableWithoutFeedback>
     </SafeAreaView>
   );
 }

@@ -11,6 +11,7 @@ import {
   Alert,
   Image,
   Animated,
+  Keyboard,
 } from 'react-native';
 
 // 直接使用 Image 组件，不需要导入 SVG
@@ -756,7 +757,7 @@ export default function Map() {
         mapType="standard"
         showsCompass={true}
         compassOffset={{ x: -8, y: 50 }}
-        onPress={() => setCalloutVisible(null)} // 點擊地圖時隱藏所有 callout
+        onPress={() => { Keyboard.dismiss(); setCalloutVisible(null); }} // 點擊地圖時隱藏所有 callout
       >
         {navUserLocation && (
           <Marker

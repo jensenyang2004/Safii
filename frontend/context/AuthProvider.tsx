@@ -54,10 +54,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       console.log('STARTING SIGN OUT');
       setLoading(true);
-      if (user) {
-        const userOnboardingKey = `${ONBOARDING_COMPLETED_KEY}_${user.uid}`;
-        await SecureStore.deleteItemAsync(userOnboardingKey);
-      }
+      
       await auth.signOut();
       console.log('FIREBASE SIGN OUT COMPLETE');
       setUser(null); // Force update the user state to null

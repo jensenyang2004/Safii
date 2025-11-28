@@ -46,14 +46,22 @@ const EmergencyInfoModal = ({ emergency, onClose }: EmergencyInfoModalProps) => 
       <View style={styles.modalContainer}>
         <View style={styles.modalContent}>
           <View style={styles.avatarContainer}>
-            <Image
-              source={{ uri: emergency.trackedUserAvatarUrl || undefined }}
-              style={styles.avatar}
-            />
+            {emergency.trackedUserAvatarUrl ? (
+              <Image
+                source={{ uri: emergency.trackedUserAvatarUrl }}
+                style={styles.avatar}
+              />
+            ) : (
+              <View style={[styles.avatar, styles.avatarPlaceholder]}>
+                <Text style={styles.avatarText}>
+                  {(emergency.trackedUserName || 'U')[0]}
+                </Text>
+              </View>
+            )}
           </View>
-          <Text style={styles.modalTitle}>{emergency.trackedUserName} 可能有危險了</Text>
+          <Text style={styles.modalTitle}>{emergency.trackedUserName} 發送了緊急位址訊息</Text>
           <Text style={styles.modalDescription}>
-            This emergency was triggered because {emergency.trackedUserName} did not respond in time while using the "default" mode.
+            {emergency.trackedUserName} 正在進行下列活動，但沒有即時回報安全狀態
           </Text>
 
           {emergency.activityLocation && (
@@ -118,6 +126,16 @@ const styles = StyleSheet.create({
     borderRadius: 50,
     borderWidth: 3,
     borderColor: 'white',
+  },
+  avatarPlaceholder: {
+    backgroundColor: '#E5E7EB',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarText: {
+    fontSize: 48, // Larger font for the initial
+    fontWeight: 'bold',
+    color: '#6B7280',
   },
   modalTitle: {
     fontSize: 22,

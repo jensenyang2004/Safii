@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, Pressable, TextInput, ActivityIndicator, Image, Alert } from 'react-native';
+import { View, Text, StyleSheet, FlatList, Pressable, TextInput, ActivityIndicator, Image, Alert, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import { useFriends } from '../../context/FriendProvider';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -294,123 +294,125 @@ export default function FriendsScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
-        <View style={styles.tabBar}>
-          <Pressable
-            style={[styles.tabButton, activeTab === 'friends' && styles.activeTab]}
-            onPress={() => setActiveTab('friends')}
-          >
-            <Text style={[styles.tabText, activeTab === 'friends' && styles.activeTabText]}>
-              朋友 ({friends.length})
-            </Text>
-          </Pressable>
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+        <View style={styles.container}>
+          <View style={styles.tabBar}>
+            <Pressable
+              style={[styles.tabButton, activeTab === 'friends' && styles.activeTab]}
+              onPress={() => setActiveTab('friends')}
+            >
+              <Text style={[styles.tabText, activeTab === 'friends' && styles.activeTabText]}>
+                朋友 ({friends.length})
+              </Text>
+            </Pressable>
 
-          <Pressable
-            style={[styles.tabButton, activeTab === 'requests' && styles.activeTab]}
-            onPress={() => setActiveTab('requests')}
-          >
-            <Text style={[styles.tabText, activeTab === 'requests' && styles.activeTabText]}>
-              交友請求 ({incomingRequests.length})
-            </Text>
-          </Pressable>
+            <Pressable
+              style={[styles.tabButton, activeTab === 'requests' && styles.activeTab]}
+              onPress={() => setActiveTab('requests')}
+            >
+              <Text style={[styles.tabText, activeTab === 'requests' && styles.activeTabText]}>
+                交友請求 ({incomingRequests.length})
+              </Text>
+            </Pressable>
 
-          <Pressable
-            style={[styles.tabButton, activeTab === 'search' && styles.activeTab]}
-            onPress={() => setActiveTab('search')}
-          >
-            <Text style={[styles.tabText, activeTab === 'search' && styles.activeTabText]}>
-              新增朋友
-            </Text>
-          </Pressable>
-        </View>
+            <Pressable
+              style={[styles.tabButton, activeTab === 'search' && styles.activeTab]}
+              onPress={() => setActiveTab('search')}
+            >
+              <Text style={[styles.tabText, activeTab === 'search' && styles.activeTabText]}>
+                新增朋友
+              </Text>
+            </Pressable>
+          </View>
 
-        {activeTab === 'search' && (
-          <>
-            <View style={styles.searchContainer}>
-              <TextInput
-                style={styles.searchInput}
-                placeholder="搜索用戶..."
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-            </View>
-          </>
-
-        )}
-
-        {loading ? (
-          <ActivityIndicator size="large" color={Theme.colors.actionOrange} style={styles.loader} />
-        ) : (
-          <>
-            {activeTab === 'friends' && (
-              <FlatList
-                data={friends}
-                renderItem={renderFriend}
-                keyExtractor={item => item.userId}
-                ListEmptyComponent={
-                  <Text style={styles.emptyText}>你還沒有任何朋友</Text>
-                }
-              />
-            )}
-
-            {activeTab === 'requests' && (
-              <View>
-                {/* Add this header with refresh button */}
-                <View style={styles.header}>
-                  <Text style={styles.sectionTitle}>交友請求</Text>
-                  <Pressable onPress={refreshFriendData} style={styles.refreshButton}>
-                    <FontAwesome5 name="sync" size={16} color={Theme.colors.action} />
-                  </Pressable>
-                </View>
-
-                <Text style={styles.sectionTitle}>你收到的請求</Text>
-                <FlatList
-                  data={incomingRequests}
-                  renderItem={renderRequest}
-                  keyExtractor={item => item.id}
-                  ListEmptyComponent={
-                    <Text style={styles.emptyText}>沒有待處理的交友請求</Text>
-                  }
-                />
-
-                <Text style={styles.sectionTitle}>你送出的請求</Text>
-                <FlatList
-                  data={outgoingRequests}
-                  renderItem={renderOutgoingRequest}
-                  keyExtractor={item => item.id}
-                  ListEmptyComponent={
-                    <Text style={styles.emptyText}>你還沒有送出任何交友請求</Text>
-                  }
+          {activeTab === 'search' && (
+            <>
+              <View style={styles.searchContainer}>
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder="搜索用戶..."
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  autoCapitalize="none"
+                  autoCorrect={false}
                 />
               </View>
-            )}
+            </>
 
-            {activeTab === 'search' && (
-              <>
-                {searching ? (
-                  <ActivityIndicator size="small" color={Theme.colors.actionOrange} style={styles.loader} />
-                ) : (
-                  // <></>
+          )}
+
+          {loading ? (
+            <ActivityIndicator size="large" color={Theme.colors.actionOrange} style={styles.loader} />
+          ) : (
+            <>
+              {activeTab === 'friends' && (
+                <FlatList
+                  data={friends}
+                  renderItem={renderFriend}
+                  keyExtractor={item => item.userId}
+                  ListEmptyComponent={
+                    <Text style={styles.emptyText}>你還沒有任何朋友</Text>
+                  }
+                />
+              )}
+
+              {activeTab === 'requests' && (
+                <View>
+                  {/* Add this header with refresh button */}
+                  <View style={styles.header}>
+                    <Text style={styles.sectionTitle}>交友請求</Text>
+                    <Pressable onPress={refreshFriendData} style={styles.refreshButton}>
+                      <FontAwesome5 name="sync" size={16} color={Theme.colors.action} />
+                    </Pressable>
+                  </View>
+
+                  <Text style={styles.sectionTitle}>你收到的請求</Text>
                   <FlatList
-                    data={searchResults}
-                    renderItem={renderSearchResult}
+                    data={incomingRequests}
+                    renderItem={renderRequest}
                     keyExtractor={item => item.id}
                     ListEmptyComponent={
-                      <Text style={styles.emptyText}>
-                        {searchQuery.length > 0
-                          ? "找不到符合你搜索的用戶"
-                          : "搜索用戶以新增為朋友"}
-                      </Text>
+                      <Text style={styles.emptyText}>沒有待處理的交友請求</Text>
                     }
                   />
-                )}
-              </>
-            )}
-          </>
-        )}
-      </View>
+
+                  <Text style={styles.sectionTitle}>你送出的請求</Text>
+                  <FlatList
+                    data={outgoingRequests}
+                    renderItem={renderOutgoingRequest}
+                    keyExtractor={item => item.id}
+                    ListEmptyComponent={
+                      <Text style={styles.emptyText}>你還沒有送出任何交友請求</Text>
+                    }
+                  />
+                </View>
+              )}
+
+              {activeTab === 'search' && (
+                <>
+                  {searching ? (
+                    <ActivityIndicator size="small" color={Theme.colors.actionOrange} style={styles.loader} />
+                  ) : (
+                    // <></>
+                    <FlatList
+                      data={searchResults}
+                      renderItem={renderSearchResult}
+                      keyExtractor={item => item.id}
+                      ListEmptyComponent={
+                        <Text style={styles.emptyText}>
+                          {searchQuery.length > 0
+                            ? "找不到符合你搜索的用戶"
+                            : "搜索用戶以新增為朋友"}
+                        </Text>
+                      }
+                    />
+                  )}
+                </>
+              )}
+            </>
+          )}
+        </View>
+      </TouchableWithoutFeedback>
     </SafeAreaView>
 
   );
