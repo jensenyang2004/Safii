@@ -508,13 +508,11 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
         console.warn('Could not update TrackingMode.On to true:', e);
       }
 
-      // for test
-      // const sessionMs = sessionMinutes * 3 * 1000;
-      const sessionMs = sessionMinutes * 60 * 1000;
+      const sessionMs = sessionMinutes * 3 * 1000;
+      // const sessionMs = sessionMinutes * 60 * 1000;
       const reductionMs = reductionMinutes * 60 * 1000;
-      // for test
-      // const reportMs = 1 * 10 * 1000;
-      const reportMs= reductionMinutes * 60 * 1000;
+      const reportMs = 1 * 10 * 1000;
+      // const reportMs= reductionMinutes * 60 * 1000;
       const startTime = Date.now();
 
       const activeMode = trackingModes.find(mode => mode.id === modeId);
