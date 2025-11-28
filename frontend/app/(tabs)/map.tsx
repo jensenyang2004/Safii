@@ -86,34 +86,10 @@ export default function Map() {
   const [selectedEmergency, setSelectedEmergency] = useState<EmergencyData | null>(null);
   const [bottomComponentHeight, setBottomComponentHeight] = useState(0);
   const [showLocationSentCard, setShowLocationSentCard] = useState(false); // New state
+  const [poiSearchLocation, setPoiSearchLocation] = useState<Location.LocationObject | null>(null);
+  const lastPoiSearchLocation = useRef<Location.LocationObject | null>(null);
 
 
-  const tabBarHeight = screenHeight * 0.09;
-
-  const mapRef = useRef<MapView>(null);
-
-  const calculateWalkingTime = async (origin: Location.LocationObject, destination: { latitude: number; longitude: number }) => {
-    try {
-      const originStr = `${origin.coords.latitude},${origin.coords.longitude}`;
-      const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${originStr}&destination=${destination.latitude},${destination.longitude}&mode=walking&language=zh-TW&key=${GOOGLE_MAPS_API_KEY}`;
-      const response = await fetch(url);
-      const data = await response.json();
-
-      if (data.status !== 'OK') {
-        console.error('Google Directions API error:', data.status);
-        return '計算錯誤';
-      }
-
-      if (data.routes && data.routes[0] && data.routes[0].legs && data.routes[0].legs[0]) {
-        return data.routes[0].legs[0].duration.text;
-      }
-
-      return '無法計算';
-    } catch (error) {
-      console.error('Error calculating walking time:', error);
-      return '計算錯誤';
-    }
-  };
 
   // Routing and POI related state (restored)
   const { routes, error, getRoutes, loading: isFetchingRoutes, clearRoutes } = useRoutePlanner();
@@ -146,6 +122,99 @@ export default function Map() {
     longitude: number;
   } | null>(null);
   const [showFindSafeSpotCard, setShowFindSafeSpotCard] = useState(false);
+
+  const handleReroute = async (newOrigin: Location.LocationObject) => {
+    if (destination) {
+      console.log("Rerouting from new origin:", newOrigin.coords);
+      await getRoutes(newOrigin.coords, destination);
+    }
+  };
+
+  const {
+    isNavigating,
+    userLocation: navUserLocation,
+    traveledPath,
+    remainingPath,
+    startNavigation,
+    stopNavigation,
+    updateRoute,
+    currentStep,
+    remainingDistance,
+    eta,
+  } = useLiveNavigation({ onReroute: handleReroute });
+
+  // Debounced location for POI searching
+  useEffect(() => {
+    const currentUserLocation = navUserLocation || location;
+
+    if (!currentUserLocation) return;
+
+    // Set the initial search location
+    if (!lastPoiSearchLocation.current) {
+      lastPoiSearchLocation.current = currentUserLocation;
+      setPoiSearchLocation(currentUserLocation);
+      return;
+    }
+
+    // Calculate distance from the last location where we updated the POIs
+    const distance = haversineDistance(
+      lastPoiSearchLocation.current.coords,
+      currentUserLocation.coords
+    );
+
+    // If moved more than the threshold, update the location for POI search
+    if (distance * 1000 > POI_UPDATE_DISTANCE_THRESHOLD) { // haversineDistance returns km
+      console.log(`User moved ${distance * 1000}m, updating POIs.`);
+      lastPoiSearchLocation.current = currentUserLocation;
+      setPoiSearchLocation(currentUserLocation);
+    }
+  }, [navUserLocation, location]); // Run whenever the user's location changes
+
+  const filteredPois = React.useMemo(() => {
+    if (!selectedPoiType || !poiSearchLocation) {
+      return [];
+    }
+    return pois.filter(poi => {
+      if (poi.type !== selectedPoiType) {
+        return false;
+      }
+      const distance = haversineDistance(
+        { latitude: poiSearchLocation.coords.latitude, longitude: poiSearchLocation.coords.longitude },
+        { latitude: poi.latitude, longitude: poi.longitude }
+      );
+      return distance <= 2.2;
+    });
+  }, [poiSearchLocation, selectedPoiType]);
+
+
+  const tabBarHeight = screenHeight * 0.09;
+
+  const mapRef = useRef<MapView>(null);
+
+  const calculateWalkingTime = async (origin: Location.LocationObject, destination: { latitude: number; longitude: number }) => {
+    try {
+      const originStr = `${origin.coords.latitude},${origin.coords.longitude}`;
+      const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${originStr}&destination=${destination.latitude},${destination.longitude}&mode=walking&language=zh-TW&key=${GOOGLE_MAPS_API_KEY}`;
+      const response = await fetch(url);
+      const data = await response.json();
+
+      if (data.status !== 'OK') {
+        console.error('Google Directions API error:', data.status);
+        return '計算錯誤';
+      }
+
+      if (data.routes && data.routes[0] && data.routes[0].legs && data.routes[0].legs[0]) {
+        return data.routes[0].legs[0].duration.text;
+      }
+
+      return '無法計算';
+    } catch (error) {
+      console.error('Error calculating walking time:', error);
+      return '計算錯誤';
+    }
+  };
+
+
 
   const handlePoliceStationPress = async (station: any) => {
     if (!location) {
@@ -208,32 +277,15 @@ export default function Map() {
     setDestination(destinationString);
     getRoutes(location.coords, destinationString);
     setDestinationMarker({
-      latitude: selectedLocation.latitude,
-      longitude: selectedLocation.longitude,
-      name: selectedLocation.name,
+      // latitude: selectedLocation.latitude,
+      // longitude: selectedLocation.longitude,
+      // name: selectedLocation.name,
+      latitude: destinationInfo.latitude,
+      longitude: destinationInfo.longitude,
+      name: destinationInfo.name,
     });
     setSelectedLocation(null); // 關閉位置卡片
   };
-
-  const handleReroute = async (newOrigin: Location.LocationObject) => {
-    if (destination) {
-      console.log("Rerouting from new origin:", newOrigin.coords);
-      await getRoutes(newOrigin.coords, destination);
-    }
-  };
-
-  const {
-    isNavigating,
-    userLocation: navUserLocation,
-    traveledPath,
-    remainingPath,
-    startNavigation,
-    stopNavigation,
-    updateRoute,
-    currentStep,
-    remainingDistance,
-    eta,
-  } = useLiveNavigation({ onReroute: handleReroute });
 
   const [isSearchingSafeSpot, setIsSearchingSafeSpot] = useState(false);
   const [showIntermediateSafeSpotCard, setShowIntermediateSafeSpotCard] = useState(false);
@@ -729,51 +781,7 @@ export default function Map() {
 
   // ***
 
-  const [poiSearchLocation, setPoiSearchLocation] = useState<Location.LocationObject | null>(null);
-  const lastPoiSearchLocation = useRef<Location.LocationObject | null>(null);
 
-  // Debounced location for POI searching
-  useEffect(() => {
-    const currentUserLocation = navUserLocation || location;
-
-    if (!currentUserLocation) return;
-
-    // Set the initial search location
-    if (!lastPoiSearchLocation.current) {
-      lastPoiSearchLocation.current = currentUserLocation;
-      setPoiSearchLocation(currentUserLocation);
-      return;
-    }
-
-    // Calculate distance from the last location where we updated the POIs
-    const distance = haversineDistance(
-      lastPoiSearchLocation.current.coords,
-      currentUserLocation.coords
-    );
-
-    // If moved more than the threshold, update the location for POI search
-    if (distance * 1000 > POI_UPDATE_DISTANCE_THRESHOLD) { // haversineDistance returns km
-      console.log(`User moved ${distance * 1000}m, updating POIs.`);
-      lastPoiSearchLocation.current = currentUserLocation;
-      setPoiSearchLocation(currentUserLocation);
-    }
-  }, [navUserLocation, location]); // Run whenever the user's location changes
-
-  const filteredPois = React.useMemo(() => {
-    if (!selectedPoiType || !poiSearchLocation) {
-      return [];
-    }
-    return pois.filter(poi => {
-      if (poi.type !== selectedPoiType) {
-        return false;
-      }
-      const distance = haversineDistance(
-        { latitude: poiSearchLocation.coords.latitude, longitude: poiSearchLocation.coords.longitude },
-        { latitude: poi.latitude, longitude: poi.longitude }
-      );
-      return distance <= 2.2;
-    });
-  }, [poiSearchLocation, selectedPoiType]);
   console.log("Map component rendering...");
   return (
     <View style={styles.container}>
