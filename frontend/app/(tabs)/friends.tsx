@@ -541,7 +541,7 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   acceptButton: {
-    backgroundColor: '#10B981',
+    backgroundColor: Theme.tracking_colors.coralRed,
   },
   rejectButton: {
     backgroundColor: '#EF4444',

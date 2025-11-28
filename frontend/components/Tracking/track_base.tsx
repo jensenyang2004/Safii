@@ -11,17 +11,19 @@ type TrackModeCardProps = {
   name: string;
   contacts: { id: string; url: any; name: string }[];
   checkIntervalMinutes: number;
+  intervalReductionMinutes: number;
 };
 
-export default function TrackModeCard({ id, name, contacts, checkIntervalMinutes }: TrackModeCardProps) {
+export default function TrackModeCard({ id, name, contacts, checkIntervalMinutes, intervalReductionMinutes }: TrackModeCardProps) {
   const { startTrackingMode } = useTracking();
 
   const visibleContacts = contacts.slice(0, 3);
   const moreCount = contacts.length - visibleContacts.length;
   const hasContacts = contacts && contacts.length > 0;
 
-  // Default reduction minutes for now, ideally this comes from tracking mode config
-  const defaultReductionMinutes = 3;
+  // Use reduction minutes from the mode config (passed in). Fallback to 3 if missing.
+  // const defaultReductionMinutes = intervalReductionMinutes ?? 3;
+  const defaultReductionMinutes = 1;
 
   return (
     <View style={styles.shadowContainer}>
@@ -40,10 +42,12 @@ export default function TrackModeCard({ id, name, contacts, checkIntervalMinutes
               !hasContacts && { width: '100%' }
             ]}
           >
-              <Text style={[styles.buttonText, { color: Theme.tracking_colors.white }]}>
+              <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.buttonText, { color: Theme.tracking_colors.white, flexShrink: 1 }]}>
                 開啟{name}模式
               </Text>
           </TouchableOpacity>
+
+          {/* Edit button removed — edit flow moved to Home */}
 
           {/* Avatars Row */}
           {hasContacts && (
@@ -115,6 +119,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 30,
     shadowOpacity: 0.2,
     shadowRadius: 3,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 5,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,

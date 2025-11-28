@@ -1,21 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Image, FlatList, Pressable, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, Image, FlatList, Pressable, StyleSheet, Alert } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
-import { useSharingSessions } from '@/hooks/useSharingSessions';
 import * as Theme from '@/constants/Theme';
 import { FontAwesome, Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { uiParameters } from '@/constants/Theme';
+import { useAllSharing, UnifiedSharingContact } from '@/hooks/useAllSharing';
+import { useFriendSharing } from '@/hooks/useFriendSharing'; // For starting a session
+import { useFriends } from '@/context/FriendProvider'; // For getting friends to start a session
 
-const LocationSharingButton = () => (
+const LocationSharingButton = ({ onPress }: { onPress: () => void }) => (
   <TouchableOpacity
     style={[styles.locationButton, { backgroundColor: uiParameters.buttons.locationShare.default.background }]}
+    onPress={onPress}
   >
     <Ionicons name="location-sharp" size={24} color={uiParameters.buttons.locationShare.default.icon} />
   </TouchableOpacity>
 );
 
-const AvatarList = ({ contacts }: { contacts: any[] }) => {
+const AvatarList = ({ contacts }: { contacts: UnifiedSharingContact[] }) => {
   const visibleContacts = contacts.slice(0, 3);
   const moreCount = contacts.length - visibleContacts.length;
 
@@ -24,13 +27,13 @@ const AvatarList = ({ contacts }: { contacts: any[] }) => {
       {visibleContacts.map((contact, index) =>
         contact.avatarUrl ? (
           <Image
-            key={contact.contactId}
+            key={contact.userId}
             source={{ uri: contact.avatarUrl }}
             style={[styles.avatar, { marginLeft: index > 0 ? -10 : 0 }]}
           />
         ) : (
           <View
-            key={contact.contactId}
+            key={contact.userId}
             style={[styles.avatar, styles.avatarPlaceholder, { marginLeft: index > 0 ? -10 : 0 }]}
           >
             <Text style={styles.avatarText}>
@@ -48,7 +51,7 @@ const AvatarList = ({ contacts }: { contacts: any[] }) => {
   );
 };
 
-const FoldedView = ({ isSharing, contacts }: { isSharing: boolean, contacts: any[] }) => (
+const FoldedView = ({ isSharing, contacts, onStartShare }: { isSharing: boolean, contacts: UnifiedSharingContact[], onStartShare: () => void }) => (
   <View style={styles.foldedViewContainer}>
     <View style={styles.foldedViewLeft}>
       <FontAwesome name="circle" size={12} color={isSharing ? 'green' : 'grey'} />
@@ -56,11 +59,11 @@ const FoldedView = ({ isSharing, contacts }: { isSharing: boolean, contacts: any
         {isSharing ? `您的位置正在與 ${contacts.length} 人分享` : '您的位置並未分享給任何人'}
       </Text>
     </View>
-    {isSharing ? <AvatarList contacts={contacts} /> : <LocationSharingButton />}
+    {isSharing ? <AvatarList contacts={contacts} /> : <LocationSharingButton onPress={onStartShare} />}
   </View>
 );
 
-const ExpandedView = ({ contacts, onStopSharing }: { contacts: any[], onStopSharing: (sessionId: string, contactId: string) => void }) => (
+const ExpandedView = ({ contacts, onStopSharing }: { contacts: UnifiedSharingContact[], onStopSharing: (contact: UnifiedSharingContact) => void }) => (
   <View style={styles.expandedViewContainer}>
     <View style={styles.chevronContainer}>
       <Ionicons name="chevron-down" size={24} color="grey" />
@@ -83,33 +86,37 @@ const ExpandedView = ({ contacts, onStopSharing }: { contacts: any[], onStopShar
           <View style={styles.expandedItemCenter}>
             <Text style={styles.expandedUsername}>{item.username || 'Unknown User'}</Text>
             <View style={styles.sharingStatus}>
-              <FontAwesome name="circle" size={10} color="green" />
-              <Text style={styles.sharingStatusText}>Sharing</Text>
+              <FontAwesome name="circle" size={10} color={item.type === 'emergency' ? Theme.colors.danger : 'green'} />
+              {/* <Text style={styles.sharingStatusText}>
+                {item.type === 'emergency' ? 'Sharing (Emergency)' : 'Sharing'}
+              </Text> */}
             </View>
           </View>
           <TouchableOpacity
             style={styles.stopButton}
             onPress={(e) => {
               e.stopPropagation(); // Prevent container press
-              onStopSharing(item.sessionId, item.contactId);
+              onStopSharing(item);
             }}
           >
             <Text style={styles.stopButtonText}>Stop Sharing</Text>
           </TouchableOpacity>
         </View>
       )}
-      keyExtractor={item => item.contactId}
+      keyExtractor={item => item.userId}
       ListHeaderComponent={() => <Text style={styles.expandedHeader}>位置正在被分享</Text>}
     />
   </View>
 );
 
 export default function SharingSessionCard() {
-  const { sessions, isLoading, error } = useSharingSessions();
+  const { unifiedList, isLoading, error, stopSharingWithContact } = useAllSharing();
+  const { createSharingSession } = useFriendSharing();
+  const { friends } = useFriends();
   const [isExpanded, setIsExpanded] = useState(false);
 
   const height = useSharedValue(80);
-  const borderRadius = useSharedValue(Theme.radii.xl); // Initial folded state
+  const borderRadius = useSharedValue(Theme.radii.xl);
 
   const animatedContainerStyle = useAnimatedStyle(() => {
     return {
@@ -118,31 +125,36 @@ export default function SharingSessionCard() {
     };
   });
 
+  const isSharing = unifiedList.length > 0;
+
+  useEffect(() => {
+    // Do not allow expanding if not sharing
+    if (!isSharing) {
+      setIsExpanded(false);
+    }
+  }, [isSharing]);
+
   useEffect(() => {
     height.value = withTiming(isExpanded ? 230 : 80, { duration: 300 });
     borderRadius.value = withTiming(isExpanded ? Theme.radii.xl : Theme.radii.xxl, { duration: 300 });
   }, [isExpanded]);
 
-  const handleStopSharing = (sessionId: string, contactId: string) => {
-
+  const handleStartSharing = () => {
+    if (friends.length === 0) {
+      Alert.alert("No Friends", "You need to add friends before you can share your location.");
+      return;
+    }
+    const friendIds = friends.map(f => f.id);
+    createSharingSession(friendIds);
   };
 
   if (isLoading) {
-    return <Text>Loading...</Text>;
+    return <Text>Loading sharing status...</Text>;
   }
 
   if (error) {
     return <Text>{error}</Text>;
   }
-
-  const allContacts = sessions.flatMap(session =>
-    Object.entries(session.contactStatus).map(([contactId, contactData]) => ({
-      sessionId: session.emergencyDocId,
-      contactId,
-      ...contactData
-    }))
-  );
-  const isSharing = allContacts.length > 0;
 
   return (
     <View style={styles.shadowContainer}>
@@ -154,9 +166,9 @@ export default function SharingSessionCard() {
         >
           <Pressable onPress={() => { if (isSharing) setIsExpanded(!isExpanded); }} style={[styles.pressable, { backgroundColor: uiParameters.mainComponent.background }]}>
             {isExpanded ? (
-              <ExpandedView contacts={allContacts} onStopSharing={handleStopSharing} />
+              <ExpandedView contacts={unifiedList} onStopSharing={stopSharingWithContact} />
             ) : (
-              <FoldedView isSharing={isSharing} contacts={allContacts} />
+              <FoldedView isSharing={isSharing} contacts={unifiedList} onStartShare={handleStartSharing} />
             )}
           </Pressable>
         </BlurView>

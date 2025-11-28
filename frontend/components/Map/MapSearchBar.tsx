@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, TextInput, TouchableOpacity, Text, StyleSheet, FlatList, ActivityIndicator } from 'react-native';
 import Constants from 'expo-constants';
+import { BlurView } from 'expo-blur';
 
 const GOOGLE_PLACES_API_KEY = Constants.expoConfig?.extra?.GOOGLE_MAPS_API_KEY ?? '';
 
@@ -20,6 +21,7 @@ const MapSearchBar: React.FC<MapSearchBarProps> = ({ onSearch, onSuggestionSelec
   const [loading, setLoading] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const debounceTimeout = useRef<NodeJS.Timeout | null>(null);
+  const isSuggestionSelectedRef = useRef(false); // New ref to track suggestion selection
 
   useEffect(() => {
     if (debounceTimeout.current) {
@@ -36,19 +38,15 @@ const MapSearchBar: React.FC<MapSearchBarProps> = ({ onSearch, onSuggestionSelec
     setLoading(true);
     setShowSuggestions(true);
     debounceTimeout.current = setTimeout(async () => {
-      console.log(`Fetching suggestions for query: "${query}"`);
       try {
         const response = await fetch(
           `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${query}&key=${GOOGLE_PLACES_API_KEY}&language=zh-TW`
         );
         const data = await response.json();
-        console.log("Google Places API response:", data);
 
         if (data.predictions) {
-          console.log("Setting suggestions:", data.predictions);
           setSuggestions(data.predictions);
         } else {
-          console.log("No predictions found, clearing suggestions.");
           setSuggestions([]);
         }
       } catch (error) {
@@ -67,12 +65,10 @@ const MapSearchBar: React.FC<MapSearchBarProps> = ({ onSearch, onSuggestionSelec
   }, [query]);
 
   const handleSelectSuggestion = async (prediction: PlacePrediction) => {
-
-    console.log("Set query triggered", prediction.description);
-
+    isSuggestionSelectedRef.current = true; // Set flag immediately
     setQuery(prediction.description);
     setSuggestions([]);
-    setShowSuggestions(false);
+    setShowSuggestions(false); // Explicitly hide
     setLoading(true);
 
     try {
@@ -83,10 +79,8 @@ const MapSearchBar: React.FC<MapSearchBarProps> = ({ onSearch, onSuggestionSelec
 
       if (data.result && data.result.geometry) {
         const { lat, lng } = data.result.geometry.location;
-        console.log("onSuggestionSelected triggered.", { description: prediction.description });
         onSuggestionSelected(prediction.description, lat, lng);
       } else {
-        console.log("onSearch triggered.", { description: prediction.description });
         onSearch(prediction.description); // Fallback to just text search if coordinates not found
       }
     } catch (error) {
@@ -94,43 +88,59 @@ const MapSearchBar: React.FC<MapSearchBarProps> = ({ onSearch, onSuggestionSelec
       onSearch(prediction.description); // Fallback to just text search on error
     } finally {
       setLoading(false);
+      // Reset flag after a short delay to ensure onBlur has fired and checked it
+      setTimeout(() => {
+        isSuggestionSelectedRef.current = false;
+      }, 150); // Increased delay
     }
   };
 
   return (
     <View style={styles.container}>
-      <View style={styles.searchContainer}>
-        <TextInput
-          style={styles.input}
-          placeholder="輸入目的地"
-          value={query}
-          onChangeText={setQuery}
-          onFocus={() => query.length > 0 && setShowSuggestions(true)}
-          onBlur={() => setTimeout(() => setShowSuggestions(false), 100)} // Delay hiding to allow click
-        />
-      </View>
+      <BlurView intensity={90} tint="light" style={styles.blurView}>
+        <View style={styles.searchContainer}>
+          <TextInput
+            style={styles.input}
+            placeholder="輸入目的地"
+            value={query}
+            onChangeText={setQuery}
+            onFocus={() => query.length > 0 && setShowSuggestions(true)}
+            onBlur={() => {
+              // Use a small delay to allow handleSelectSuggestion's onPress to register
+              // and potentially set isSuggestionSelectedRef.current to true
+              setTimeout(() => {
+                if (!isSuggestionSelectedRef.current) {
+                  setShowSuggestions(false);
+                }
+              }, 100); // Keep a small delay for onBlur
+            }}
+          />
+        </View>
+      </BlurView>
       {showSuggestions && (suggestions.length > 0 || loading) && (
         <View style={styles.suggestionsContainer}>
-          {loading ? (
-            <ActivityIndicator size="small" color="#0000ff" style={styles.loadingIndicator} />
-          ) : (
-            <FlatList
-              data={suggestions}
-              keyExtractor={(item) => item.place_id}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={styles.suggestionItem}
-                  onPress={() => handleSelectSuggestion(item)}
-                >
-                  <Text style={styles.suggestionText}>{item.description}</Text>
-                </TouchableOpacity>
-              )}
-              keyboardShouldPersistTaps="always"
-            />
-          )}
+          <BlurView intensity={90} tint="light" style={styles.suggestionsBlurView}>
+            {loading ? (
+              <ActivityIndicator size="small" color="#0000ff" style={styles.loadingIndicator} />
+            ) : (
+              <FlatList
+                data={suggestions}
+                keyExtractor={(item) => item.place_id}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={styles.suggestionItem}
+                    onPress={() => handleSelectSuggestion(item)}
+                  >
+                    <Text style={styles.suggestionText}>{item.description}</Text>
+                  </TouchableOpacity>
+                )}
+                keyboardShouldPersistTaps="always"
+              />
+            )}
+          </BlurView>
         </View>
       )}
-      </View>
+    </View>
   );
 };
 
@@ -140,8 +150,6 @@ const styles = StyleSheet.create({
     top: 60,
     width: '90%',
     alignSelf: 'center',
-    backgroundColor: 'white',
-    borderRadius: 10,
     elevation: 5,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -149,18 +157,24 @@ const styles = StyleSheet.create({
     shadowRadius: 3.84,
     zIndex: 1000, // Ensure search bar is above other map elements
   },
+  blurView: {
+    borderRadius: 50,
+    overflow: 'hidden',
+  },
   searchContainer: {
     flexDirection: 'row',
   },
   input: {
     flex: 1,
-    padding: 15,
+    padding: 20,
   },
   suggestionsContainer: {
     maxHeight: 200, // Limit height of suggestions list
     borderColor: '#ccc',
     borderTopWidth: 1,
-    backgroundColor: 'white', // Added for visibility
+  },
+  suggestionsBlurView: {
+    overflow: 'hidden',
   },
   suggestionItem: {
     padding: 15,

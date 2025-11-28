@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Step } from '@/types';
+import { BlurView } from 'expo-blur';
 
 interface Props {
   currentStep: Step | null;
@@ -37,14 +38,18 @@ const NavigationInstructionsCard = ({ currentStep, remainingDistance, eta }: Pro
 
   return (
     <View style={styles.container}>
-      <View style={styles.topRow}>
-        <Text style={styles.instructionText}>{stripHtml(currentStep.html_instructions)}</Text>
-        <Text style={styles.distanceText}>{formatDistance(currentStep.distance.value)}</Text>
-      </View>
-      <View style={styles.bottomRow}>
-        <Text style={styles.etaText}>{`${formatEta(eta)} left`}</Text>
-        <Text style={styles.remainingDistanceText}>{`${formatDistance(remainingDistance)} total`}</Text>
-      </View>
+      <BlurView intensity={90} tint="light" style={styles.blurView}>
+        <View style={styles.innerContainer}>
+          <View style={styles.topRow}>
+            <Text style={styles.instructionText}>{stripHtml(currentStep.html_instructions)}</Text>
+            <Text style={styles.distanceText}>{formatDistance(currentStep.distance.value)}</Text>
+          </View>
+          <View style={styles.bottomRow}>
+            <Text style={styles.etaText}>{`${formatEta(eta)} left`}</Text>
+            <Text style={styles.remainingDistanceText}>{`${formatDistance(remainingDistance)} total`}</Text>
+          </View>
+        </View>
+      </BlurView>
     </View>
   );
 };
@@ -55,14 +60,18 @@ const styles = StyleSheet.create({
     top: 60,
     left: 10,
     right: 10,
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    borderRadius: 12,
-    padding: 15,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 5,
+  },
+  blurView: {
+    borderRadius: 32,
+    overflow: 'hidden',
+  },
+  innerContainer: {
+    padding: 15,
   },
   topRow: {
     flexDirection: 'row',

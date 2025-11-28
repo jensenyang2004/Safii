@@ -4,7 +4,14 @@ import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/libs/firebase';
 import { useAuth } from '@/context/AuthProvider';
 import Theme from '@/constants/Theme';
-const EmergencyInfoModal = ({ emergency, onClose }) => {
+import { EmergencyData } from '@/hooks/useEmergencyListener'; // Import EmergencyData
+
+interface EmergencyInfoModalProps {
+  emergency: EmergencyData | null;
+  onClose: () => void;
+}
+
+const EmergencyInfoModal = ({ emergency, onClose }: EmergencyInfoModalProps) => {
   const { user } = useAuth();
 
   if (!emergency || !user) {
@@ -48,6 +55,17 @@ const EmergencyInfoModal = ({ emergency, onClose }) => {
           <Text style={styles.modalDescription}>
             This emergency was triggered because {emergency.trackedUserName} did not respond in time while using the "default" mode.
           </Text>
+
+          {emergency.activityLocation && (
+            <Text style={styles.modalText}>活動地點：{emergency.activityLocation}</Text>
+          )}
+          {emergency.activity && (
+            <Text style={styles.modalText}>活動：{emergency.activity}</Text>
+          )}
+          {emergency.notes && (
+            <Text style={styles.modalText}>備註：{emergency.notes}</Text>
+          )}
+          
           <Text style={styles.modalText}>
             Last update: {emergency.updateTime ? emergency.updateTime.toDate().toLocaleString() : 'N/A'}
           </Text>

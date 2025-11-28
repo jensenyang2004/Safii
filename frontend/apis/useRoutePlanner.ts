@@ -41,7 +41,7 @@ export const useRoutePlanner = () => {
           return {
             distance: leg.distance,
             duration: leg.duration,
-            polyline: route.overview_polyline.points,
+            polyline: decodedPolyline, // Store decoded polyline
             safetyScore,
             legs: route.legs,
           };

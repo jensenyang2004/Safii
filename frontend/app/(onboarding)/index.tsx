@@ -8,6 +8,8 @@ import { FontAwesome } from '@expo/vector-icons';
 import * as Notifications from 'expo-notifications';
 import * as Location from 'expo-location';
 import { usePermissions } from '../../hooks/usePermissions';
+import { useBiometrics } from '../../hooks/useBiometrics';
+import { useAuth } from '@/context/AuthProvider';
 
 const { width } = Dimensions.get('window');
 const ONBOARDING_COMPLETED_KEY = 'onboarding_completed';
@@ -15,14 +17,28 @@ const ONBOARDING_COMPLETED_KEY = 'onboarding_completed';
 export default function OnboardingScreen() {
   const pagerRef = useRef<PagerView>(null);
   const [activeIndex, setActiveIndex] = useState(0);
+  const { user, completeOnboarding } = useAuth();
 
   const { 
     notificationStatus, 
     backgroundLocationStatus, 
-    foregroundLocationStatus, 
     allPermissionsGranted, 
     checkPermissions 
   } = usePermissions();
+
+  const {
+    isBiometricSupported,
+    isEnrolled,
+    promptEnrollment,
+    checkBiometrics,
+  } = useBiometrics();
+
+  useEffect(() => {
+    // When the page comes into view, re-check the biometric status
+    if (activeIndex === 4) { // Assuming Face ID page is at index 4
+      checkBiometrics();
+    }
+  }, [activeIndex]);
 
   const handlePermissionRequest = async (request: () => Promise<any>) => {
     await request();
@@ -44,18 +60,24 @@ export default function OnboardingScreen() {
     Linking.openSettings();
   };
 
-  const handleOnboardingComplete = async () => {
-    if (allPermissionsGranted) {
-      try {
-        await SecureStore.setItemAsync(ONBOARDING_COMPLETED_KEY, 'true');
-        router.replace('/(tabs)/home');
-      } catch (error) {
-        console.error('Failed to save onboarding status', error);
-        // Handle error appropriately
-      }
+  const handleOnboardingComplete = () => {
+    if (allPermissionsGranted && user) {
+      completeOnboarding();
+      router.replace('/(tabs)/home');
     } else {
-      // Optionally, show an alert to the user that permissions are required.
       alert('Please grant all required permissions to continue.');
+    }
+  };
+
+  useEffect(() => {
+    console.log('OnboardingScreen mounted');
+  }, []);
+
+  const handleBiometricSetup = () => {
+    if (isBiometricSupported && !isEnrolled) {
+      promptEnrollment();
+    } else {
+      pagerRef.current?.setPage(activeIndex + 1);
     }
   };
 
@@ -94,6 +116,15 @@ export default function OnboardingScreen() {
       onPress: backgroundLocationStatus === 'denied' ? openAppSettings : requestLocationPermission,
       disabled: backgroundLocationStatus === 'granted',
     },
+    // New Face ID Page
+    ...(isBiometricSupported ? [{
+      title: '啟用 Face ID',
+      description: '為了更快速、安全地回報您的安全狀況，建議您啟用 Face ID。',
+      backgroundColor: ['#FFC107', '#FFA000'],
+      buttonText: isEnrolled ? '✓ 已啟用' : '啟用 Face ID',
+      onPress: handleBiometricSetup,
+      disabled: isEnrolled,
+    }] : []),
     {
       title: '準備就緒！',
       description: '現在您已了解 Safii 的基本功能，讓我們開始使用吧！',
@@ -103,8 +134,6 @@ export default function OnboardingScreen() {
       disabled: !allPermissionsGranted,
     },
   ];
-
-
 
   return (
     <View style={styles.container}>

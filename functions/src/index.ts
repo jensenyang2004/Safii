@@ -65,15 +65,33 @@ export const emergencyScanner = onSchedule(`every ${REMINDER_INTERVAL_MINUTES} m
             trackedUserName = trackedUserDoc.data()?.displayName || trackedUserDoc.data()?.username || 'Someone';
           }
 
+          const activity = sessionData.activity || '';
+          const activityLocation = sessionData.activityLocation || '';
+          const notes = sessionData.notes || '';
+
+          let body = `${trackedUserName} 發送了緊急通知，請盡快查看訊息。`;
+          // if (activity) {
+          //   body += `\n活動資訊: ${activity}`;
+          // }
+          // if (activityLocation) {
+          //   body += `\n活動地點: ${activityLocation}`;
+          // }
+          // if (notes) {
+          //   body += `\n備註: ${notes}`;
+          // }
+
           const message = {
             to: pushToken,
             sound: 'safii_alert.wav',
             title: `Emergency Alert from ${trackedUserName}`,
-            body: `${trackedUserName} needs your attention. Please check the app.`, // Customize message
+            body: body, // Customize message
             data: { // Data payload for deep linking
               type: 'emergency_alert',
               trackedUserId: sessionData.trackedUserId,
               sessionId: documentId, // Use documentId here
+              activity: activity,
+              activityLocation: activityLocation,
+              notes: notes,
             },
           };
 

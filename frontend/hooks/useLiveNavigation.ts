@@ -3,7 +3,7 @@ import * as Location from 'expo-location';
 import * as Speech from 'expo-speech';
 import { RouteInfo, Step } from '../types';
 import { findNearestPointOnPolyline, getDistance } from '../utils/route';
-import { decodePolyline } from '../utils/polyline';
+// import { decodePolyline } from '../utils/polyline'; // No longer needed here
 
 // Helper to strip HTML tags for speech
 const stripHtml = (html: string) => {
@@ -28,7 +28,6 @@ export const useLiveNavigation = ({ onReroute }: UseLiveNavigationProps) => {
   const [remainingPath, setRemainingPath] = useState<any[]>([]);
 
   const locationSubscription = useRef<Location.LocationSubscription | null>(null);
-  const testInterval = useRef<any>(null);
   const lastRerouteTime = useRef<number>(0);
 
   useEffect(() => {
@@ -45,8 +44,9 @@ export const useLiveNavigation = ({ onReroute }: UseLiveNavigationProps) => {
       return;
     }
 
-    const decodedPolyline = decodePolyline(activeRoute.polyline);
-    const nearestPoint = findNearestPointOnPolyline(userLocation.coords, decodedPolyline);
+    // activeRoute.polyline is now expected to be an array of coordinates
+    const polylineCoordinates = activeRoute.polyline;
+    const nearestPoint = findNearestPointOnPolyline(userLocation.coords, polylineCoordinates);
 
     // --- Deviation Detection ---
     const DEVIATION_THRESHOLD = 40; // meters
@@ -63,11 +63,11 @@ export const useLiveNavigation = ({ onReroute }: UseLiveNavigationProps) => {
     }
 
     // --- Path and Progress Update ---
-    const newTraveledPath = decodedPolyline.slice(0, nearestPoint.index + 1);
+    const newTraveledPath = polylineCoordinates.slice(0, nearestPoint.index + 1);
     newTraveledPath.push({ latitude: nearestPoint.latitude, longitude: nearestPoint.longitude });
     setTraveledPath(newTraveledPath);
 
-    const newRemainingPath = decodedPolyline.slice(nearestPoint.index);
+    const newRemainingPath = polylineCoordinates.slice(nearestPoint.index);
     newRemainingPath.unshift({ latitude: nearestPoint.latitude, longitude: nearestPoint.longitude });
     setRemainingPath(newRemainingPath);
 
@@ -137,28 +137,6 @@ export const useLiveNavigation = ({ onReroute }: UseLiveNavigationProps) => {
     );
   };
 
-  const startTestNavigation = (route: RouteInfo, startLocation: any) => {
-    console.log('Starting test navigation...');
-    setActiveRoute(route);
-    setIsNavigating(true);
-    setCurrentStepIndex(0);
-    setUserLocation({ coords: startLocation, timestamp: Date.now() });
-
-    testInterval.current = setInterval(() => {
-      // Just update the location, the useEffect will handle the rest
-      setUserLocation(prevLocation => {
-        if (!prevLocation) return null;
-        const newCoords = {
-          ...prevLocation.coords,
-          latitude: prevLocation.coords.latitude + 0.0001,
-          longitude: prevLocation.coords.longitude + 0.0001,
-          heading: 45,
-        };
-        return { ...prevLocation, coords: newCoords, timestamp: Date.now() };
-      });
-    }, 2000);
-  };
-
   const stopNavigation = () => {
     console.log('Stopping navigation...');
     Speech.stop();
@@ -171,15 +149,12 @@ export const useLiveNavigation = ({ onReroute }: UseLiveNavigationProps) => {
     if (locationSubscription.current) {
       locationSubscription.current.remove();
     }
-    if (testInterval.current) {
-      clearInterval(testInterval.current);
-    }
   };
   
   useEffect(() => {
     if (isNavigating && activeRoute) {
-        const decoded = decodePolyline(activeRoute.polyline);
-        setRemainingPath(decoded);
+        // activeRoute.polyline is already decoded
+        setRemainingPath(activeRoute.polyline);
         setTraveledPath([]);
     }
   }, [activeRoute]);
@@ -192,7 +167,6 @@ export const useLiveNavigation = ({ onReroute }: UseLiveNavigationProps) => {
     traveledPath,
     remainingPath,
     startNavigation,
-    startTestNavigation,
     stopNavigation,
     updateRoute,
     currentStep,

@@ -12,6 +12,7 @@ import {
   Image,
   Animated,
 } from 'react-native';
+
 // 直接使用 Image 组件，不需要导入 SVG
 import Constants from "expo-constants";
 import React, { useEffect, useState, useRef } from 'react';
@@ -24,13 +25,14 @@ import MapCarousel from '@/components/Map/carousel';
 import ToolCard from '@/components/Safety_tools/tools_card';
 import { useTracking } from '@/context/TrackProvider';
 import { useEmergencyListener } from '@/hooks/useEmergencyListener';
+import { useFriendSharing } from '@/hooks/useFriendSharing';
 import EmergencyList from '@/components/Emergency/EmergencyList';
 import EmergencyInfoModal from '@/components/Emergency/EmergencyInfoModal';
 import LocationSentCard from '@/components/Tracking/LocationSentCard';
 import SharingSessionCard from '@/components/Tracking/SharingSessionCard';
-import EmergencyContactMarker from '@/components/Map/EmergencyContactMarker';
+import AvatarMarker from '@/components/Map/AvatarMarker';
 import { EmergencyBubble } from '@/components/Emergency/EmergencyBubbles';
-
+import { decodePolyline } from '@/utils/polyline';
 
 import { pois } from '../../constants/pois';
 import { POI } from '@/types';
@@ -39,11 +41,12 @@ import MapSearchBar from '@/components/Map/MapSearchBar';
 import { useRoutePlanner } from '@/apis/useRoutePlanner';
 import RouteCarousel from '@/components/Map/RouteCarousel';
 import { RouteInfo } from '@/types';
-import { decodePolyline } from '@/utils/polyline';
+
 import LocationCard from '@/components/Map/LocationCard';
 import { useAuth } from '@/context/AuthProvider';
 import { useLiveNavigation } from '@/hooks/useLiveNavigation';
 import NavigationInstructionsCard from '@/components/Map/NavigationInstructionsCard';
+import Theme from '@/constants/Theme';
 
 
 
@@ -74,62 +77,25 @@ export default function Map() {
   // const { trackingModes, isTracking, trackingModeId, isReportDue, isInfoSent, stopTrackingMode, justReportedSafety, setJustReportedSafety } = useTracking();
 
   const { trackingModes, isTracking, trackingModeId, isReportDue, isInfoSent, stopTrackingMode } = useTracking();
+  const activeMode = trackingModes.find(mode => mode.id === trackingModeId);
   const { emergencyData: emergencies } = useEmergencyListener();
+  const { sharedByFriends } = useFriendSharing();
   const [showToolCard, setShowToolCard] = useState(false);
   const [selectedEmergency, setSelectedEmergency] = useState<EmergencyData | null>(null);
   const [bottomComponentHeight, setBottomComponentHeight] = useState(0);
   const [showLocationSentCard, setShowLocationSentCard] = useState(false); // New state
 
+
   const tabBarHeight = screenHeight * 0.09;
 
   const mapRef = useRef<MapView>(null);
 
-  const avatarImg = require('../../assets/avatar-photo/avatar-1.png');
-
-  useEffect(() => {
-    console.log('🔍 [Map] , showToolCard:', showToolCard);
-
-  }, [showToolCard]);
-
-  const { routes, error, getRoutes, loading: isFetchingRoutes, clearRoutes } = useRoutePlanner();
-  const [selectedRoute, setSelectedRoute] = useState<RouteInfo | null>(null);
-  const [destination, setDestination] = useState<string | null>(null);
-  const [placeToConfirm, setPlaceToConfirm] = useState<{ description: string; latitude: number; longitude: number } | null>(null);
-  const lastRecalculation = useRef<number>(0);
-
-  const [selectedPoiType, setSelectedPoiType] = useState<'police' | 'store' | null>(null);
-  const [selectedPoi, setSelectedPoi] = useState<POI | null>(null);
-  const [calloutVisible, setCalloutVisible] = useState<string | null>(null); // 儲存正在顯示 callout 的標記 ID
-  const [selectedPoliceStation, setSelectedPoliceStation] = useState<{
-    name: string;
-    address: string;
-    latitude: number;
-    longitude: number;
-    walkingTime: string | null;
-  } | null>(null);
-
-  const [selectedLocation, setSelectedLocation] = useState<{
-    name: string;
-    address: string;
-    latitude: number;
-    longitude: number;
-  } | null>(null);
-
   const calculateWalkingTime = async (origin: Location.LocationObject, destination: { latitude: number; longitude: number }) => {
     try {
-      console.log('Calculating walking time for:', {
-        origin: `${origin.coords.latitude},${origin.coords.longitude}`,
-        destination: `${destination.latitude},${destination.longitude}`
-      });
-
-      const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${origin.coords.latitude},${origin.coords.longitude}&destination=${destination.latitude},${destination.longitude}&mode=walking&alternatives=true&language=zh-TW&key=${GOOGLE_MAPS_API_KEY}`;
-      console.log('API Key being used:', GOOGLE_MAPS_API_KEY);
-      console.log('Request URL:', url);
-
+      const originStr = `${origin.coords.latitude},${origin.coords.longitude}`;
+      const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${originStr}&destination=${destination.latitude},${destination.longitude}&mode=walking&language=zh-TW&key=${GOOGLE_MAPS_API_KEY}`;
       const response = await fetch(url);
-
       const data = await response.json();
-      console.log('Google Directions API response:', data);
 
       if (data.status !== 'OK') {
         console.error('Google Directions API error:', data.status);
@@ -137,19 +103,47 @@ export default function Map() {
       }
 
       if (data.routes && data.routes[0] && data.routes[0].legs && data.routes[0].legs[0]) {
-        // 只返回文字部分，不返回完整的 duration 對象
-        const durationText = data.routes[0].legs[0].duration.text;
-        console.log('Walking duration:', durationText);
-        return durationText;
+        return data.routes[0].legs[0].duration.text;
       }
 
-      console.log('No valid route found');
       return '無法計算';
     } catch (error) {
       console.error('Error calculating walking time:', error);
       return '計算錯誤';
     }
   };
+
+  // Routing and POI related state (restored)
+  const { routes, error, getRoutes, loading: isFetchingRoutes, clearRoutes } = useRoutePlanner();
+  const [selectedRoute, setSelectedRoute] = useState<RouteInfo | null>(null);
+  const [destination, setDestination] = useState<string | null>(null);
+  const [placeToConfirm, setPlaceToConfirm] = useState<{ description: string; latitude: number; longitude: number } | null>(null);
+  const lastRecalculation = useRef<number>(0);
+  const [selectedPoiType, setSelectedPoiType] = useState<'police' | 'store' | null>(null);
+  const [selectedPoi, setSelectedPoi] = useState<POI | null>(null);
+  const [calloutVisible, setCalloutVisible] = useState<string | null>(null);
+  const [selectedPoliceStation, setSelectedPoliceStation] = useState<{
+    name: string;
+    address: string;
+    latitude: number;
+    longitude: number;
+    walkingTime: string | null;
+  } | null>(null);
+  const [destinationInfo, setDestinationInfo] = useState<{
+    name: string;
+    address: string;
+    latitude: number;
+    longitude: number;
+  } | null>(null);
+  const [showDestinationCard, setShowDestinationCard] = useState(false);
+  const [destinationMarker, setDestinationMarker] = useState<{ latitude: number, longitude: number, name: string } | null>(null);
+  const [selectedLocation, setSelectedLocation] = useState<{
+    name: string;
+    address: string;
+    latitude: number;
+    longitude: number;
+  } | null>(null);
+  const [showFindSafeSpotCard, setShowFindSafeSpotCard] = useState(false);
 
   const handlePoliceStationPress = async (station: any) => {
     if (!location) {
@@ -158,11 +152,6 @@ export default function Map() {
     }
 
     console.log('Police station pressed:', station);
-
-    // 清除現有的路線選擇狀態
-    setDestination(null);
-    setSelectedRoute(null);
-    clearRoutes();
 
     // 使用 calculateWalkingTime 來獲取預估時間
     setSelectedPoliceStation({
@@ -191,21 +180,36 @@ export default function Map() {
   const handleNavigateToPoliceStation = () => {
     if (!selectedPoliceStation || !location) return;
 
-    console.log("規劃路線到警察局:", selectedPoliceStation.name);
+    // console.log("規劃路線到警察局:", selectedPoliceStation.name);
     const destinationString = `${selectedPoliceStation.latitude},${selectedPoliceStation.longitude}`;
     setDestination(destinationString);
+
+    // console.log("Calling getRoutes with:", location.coords, destinationString);
     getRoutes(location.coords, destinationString);
+    // console.log("Route planning initiated.");
+
+    setDestinationMarker({
+      latitude: selectedPoliceStation.latitude,
+      longitude: selectedPoliceStation.longitude,
+      name: selectedPoliceStation.name,
+    });
     setSelectedPoliceStation(null); // 關閉警察局卡片
     setCalloutVisible(null); // 隱藏 callout
+    // console.log("finished handleNavigateToPoliceStation");
   };
 
   const handleNavigateToLocation = () => {
-    if (!selectedLocation || !location) return;
+    if (!destinationInfo || !location) return;
 
-    console.log("規劃路線到:", selectedLocation.name);
-    const destinationString = `${selectedLocation.latitude},${selectedLocation.longitude}`;
+    console.log("規劃路線到:", destinationInfo.name);
+    const destinationString = `${destinationInfo.latitude},${destinationInfo.longitude}`;
     setDestination(destinationString);
     getRoutes(location.coords, destinationString);
+    setDestinationMarker({
+      latitude: selectedLocation.latitude,
+      longitude: selectedLocation.longitude,
+      name: selectedLocation.name,
+    });
     setSelectedLocation(null); // 關閉位置卡片
   };
 
@@ -221,7 +225,7 @@ export default function Map() {
     userLocation: navUserLocation,
     traveledPath,
     remainingPath,
-    startTestNavigation,
+    startNavigation,
     stopNavigation,
     updateRoute,
     currentStep,
@@ -230,6 +234,19 @@ export default function Map() {
   } = useLiveNavigation({ onReroute: handleReroute });
 
   const [isSearchingSafeSpot, setIsSearchingSafeSpot] = useState(false);
+  const [showIntermediateSafeSpotCard, setShowIntermediateSafeSpotCard] = useState(false);
+  const [showNearestSafeSpotCard, setShowNearestSafeSpotCard] = useState(false);
+  const [nearestSafeSpotData, setNearestSafeSpotData] = useState<{
+    name: string;
+    address: string;
+    latitude: number;
+    longitude: number;
+    walkingTime?: string | null;
+  } | null>(null);
+
+  // When we trigger a navigation from a LocationCard (nearest spot), we set this
+  // so that when `routes` are populated we can auto-start navigation like other flows.
+  const [pendingAutoNavigateTo, setPendingAutoNavigateTo] = useState<{ latitude: number; longitude: number } | null>(null);
 
 
   // const flatListRef = useRef<FlatList>(null);
@@ -237,10 +254,30 @@ export default function Map() {
   const scaleAnimation = useRef(new Animated.Value(1)).current;
 
   const [mapCarouselHeight, setMapCarouselHeight] = useState(0);
-  const [routeSheetHeight, setRouteSheetHeight] = useState(0);
   const routeSheetAnimation = useRef(new Animated.Value(0)).current;
 
-  const showRouteSheet = routes.length > 0 || !!selectedPoliceStation || !!selectedLocation || isNavigating;
+  // --- Heights for different bottom sheet stages ---
+  // You can manually adjust these values after testing
+  const LOCATION_CARD_HEIGHT = 150;
+  const ROUTE_CAROUSEL_HEIGHT = 180;
+  const END_NAVIGATION_BUTTON_HEIGHT = 35;
+  // -------------------------------------------------
+
+  let currentContentHeight = 0;
+  // If the Find Safe Spot card or nearest-spot card is requested, reserve the location card height so the route sheet opens
+  if (showFindSafeSpotCard || showNearestSafeSpotCard) {
+    currentContentHeight = LOCATION_CARD_HEIGHT;
+  } else if ((destinationInfo && showDestinationCard) || selectedPoliceStation) {
+    currentContentHeight = LOCATION_CARD_HEIGHT;
+  } else if (routes.length > 0 && !isNavigating) {
+    currentContentHeight = ROUTE_CAROUSEL_HEIGHT;
+  } else if (isNavigating) {
+    currentContentHeight = END_NAVIGATION_BUTTON_HEIGHT;
+  }
+
+  const routeSheetHeight = currentContentHeight > 0 ? currentContentHeight + tabBarHeight : 0;
+  const showRouteSheet = currentContentHeight > 0;
+  const isLocationCardVisible = !!selectedPoliceStation || !!selectedLocation;
 
   useEffect(() => {
     Animated.timing(routeSheetAnimation, {
@@ -252,71 +289,41 @@ export default function Map() {
 
   const topCarouselBottom = routeSheetAnimation.interpolate({
     inputRange: [0, 1],
-    outputRange: [mapCarouselHeight + tabBarHeight, routeSheetHeight + tabBarHeight],
+    outputRange: [
+      mapCarouselHeight + tabBarHeight,
+      routeSheetHeight + mapCarouselHeight + tabBarHeight,
+    ],
   });
 
-  const mapCarouselOpacity = routeSheetAnimation.interpolate({
+  const routeSheetHeightAnim = routeSheetAnimation.interpolate({
     inputRange: [0, 1],
-    outputRange: [1, 0],
-  });
-
-  const routeSheetTranslateY = routeSheetAnimation.interpolate({
-    inputRange: [0, 1],
-    outputRange: [routeSheetHeight > 0 ? routeSheetHeight : 1000, 0],
+    outputRange: [0, routeSheetHeight],
   });
 
   const handleMarkerPress = (markerId: string) => {
     setActiveMarker(markerId);
-    Animated.timing(scaleAnimation, {
-      toValue: activeMarker === markerId ? 1 : 1.2,
-      duration: 200,
-      useNativeDriver: true
-    }).start();
   };
 
   // const auth = useAuth();
   // const currentUserId = auth.user?.uid;
 
-  const styles = createStyles(bottomComponentHeight, tabBarHeight, selectedPoliceStation !== null, selectedLocation !== null);
+  // const styles = createStyles(tabBarHeight, selectedPoliceStation !== null, destinationInfo !== null);
+  // createStyles expects (tabBarHeight, hasPoliceStation, hasLocation)
+  const styles = createStyles(bottomComponentHeight, tabBarHeight, selectedPoliceStation !== null, destinationInfo !== null);
+
 
   useEffect(() => {
-    const initialLocation = {
-      coords: {
-        latitude: 25.03,
-        longitude: 121.54,
-        altitude: null,
-        accuracy: null,
-        altitudeAccuracy: null,
-        heading: null,
-        speed: null,
-      },
-      timestamp: Date.now(),
-    } as Location.LocationObject;
-    setLocation(initialLocation);
+    (async () => {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission to access location was denied');
+        return;
+      }
+
+      let currentLocation = await Location.getCurrentPositionAsync({});
+      setLocation(currentLocation);
+    })();
   }, []);
-  // useEffect(() => {
-  //   (async () => {
-  //     let { status } = await requestForegroundPermissionsAsync();
-  //     if (status === 'granted') {
-  //       let currentLocation = await getCurrentPositionAsync();
-  //       setLocation({
-  //         latitude: currentLocation.coords.latitude,
-  //         longitude: currentLocation.coords.longitude,
-  //         latitudeDelta: 0.01,
-  //         longitudeDelta: 0.01,
-  //       });
-  //     } else {
-  //       console.log('Location permission not granted');
-  //       // Optionally, set a default location or show an error message
-  //       setLocation({
-  //         latitude: 23, // Fallback to a default if permission not granted
-  //         longitude: 120.2,
-  //         latitudeDelta: 0.0922,
-  //         longitudeDelta: 0.0421,
-  //       });
-  //     }
-  //   })();
-  // }, []);
 
   const getDynamicZoom = (speed: number | null) => {
     if (speed === null || speed < 0) return 18; // Default zoom if speed is unavailable
@@ -450,13 +457,22 @@ export default function Map() {
     }
 
     if (bestRoute) {
+      // Clear any existing destination info card
+      setDestinationInfo(null);
+      setShowDestinationCard(false);
+      setSelectedPoliceStation(null); // Also clear police station card if it was showing
+
       // 設置選中的位置為最近的安全地點
-      setSelectedLocation({
+      setNearestSafeSpotData({
         name: bestRoute.name,
         address: `${bestRoute.type === 'police' ? '警察局' : '便利商店'} - ${bestRoute.duration.text}步行距離`,
         latitude: bestRoute.latitude,
-        longitude: bestRoute.longitude
+        longitude: bestRoute.longitude,
+        walkingTime: bestRoute.duration.text,
       });
+      setShowNearestSafeSpotCard(true);
+      setShowIntermediateSafeSpotCard(false); // Hide intermediate card
+
 
       // 移動地圖到選定位置
       mapRef.current?.fitToCoordinates([origin, { latitude: bestRoute.latitude, longitude: bestRoute.longitude }], {
@@ -520,6 +536,7 @@ export default function Map() {
           name={mode.name}
           contacts={mode.contacts.map((c: any) => ({ id: c.id, name: c.username, url: 'none' }))}
           checkIntervalMinutes={mode.checkIntervalMinutes}
+          intervalReductionMinutes={mode.intervalReductionMinutes}
         />
       ),
     }));
@@ -532,6 +549,14 @@ export default function Map() {
       component: (
         <Pressable style={styles.recenterBubble} onPress={recenterMap}>
           <MaterialIcons name="my-location" size={24} color="black" />
+        </Pressable>
+      ),
+    },
+    {
+      id: 'find-safe-spot',
+      component: (
+        <Pressable style={styles.findSafeBubble} onPress={() => setShowFindSafeSpotCard(true)}>
+          <MaterialIcons name="warning" size={22} color="black" />
         </Pressable>
       ),
     },
@@ -559,6 +584,8 @@ export default function Map() {
 
   const handleSearch = (query: string, latitude?: number, longitude?: number) => {
     if (location) {
+      setDestinationMarker(null);
+      setSelectedLocation(null);
       setDestination(query); // Keep the query for display purposes if needed
 
       if (latitude !== undefined && longitude !== undefined) {
@@ -573,14 +600,19 @@ export default function Map() {
   };
 
   const handleSuggestionSelected = (description: string, latitude: number, longitude: number) => {
-    setSelectedLocation({
-      name: description.split(',')[0], // 取第一部分作为名称
+    const locationData = {
+      name: description.split(',')[0], // 取第一部分作為名稱
       address: description,
       latitude: latitude,
       longitude: longitude
-    });
+    };
+    console.log('handleSuggestionSelected called with:', { description, latitude, longitude });
+    setSelectedLocation(locationData);
+    setDestinationMarker(locationData);
+    setDestinationInfo(locationData);
+    setShowDestinationCard(true);
 
-    // 移动地图到选定位置
+    // 移動地圖到選定位置
     if (mapRef.current) {
       mapRef.current.animateToRegion({
         latitude: latitude,
@@ -591,13 +623,20 @@ export default function Map() {
     }
   };
 
+  // Debug: track destinationInfo / showDestinationCard changes to help diagnose why the LocationCard may not appear
+  useEffect(() => {
+    console.log('DESTINATION STATE CHANGE ->', { destinationInfo, showDestinationCard });
+  }, [destinationInfo, showDestinationCard]);
+
   const handleStartNavigation = (route: RouteInfo) => {
     if (location) {
-      console.log("--- Starting Test Navigation ---");
-      startTestNavigation(route, location.coords);
+      console.log("--- Starting Real Navigation ---");
+      startNavigation(route);
       // 清除 POI 選擇和 callout
       setSelectedPoiType(null);
       setCalloutVisible(null);
+      setDestinationInfo(null);
+      setShowDestinationCard(false);
     }
   };
 
@@ -605,26 +644,75 @@ export default function Map() {
     setDestination(null);
     setSelectedRoute(null);
     setSelectedPoliceStation(null); // 清除警察局卡片
+    setSelectedLocation(null);
+    setDestinationMarker(null);
     setCalloutVisible(null); // 隱藏 callout
     clearRoutes();
+    setDestinationInfo(null);
+    setShowDestinationCard(false);
   };
 
   useEffect(() => {
     if (routes.length > 0) {
       const newSelectedRoute = routes.find(r => r.mode === 'safest') || routes[0];
       setSelectedRoute(newSelectedRoute);
+
+      console.log("Auto-selected route:", newSelectedRoute.mode);
       // If we are already navigating, this means this is a reroute.
       // Update the navigation hook with the new route.
       if (isNavigating) {
         updateRoute(newSelectedRoute);
       }
+
+      // If a UI action requested immediate navigation (e.g. user tapped LocationCard -> Navigate),
+      // start navigation automatically when routes become available.
+      if (pendingAutoNavigateTo && !isNavigating && location) {
+        console.log('Auto-starting navigation to pending destination');
+        // Use the existing handler so behavior matches other start-navigation flows
+        handleStartNavigation(newSelectedRoute);
+        setPendingAutoNavigateTo(null);
+      }
     }
-  }, [routes]);
+  }, [routes, pendingAutoNavigateTo, isNavigating, location]);
+
+  useEffect(() => {
+    console.log('IS_NAVIGATING:', isNavigating);
+  }, [isNavigating]);
 
   const getRouteColor = (mode: string, isSelected: boolean) => {
     if (isSelected) return '#007BFF'; // 選中的路線顯示藍色
     return '#808080'; // 未選中的路線統一顯示灰色
   };
+
+  // Helper to normalize route.polyline into an array of {latitude, longitude}
+  const getCoordinatesFromPolyline = (polyline: any) => {
+    if (!polyline) return [];
+    // If it's a string, assume encoded polyline
+    if (typeof polyline === 'string') {
+      try {
+        return decodePolyline(polyline);
+      } catch (e) {
+        console.warn('Failed to decode polyline string, returning empty coords.', e);
+        return [];
+      }
+    }
+    // If it's already an array
+    if (Array.isArray(polyline)) {
+      const first = polyline[0];
+      if (!first) return [];
+      // case: array of [lat, lng]
+      if (Array.isArray(first) && first.length >= 2) {
+        return (polyline as Array<[number, number]>).map(([lat, lng]) => ({ latitude: lat, longitude: lng }));
+      }
+      // case: array of { latitude, longitude }
+      if (typeof first === 'object' && 'latitude' in first && 'longitude' in first) {
+        return polyline as Array<{ latitude: number; longitude: number }>;
+      }
+    }
+    return [];
+  };
+
+
 
   if (!location) {
     return (
@@ -635,8 +723,24 @@ export default function Map() {
     );
   }
 
-  const filteredPois = selectedPoiType ? pois.filter(poi => poi.type === selectedPoiType) : [];
+  // ***
 
+  // ***
+
+  // const filteredPois = selectedPoiType ? pois.filter(poi => poi.type === selectedPoiType) : [];
+  const filteredPois = selectedPoiType && location
+    ? pois.filter(poi => {
+      if (poi.type !== selectedPoiType) {
+        return false;
+      }
+      const distance = haversineDistance(
+        { latitude: location.coords.latitude, longitude: location.coords.longitude },
+        { latitude: poi.latitude, longitude: poi.longitude }
+      );
+      return distance <= 2.2;
+    })
+    : [];
+  console.log("Map component rendering...");
   return (
     <View style={styles.container}>
       <MapView
@@ -662,6 +766,29 @@ export default function Map() {
           />
         )}
 
+        {destinationMarker && (
+          <Marker
+            coordinate={destinationMarker}
+            title={destinationMarker.name}
+            pinColor="red"
+          />
+        )}
+
+        {/* Marker for the nearest safe spot found by findNearestSafeSpot() */}
+        {nearestSafeSpotData && showNearestSafeSpotCard && (
+          <Marker
+            coordinate={{ latitude: nearestSafeSpotData.latitude, longitude: nearestSafeSpotData.longitude }}
+            title={nearestSafeSpotData.name}
+            onPress={() => setShowNearestSafeSpotCard(true)}
+            zIndex={999}
+          >
+            <Image
+              source={require('@/assets/icons/police-station.png')}
+              style={{ width: 32, height: 32 }}
+            />
+          </Marker>
+        )}
+
         {emergencies && emergencies.map(emergency => (
           <Marker
             key={emergency.emergencyDocId}
@@ -671,18 +798,37 @@ export default function Map() {
             }}
             onPress={() => handleSelectEmergency(emergency)}
           >
-            <EmergencyContactMarker
-              trackedUserName={emergency.trackedUserName}
+            <AvatarMarker
+              userName={emergency.trackedUserName}
               avatarUrl={emergency.trackedUserAvatarUrl}
+              outlineColor="red"
             />
           </Marker>
         ))}
+
+        {sharedByFriends && sharedByFriends.map(friend => (
+          <Marker
+            key={friend.sessionId}
+            coordinate={{
+              latitude: friend.lat,
+              longitude: friend.long,
+            }}
+          >
+            <AvatarMarker
+              userName={friend.sharingUserName}
+              avatarUrl={friend.sharingUserAvatarUrl}
+              outlineColor="white"
+            />
+          </Marker>
+        ))}
+
         {filteredPois.map(poi => (
           <Marker.Animated
             key={poi.id}
+            anchor={{ x: 0.5, y: 1 }}
             coordinate={{ latitude: poi.latitude, longitude: poi.longitude }}
             title={poi.name}
-            tracksViewChanges={false}
+            tracksViewChanges={activeMarker === poi.id}
             onPress={() => {
               handleMarkerPress(poi.id);
               if (calloutVisible === poi.id) {
@@ -696,19 +842,13 @@ export default function Map() {
                 }
               }
             }}
+            zIndex={activeMarker === poi.id ? 999 : 1}
           >
             <Animated.View style={{ transform: [{ scale: activeMarker === poi.id ? scaleAnimation : 1 }] }}>
-              {poi.type === 'police' ? (
-                <Image
-                  source={require('@/assets/icons/police-station.png')}
-                  style={{ width: 32, height: 32 }}
-                />
-              ) : (
-                <Image
-                  source={require('@/assets/icons/family-mart.png')}
-                  style={{ width: 32, height: 32 }}
-                />
-              )}
+              <Image
+                source={poi.type === 'police' ? require('@/assets/icons/police-station.png') : require('@/assets/icons/family-mart.png')}
+                style={{ width: 32, height: 32 }}
+              />
             </Animated.View>
             {calloutVisible === poi.id && (
               <Callout tooltip={true}>
@@ -722,43 +862,50 @@ export default function Map() {
             )}
           </Marker.Animated>
         ))}
+
+        {destinationInfo && (
+          <Marker
+            coordinate={{
+              latitude: destinationInfo.latitude,
+              longitude: destinationInfo.longitude,
+            }}
+            title={destinationInfo.name}
+            pinColor="green"
+            onPress={() => setShowDestinationCard(true)}
+          />
+        )}
+
         {isNavigating ? (
           <>
             <Polyline coordinates={remainingPath} strokeColor="#007BFF" strokeWidth={6} />
             <Polyline coordinates={traveledPath} strokeColor="gray" strokeWidth={6} />
           </>
         ) : (
-          routes.map(route => {
-            console.log("目前 routes 陣列長度:", routes.length);
-            console.log("🚀 route.polyline:", route);
-            console.log("😎 Rendering route:", route.mode);
+          routes.map((route, index) => {
+            const stableKey = `route-${route.mode}-${index}`;
             const isSelected = selectedRoute?.polyline === route.polyline;
-            if (!isSelected) {
-              return (
-                <Polyline
-                  key={route.polyline}
-                  coordinates={decodePolyline(route.polyline)}
-                  strokeColor={getRouteColor(route.mode, false)}
-                  strokeWidth={3}
-                  onPress={() => setSelectedRoute(route)}
-                  tappable
-                  zIndex={1}
-                />
-              );
+
+            const points = route.polyline;
+
+            if (!points || points.length < 2) {
+              console.warn('Invalid polyline points');
+              return null;
             }
+
             return (
               <Polyline
-                key={`${route.polyline}-selected`}
-                coordinates={decodePolyline(route.polyline)}
-                strokeColor={getRouteColor(route.mode, true)}
-                strokeWidth={6}
+                key={stableKey}
+                coordinates={points}
+                strokeColor={getRouteColor(route.mode, isSelected)}
+                strokeWidth={isSelected ? 6 : 3}
+                zIndex={isSelected ? 999 : 1}
                 onPress={() => setSelectedRoute(route)}
-                tappable
-                zIndex={999}
+                tappable={true}
               />
-            )
+            );
           })
         )}
+
       </MapView>
 
       <Animated.View style={[styles.topCarouselContainer, { bottom: topCarouselBottom }]}>
@@ -773,6 +920,8 @@ export default function Map() {
         </ScrollView>
       </Animated.View>
 
+      {/* Top button now opens the bottom route-sheet LocationCard via showFindSafeSpotCard */}
+
       {selectedEmergency && (
         <EmergencyInfoModal emergency={selectedEmergency} onClose={() => setSelectedEmergency(null)} />
       )}
@@ -786,16 +935,7 @@ export default function Map() {
               setCalloutVisible(null);
             }}
           >
-            <Text style={styles.filterButtonText}>警察局</Text>
-          </Pressable>
-          <Pressable
-            style={[styles.filterButton, selectedPoiType === 'store' && styles.selectedFilterButton]}
-            onPress={() => {
-              setSelectedPoiType(selectedPoiType === 'store' ? null : 'store');
-              setCalloutVisible(null);
-            }}
-          >
-            <Text style={styles.filterButtonText}>便利商店</Text>
+            <Text style={[styles.filterButtonText, selectedPoiType === 'police' && styles.selectedFilterButtonText]}>警察局</Text>
           </Pressable>
         </View>
       )}
@@ -817,7 +957,14 @@ export default function Map() {
 
       {!isNavigating && <MapSearchBar onSearch={handleSearch} onSuggestionSelected={handleSuggestionSelected} />}
 
-      {showLocationSentCard && <LocationSentCard onDismiss={handleDismissLocationSentCard} />}
+      {showLocationSentCard && activeMode && (
+        <LocationSentCard
+          onDismiss={handleDismissLocationSentCard}
+          activityLocation={activeMode.activityLocation}
+          activity={activeMode.activity}
+          notes={activeMode.notes}
+        />
+      )}
 
       {isSearchingSafeSpot && (
         <View style={styles.loadingContainer}>
@@ -826,72 +973,122 @@ export default function Map() {
         </View>
       )}
 
-      <Animated.View
-        style={[styles.bottomComponentContainer, { opacity: mapCarouselOpacity }]}
-        onLayout={(event) => {
-          const height = event.nativeEvent.layout.height;
-          if (height > 0 && height !== mapCarouselHeight) {
-            setMapCarouselHeight(height);
-          }
-        }}
-        pointerEvents={showRouteSheet ? 'none' : 'auto'}
-      >
-        <MapCarousel data={carouselData} />
-      </Animated.View>
-
-
-      <Animated.View style={[styles.routeSheetContainer, { transform: [{ translateY: routeSheetTranslateY }] }]}>
-        <View onLayout={(event) => {
-          const height = event.nativeEvent.layout.height;
-          if (height > 0 && height !== routeSheetHeight) {
-            setRouteSheetHeight(height);
-          }
-        }}>
-          {routes.length > 0 && !isNavigating && (
-            <>
-              <RouteCarousel
-                routes={routes}
-                selectedRoute={selectedRoute}
-                onSelectRoute={setSelectedRoute}
-                onStartNavigation={handleStartNavigation}
-              />
-              <Pressable style={styles.cancelRouteButton} onPress={handleCancelRouteSelection}>
-                <Text style={styles.cancelRouteButtonText}>取消路線</Text>
-              </Pressable>
-            </>
-          )}
-
-          {isNavigating && (
-            <Pressable style={styles.endNavigationButton} onPress={stopNavigation}>
-              <Text style={styles.endNavigationButtonText}>結束導航</Text>
-            </Pressable>
-          )}
-
-          {selectedPoliceStation && (
-            <LocationCard
-              name={selectedPoliceStation.name}
-              address={selectedPoliceStation.address}
-              walkingTime={selectedPoliceStation.walkingTime}
-              onClose={() => {
-                setSelectedPoliceStation(null);
-                setCalloutVisible(null);
-              }}
-              onNavigate={handleNavigateToPoliceStation}
-              locationType="police"
-            />
-          )}
-
-          {selectedLocation && (
-            <LocationCard
-              name={selectedLocation.name}
-              address={selectedLocation.address}
-              onClose={() => setSelectedLocation(null)}
-              onNavigate={handleNavigateToLocation}
-              locationType="general"
-            />
-          )}
+      <View style={styles.masterBottomSheet}>
+        <View
+          style={styles.bottomComponentContainer}
+          onLayout={(event) => {
+            const height = event.nativeEvent.layout.height;
+            if (height > 0 && height !== mapCarouselHeight) {
+              setMapCarouselHeight(height);
+            }
+          }}
+        >
+          <MapCarousel data={carouselData} />
         </View>
-      </Animated.View>
+        <Animated.View
+          style={[styles.routeSheetContainer, { height: routeSheetHeightAnim, opacity: routeSheetAnimation }]}
+        >
+          <View>
+            {routes.length > 0 && !isNavigating && (
+              <>
+                <RouteCarousel
+                  routes={routes}
+                  selectedRoute={selectedRoute}
+                  onSelectRoute={setSelectedRoute}
+                  onStartNavigation={handleStartNavigation}
+                />
+                <Pressable style={styles.cancelRouteButton} onPress={handleCancelRouteSelection}>
+                  <Text style={styles.cancelRouteButtonText}>取消路線</Text>
+                </Pressable>
+              </>
+            )}
+
+            {isNavigating && (
+              <Pressable style={styles.endNavigationButton} onPress={stopNavigation}>
+                <Text style={styles.endNavigationButtonText}>結束導航</Text>
+              </Pressable>
+            )}
+
+            {showFindSafeSpotCard && (
+              <LocationCard
+                name="尋找安全地點"
+                address="按下搜尋以尋找附近安全地點"
+                onClose={() => setShowFindSafeSpotCard(false)}
+                onNavigate={async () => {
+                  // Wait for the search to finish and the nearestSpot card to be set
+                  await findNearestSafeSpot();
+                  // Close the Find Safe Spot card after nearest spot data is available.
+                  setShowFindSafeSpotCard(false);
+                }}
+                locationType="general"
+              />
+            )}
+
+            {selectedPoliceStation && (
+              <LocationCard
+                name={selectedPoliceStation.name}
+                address={selectedPoliceStation.address}
+                walkingTime={selectedPoliceStation.walkingTime}
+                onClose={() => {
+                  setSelectedPoliceStation(null);
+                  setCalloutVisible(null);
+                }}
+                onNavigate={handleNavigateToPoliceStation}
+                locationType="police"
+              />
+            )}
+
+            {destinationInfo && showDestinationCard && (
+              <LocationCard
+                name={destinationInfo.name}
+                address={destinationInfo.address}
+                onClose={() => setShowDestinationCard(false)}
+                onNavigate={handleNavigateToLocation}
+                locationType="general"
+              />
+            )}
+
+            {showIntermediateSafeSpotCard && (
+              <Pressable
+                style={styles.intermediateCard}
+                onPress={findNearestSafeSpot}
+              >
+                <Text style={styles.intermediateCardText}>尋找安全地點</Text>
+                <MaterialIcons name="arrow-forward" size={24} color="black" />
+              </Pressable>
+            )}
+
+            {nearestSafeSpotData && showNearestSafeSpotCard && (
+              <LocationCard
+                name={nearestSafeSpotData.name}
+                address={nearestSafeSpotData.address}
+                walkingTime={nearestSafeSpotData.walkingTime}
+                onClose={() => {
+                  setShowNearestSafeSpotCard(false);
+                  setNearestSafeSpotData(null);
+                }}
+                onNavigate={() => {
+                  if (nearestSafeSpotData && location) {
+                    const destinationString = `${nearestSafeSpotData.latitude},${nearestSafeSpotData.longitude}`;
+                    setDestination(destinationString);
+                    // Request routes — when routes arrive we'll auto-start navigation
+                    getRoutes(location.coords, destinationString);
+                    setDestinationMarker({
+                      latitude: nearestSafeSpotData.latitude,
+                      longitude: nearestSafeSpotData.longitude,
+                      name: nearestSafeSpotData.name,
+                    });
+                    // mark pending auto-start so the routes useEffect will begin navigation
+                    setPendingAutoNavigateTo({ latitude: nearestSafeSpotData.latitude, longitude: nearestSafeSpotData.longitude });
+                    setShowNearestSafeSpotCard(false); // Close the card after initiating route planning
+                  }
+                }}
+                locationType={nearestSafeSpotData.name.includes('警察局') ? 'police' : 'general'}
+              />
+            )}
+          </View>
+        </Animated.View>
+      </View>
     </View>
   );
 }
@@ -905,21 +1102,24 @@ function createStyles(
     container: {
       ...StyleSheet.absoluteFillObject,
     },
-    routeSheetContainer: {
+    masterBottomSheet: {
       position: 'absolute',
       bottom: 0,
       left: 0,
       right: 0,
-      backgroundColor: 'white',
+      zIndex: 20,
+      paddingBottom: tabBarHeight + 80,
+    },
+    routeSheetContainer: {
+      backgroundColor: 'transparent',
       borderTopLeftRadius: 20,
       borderTopRightRadius: 20,
-      paddingBottom: tabBarHeight,
       shadowColor: '#000',
       shadowOffset: { width: 0, height: -2 },
       shadowOpacity: 0.1,
       shadowRadius: 4,
       elevation: 15,
-      zIndex: 20, // On top
+      overflow: 'hidden',
     },
     calloutContainer: {
       minWidth: 150,
@@ -1004,7 +1204,7 @@ function createStyles(
     topScrollViewContent: {
       alignItems: 'center',
       paddingHorizontal: 12,
-      
+
     },
     recenterBubble: {
       flexDirection: 'row',
@@ -1020,15 +1220,12 @@ function createStyles(
       elevation: 3,
     },
     bottomComponentContainer: {
-      position: 'absolute',
-      bottom: '10%' , // Add 10px margin above tab bar
-      left: 0,
-      right: 0,
+      // This container no longer needs absolute positioning or margin
     },
     endNavigationButton: {
-      backgroundColor: 'rgba(255, 100, 100, 0.9)',
+      backgroundColor: Theme.colors.primary,
       padding: 15,
-      borderRadius: 10,
+      borderRadius: 50,
       margin: 20,
       alignItems: 'center',
     },
@@ -1043,12 +1240,34 @@ function createStyles(
       justifyContent: 'center',
       alignItems: 'center',
     },
+    intermediateCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: '#fff',
+      padding: 12,
+      marginHorizontal: 16,
+      marginVertical: 8,
+      borderRadius: 12,
+      elevation: 3, // android shadow
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+    },
+    intermediateCardText: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: '#111',
+    },
 
     cancelRouteButton: {
       backgroundColor: 'gray',
       padding: 15,
-      borderRadius: 10,
+      borderRadius: 50,
       margin: 10,
+      width: '90%',
+      alignSelf: 'center',
       alignItems: 'center',
     },
     cancelRouteButtonText: {
@@ -1121,6 +1340,42 @@ function createStyles(
     filterButtonText: {
       color: 'black',
       fontWeight: 'bold',
+    },
+    findSafeSpotButton: {
+      backgroundColor: Theme.colors.primary, // Use a distinct color
+      paddingVertical: 10,
+      paddingHorizontal: 15,
+      borderRadius: 20,
+      marginHorizontal: 5,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.2,
+      shadowRadius: 2,
+      elevation: 3,
+    },
+    findSafeSpotButtonText: {
+      color: 'white',
+      fontWeight: 'bold',
+    },
+    findSafeBubble: {
+      flexDirection: 'row',
+      backgroundColor: '#FFD54F',
+      borderRadius: 30,
+      padding: 10,
+      alignItems: 'center',
+      marginHorizontal: 5,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.2,
+      shadowRadius: 2,
+      elevation: 3,
+    },
+    findSafeOverlay: {
+      position: 'absolute',
+      left: 12,
+      right: 12,
+      bottom: tabBarHeight + 80,
+      zIndex: 999,
     },
   });
 }

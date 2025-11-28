@@ -41,9 +41,10 @@ export interface Leg {
 
 export interface RouteInfo {
   mode: 'fastest' | 'shortest' | 'safest';
-  distance: string;
-  duration: string;
-  polyline: string;
+  distance: { text: string; value: number };
+  duration: { text: string; value: number };
+  polyline: { latitude: number; longitude: number }[];
+  encodedPolyline: string;
   safetyScore: number;
   legs: Leg[];
 }

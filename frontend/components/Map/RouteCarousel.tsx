@@ -1,7 +1,9 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, Linking, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, Alert } from 'react-native';
 import * as Speech from 'expo-speech';
 import { RouteInfo } from '../../types';
+import Theme from '@/constants/Theme';
+import { BlurView } from 'expo-blur';
 
 interface Props {
   routes: RouteInfo[];
@@ -61,27 +63,33 @@ const RouteCarousel: React.FC<Props> = ({ routes, selectedRoute, onSelectRoute, 
     }
   };
 
-  const openInGoogleMaps = (route: RouteInfo) => {
-    const steps = route.legs[0].steps;
-    const destination = steps[steps.length - 1].end_location;
-    const url = `https://www.google.com/maps/dir/?api=1&destination=${destination.lat},${destination.lng}&travelmode=walking`;
-    Linking.openURL(url);
+  const getTranslatedMode = (mode: string) => {
+    switch (mode) {
+        case 'safest':
+            return '最安全';
+        case 'fastest':
+            return '最快';
+        case 'shortest':
+            return '最短';
+        default:
+            return mode;
+    }
   };
 
   const renderItem = ({ item }: { item: RouteInfo }) => (
     <TouchableOpacity onPress={() => onSelectRoute(item)} style={[styles.card, selectedRoute?.polyline === item.polyline && styles.selectedCard]}>
-      <Text style={styles.title}>{item.mode.charAt(0).toUpperCase() + item.mode.slice(1)} 路線</Text>
-      <Text>預計到達時間: {item.duration.text}</Text>
-      <Text>距離: {item.distance.text}</Text>
-      <Text>安全分數: {item.safetyScore.toFixed(0)}/100</Text>
-      <View style={styles.buttonContainer}>
-        <TouchableOpacity onPress={() => onStartNavigation(item)} style={styles.button}>
-          <Text style={styles.buttonText}>開始導航</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => openInGoogleMaps(item)} style={styles.button}>
-          <Text style={styles.buttonText}>在 Google 地圖中打開</Text>
-        </TouchableOpacity>
-      </View>
+      <BlurView intensity={90} tint="light" style={styles.blurView}>
+        <Text style={styles.title}>{item.mode.charAt(0).toUpperCase() + item.mode.slice(1)} 路線</Text>
+        <Text>預計到達時間: {item.duration.text}</Text>
+        <Text>距離: {item.distance.text}</Text>
+        {/* <Text>安全分數: {item.safetyScore.toFixed(0)}/100</Text> */}
+        <View style={styles.buttonContainer}>
+          <TouchableOpacity onPress={() => onStartNavigation(item)} style={styles.button}>
+            <Text style={styles.buttonText}>開始導航</Text>
+          </TouchableOpacity>
+          
+        </View>
+      </BlurView>
     </TouchableOpacity>
   );
 
@@ -101,12 +109,12 @@ const RouteCarousel: React.FC<Props> = ({ routes, selectedRoute, onSelectRoute, 
 
 const styles = StyleSheet.create({
   container: {
+
     paddingVertical: 10,
   },
   card: {
-    backgroundColor: 'white',
-    borderRadius: 10,
-    padding: 15,
+    backgroundColor: 'transparent',
+    borderRadius: 32,
     marginHorizontal: 10,
     elevation: 5,
     shadowColor: '#000',
@@ -114,9 +122,14 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
   },
+  blurView: {
+    borderRadius: 32,
+    overflow: 'hidden',
+    padding: 15,
+  },
   selectedCard: {
     borderWidth: 2,
-    borderColor: '#007BFF',
+    borderColor: Theme.colors.actionPink,
   },
   title: {
     fontWeight: 'bold',
@@ -126,15 +139,21 @@ const styles = StyleSheet.create({
   buttonContainer: {
     flexDirection: 'row',
     marginTop: 10,
+    justifyContent: 'center',
   },
   button: {
-    backgroundColor: '#007BFF',
+    backgroundColor: Theme.colors.primary,
+    // width: '90%',
     padding: 8,
-    borderRadius: 5,
+    borderRadius: 50,
     marginHorizontal: 5,
+    paddingHorizontal: 10,
   },
   buttonText: {
     color: 'white',
+    fontSize: 12,
+  },
+  text: {
     fontSize: 12,
   },
 });

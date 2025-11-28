@@ -13,6 +13,7 @@ import { useRoutePlanner } from '../../hooks/useRoutePlanner';
 import RouteCarousel from './RouteCarousel';
 import { RouteInfo } from '../../types';
 import { decodePolyline } from '../../utils/polyline';
+import { BlurView } from 'expo-blur';
 
 interface RoutePlannerProps {
   userLocation: { latitude: number; longitude: number };
@@ -61,15 +62,19 @@ const RoutePlanner: React.FC<RoutePlannerProps> = ({ userLocation, mapRef }) => 
   return (
     <View style={styles.fullScreenContainer}>
       <View style={styles.searchContainer}>
-        <TextInput
-          style={styles.input}
-          placeholder="Enter destination"
-          value={destination}
-          onChangeText={setDestination}
-        />
-        <TouchableOpacity style={styles.searchButton} onPress={handleSearch}>
-          <Text style={styles.searchButtonText}>Search</Text>
-        </TouchableOpacity>
+        <BlurView intensity={90} tint="light" style={styles.blurView}>
+          <View style={styles.searchInnerContainer}>
+            <TextInput
+              style={styles.input}
+              placeholder="Enter destination"
+              value={destination}
+              onChangeText={setDestination}
+            />
+            <TouchableOpacity style={styles.searchButton} onPress={handleSearch}>
+              <Text style={styles.searchButtonText}>Search</Text>
+            </TouchableOpacity>
+          </View>
+        </BlurView>
       </View>
 
       {error && <Text style={styles.errorText}>{error}</Text>}
@@ -106,14 +111,18 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 60,
     width: '90%',
-    flexDirection: 'row',
-    backgroundColor: 'white',
-    borderRadius: 10,
     elevation: 5,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
+  },
+  blurView: {
+    borderRadius: 10,
+    overflow: 'hidden',
+  },
+  searchInnerContainer: {
+    flexDirection: 'row',
   },
   input: {
     flex: 1,
