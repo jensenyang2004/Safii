@@ -53,6 +53,7 @@ import Theme from '@/constants/Theme';
 
 const GOOGLE_MAPS_API_KEY = Constants.expoConfig?.extra?.GOOGLE_MAPS_API_KEY;
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+const POI_UPDATE_DISTANCE_THRESHOLD = 5; // meters
 
 const haversineDistance = (
   coords1: { latitude: number; longitude: number },
@@ -321,8 +322,19 @@ export default function Map() {
         return;
       }
 
-      let currentLocation = await Location.getCurrentPositionAsync({});
-      setLocation(currentLocation);
+      let currentLocation = {
+        coords: {
+          latitude: 25.0330,
+          longitude: 121.5654,
+          altitude: null,
+          accuracy: null,
+          altitudeAccuracy: null,
+          heading: null,
+          speed: null,
+        },
+        timestamp: Date.now(),
+      };
+      setLocation(currentLocation as any);
     })();
   }, []);
 
@@ -728,19 +740,51 @@ export default function Map() {
 
   // ***
 
-  // const filteredPois = selectedPoiType ? pois.filter(poi => poi.type === selectedPoiType) : [];
-  const filteredPois = selectedPoiType && location
-    ? pois.filter(poi => {
+  const [poiSearchLocation, setPoiSearchLocation] = useState<Location.LocationObject | null>(null);
+  const lastPoiSearchLocation = useRef<Location.LocationObject | null>(null);
+
+  // Debounced location for POI searching
+  useEffect(() => {
+    const currentUserLocation = navUserLocation || location;
+
+    if (!currentUserLocation) return;
+
+    // Set the initial search location
+    if (!lastPoiSearchLocation.current) {
+      lastPoiSearchLocation.current = currentUserLocation;
+      setPoiSearchLocation(currentUserLocation);
+      return;
+    }
+
+    // Calculate distance from the last location where we updated the POIs
+    const distance = haversineDistance(
+      lastPoiSearchLocation.current.coords,
+      currentUserLocation.coords
+    );
+
+    // If moved more than the threshold, update the location for POI search
+    if (distance * 1000 > POI_UPDATE_DISTANCE_THRESHOLD) { // haversineDistance returns km
+      console.log(`User moved ${distance * 1000}m, updating POIs.`);
+      lastPoiSearchLocation.current = currentUserLocation;
+      setPoiSearchLocation(currentUserLocation);
+    }
+  }, [navUserLocation, location]); // Run whenever the user's location changes
+
+  const filteredPois = React.useMemo(() => {
+    if (!selectedPoiType || !poiSearchLocation) {
+      return [];
+    }
+    return pois.filter(poi => {
       if (poi.type !== selectedPoiType) {
         return false;
       }
       const distance = haversineDistance(
-        { latitude: location.coords.latitude, longitude: location.coords.longitude },
+        { latitude: poiSearchLocation.coords.latitude, longitude: poiSearchLocation.coords.longitude },
         { latitude: poi.latitude, longitude: poi.longitude }
       );
       return distance <= 2.2;
-    })
-    : [];
+    });
+  }, [poiSearchLocation, selectedPoiType]);
   console.log("Map component rendering...");
   return (
     <View style={styles.container}>

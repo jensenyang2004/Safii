@@ -1,7 +1,7 @@
 // app/tracking-mode/new.tsx
 import React, { useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, ScrollView, TouchableWithoutFeedback, Keyboard } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView, TouchableWithoutFeedback, Keyboard } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
 import * as Theme from '@/constants/Theme';
