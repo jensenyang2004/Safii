@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { collection, query, where, onSnapshot, doc, getDoc, updateDoc, arrayRemove } from 'firebase/firestore';
 import { db } from '@/libs/firebase';
 import { useAuth } from '@/context/AuthProvider';
@@ -70,7 +70,7 @@ export const useAllSharing = () => {
     };
 
     // Listener for Emergency Sessions I am sharing
-    const emergencyQuery = query(collection(db, 'active_tracking'), where('trackedUserId', '==', user.uid), where('isActive', '==', true));
+    const emergencyQuery = query(collection(db, 'active_tracking'), where('trackedUserId', '==', user.uid), where('isActive', '==', true), where('emergencyActivationTime', '<=', new Date()));
     const unsubEmergency = onSnapshot(emergencyQuery, async (snapshot) => {
         const promises = snapshot.docs.map(async (docSnap) => {
             const session = docSnap.data();
@@ -152,7 +152,6 @@ export const useAllSharing = () => {
             });
         } else if (session.type === 'normal') {
             const sessionRef = doc(db, 'active_sharing_sessions', session.sessionId);
-            
             // The update and subsequent check needs to be atomic per session
             return updateDoc(sessionRef, {
                 sharedWithUserIds: arrayRemove(userId)

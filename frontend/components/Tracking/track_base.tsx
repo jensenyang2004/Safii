@@ -42,7 +42,7 @@ export default function TrackModeCard({ id, name, contacts, checkIntervalMinutes
               !hasContacts && { width: '100%' }
             ]}
           >
-              <Text style={[styles.buttonText, { color: Theme.tracking_colors.white }]}>
+              <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.buttonText, { color: Theme.tracking_colors.white, flexShrink: 1 }]}>
                 開啟{name}模式
               </Text>
           </TouchableOpacity>
