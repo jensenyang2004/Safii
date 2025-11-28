@@ -322,19 +322,8 @@ export default function Map() {
         return;
       }
 
-      let currentLocation = {
-        coords: {
-          latitude: 25.0330,
-          longitude: 121.5654,
-          altitude: null,
-          accuracy: null,
-          altitudeAccuracy: null,
-          heading: null,
-          speed: null,
-        },
-        timestamp: Date.now(),
-      };
-      setLocation(currentLocation as any);
+      let currentLocation = await Location.getCurrentPositionAsync({});
+      setLocation(currentLocation);
     })();
   }, []);
 

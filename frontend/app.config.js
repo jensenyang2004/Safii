@@ -6,7 +6,7 @@ module.exports = {
   expo: {
     name: "Safii",
     slug: "Safii",
-    version: "1.2.0",
+    version: "1.2.1",
     orientation: "portrait",
     icon: "./assets/images/icon.png",
     scheme: "myapp",
@@ -21,7 +21,7 @@ module.exports = {
     // --- iOS 設定 ---
     ios: {
       bundleIdentifier: "com.nightbase.firebase",
-      buildNumber: "3", 
+      buildNumber: "1", 
       supportsTablet: true,
       config: {
         googleMapsApiKey: "AIzaSyDeiltvsroXFIU0YWpNVnphyxv0V60_wTM",
