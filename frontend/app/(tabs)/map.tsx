@@ -35,7 +35,6 @@ import AvatarMarker from '@/components/Map/AvatarMarker';
 import { EmergencyBubble } from '@/components/Emergency/EmergencyBubbles';
 import { decodePolyline } from '@/utils/polyline';
 
-import { pois } from '../../constants/pois';
 import { POI } from '@/types';
 import { EmergencyData } from '@/types/emergency';
 import MapSearchBar from '@/components/Map/MapSearchBar';
@@ -123,19 +122,15 @@ export default function Map() {
   const [selectedPoiType, setSelectedPoiType] = useState<'police' | 'store' | null>(null);
   const [selectedPoi, setSelectedPoi] = useState<POI | null>(null);
   const [calloutVisible, setCalloutVisible] = useState<string | null>(null);
-  const [selectedPoliceStation, setSelectedPoliceStation] = useState<{
-    name: string;
-    address: string;
-    latitude: number;
-    longitude: number;
-    walkingTime: string | null;
-  } | null>(null);
+  const [selectedPoliceStation, setSelectedPoliceStation] = useState<POI & { walkingTime: string | null } | null>(null);
+  const [selectedStore, setSelectedStore] = useState<POI & { walkingTime: string | null } | null>(null);
   const [destinationInfo, setDestinationInfo] = useState<{
     name: string;
     address: string;
     latitude: number;
     longitude: number;
   } | null>(null);
+  
   const [showDestinationCard, setShowDestinationCard] = useState(false);
   const [destinationMarker, setDestinationMarker] = useState<{ latitude: number, longitude: number, name: string } | null>(null);
   const [selectedLocation, setSelectedLocation] = useState<{
@@ -146,57 +141,109 @@ export default function Map() {
   } | null>(null);
   const [showFindSafeSpotCard, setShowFindSafeSpotCard] = useState(false);
 
-  const handlePoliceStationPress = async (station: any) => {
-    if (!location) {
-      console.log('No current location available');
-      return;
-    }
-
-    console.log('Police station pressed:', station);
-
-    // 使用 calculateWalkingTime 來獲取預估時間
-    setSelectedPoliceStation({
-      name: station.name || '警察局',
-      address: station.address || station.description || '',
-      latitude: station.latitude,
-      longitude: station.longitude,
+  const handlePoiPress = async (poi: POI) => {
+    if (!location) return;
+  
+    const commonPoiData = {
+      ...poi,
       walkingTime: '計算中...'
-    });
-
+    };
+  
+    if (poi.type === 'police') {
+      setSelectedPoliceStation(commonPoiData);
+    } else if (poi.type === 'store') {
+      setSelectedStore(commonPoiData);
+    }
+  
     const walkingTime = await calculateWalkingTime(location, {
-      latitude: station.latitude,
-      longitude: station.longitude
+      latitude: poi.latitude,
+      longitude: poi.longitude
     });
-
-    // 更新警察局資訊包含步行時間
-    setSelectedPoliceStation(prev => {
-      if (!prev) return null;
-      return {
-        ...prev,
-        walkingTime: walkingTime
-      };
-    });
+  
+    if (poi.type === 'police') {
+      setSelectedPoliceStation(prev => prev ? { ...prev, walkingTime } : null);
+    } else if (poi.type === 'store') {
+      setSelectedStore(prev => prev ? { ...prev, walkingTime } : null);
+    }
   };
 
-  const handleNavigateToPoliceStation = () => {
-    if (!selectedPoliceStation || !location) return;
+  const handleNavigateToPoi = (poi: POI) => {
+    if (!poi || !location) return;
 
-    // console.log("規劃路線到警察局:", selectedPoliceStation.name);
-    const destinationString = `${selectedPoliceStation.latitude},${selectedPoliceStation.longitude}`;
+    const destinationString = `${poi.latitude},${poi.longitude}`;
     setDestination(destinationString);
-
-    // console.log("Calling getRoutes with:", location.coords, destinationString);
     getRoutes(location.coords, destinationString);
-    // console.log("Route planning initiated.");
-
+    
     setDestinationMarker({
-      latitude: selectedPoliceStation.latitude,
-      longitude: selectedPoliceStation.longitude,
-      name: selectedPoliceStation.name,
+      latitude: poi.latitude,
+      longitude: poi.longitude,
+      name: poi.name,
     });
-    setSelectedPoliceStation(null); // 關閉警察局卡片
-    setCalloutVisible(null); // 隱藏 callout
-    // console.log("finished handleNavigateToPoliceStation");
+
+    setSelectedPoliceStation(null);
+    setSelectedStore(null);
+    setCalloutVisible(null);
+  };
+
+  const handleNavigateToLocation = () => {
+    if (!destinationInfo || !location) return;
+
+    console.log("規劃路線到:", destinationInfo.name);
+    const destinationString = `${destinationInfo.latitude},${destinationInfo.longitude}`;
+    setDestination(destinationString);
+    getRoutes(location.coords, destinationString);
+    setDestinationMarker({
+      latitude: selectedLocation.latitude,
+      longitude: selectedLocation.longitude,
+      name: selectedLocation.name,
+    });
+    setSelectedLocation(null); // 關閉位置卡片
+  };
+
+  
+
+  const handlePoiPress = async (poi: POI) => {
+    if (!location) return;
+  
+    const commonPoiData = {
+      ...poi,
+      walkingTime: '計算中...'
+    };
+  
+    if (poi.type === 'police') {
+      setSelectedPoliceStation(commonPoiData);
+    } else if (poi.type === 'store') {
+      setSelectedStore(commonPoiData);
+    }
+  
+    const walkingTime = await calculateWalkingTime(location, {
+      latitude: poi.latitude,
+      longitude: poi.longitude
+    });
+  
+    if (poi.type === 'police') {
+      setSelectedPoliceStation(prev => prev ? { ...prev, walkingTime } : null);
+    } else if (poi.type === 'store') {
+      setSelectedStore(prev => prev ? { ...prev, walkingTime } : null);
+    }
+  };
+
+  const handleNavigateToPoi = (poi: POI) => {
+    if (!poi || !location) return;
+
+    const destinationString = `${poi.latitude},${poi.longitude}`;
+    setDestination(destinationString);
+    getRoutes(location.coords, destinationString);
+    
+    setDestinationMarker({
+      latitude: poi.latitude,
+      longitude: poi.longitude,
+      name: poi.name,
+    });
+
+    setSelectedPoliceStation(null);
+    setSelectedStore(null);
+    setCalloutVisible(null);
   };
 
   const handleNavigateToLocation = () => {
@@ -264,7 +311,7 @@ export default function Map() {
   // If the Find Safe Spot card or nearest-spot card is requested, reserve the location card height so the route sheet opens
   if (showFindSafeSpotCard || showNearestSafeSpotCard) {
     currentContentHeight = LOCATION_CARD_HEIGHT;
-  } else if ((destinationInfo && showDestinationCard) || selectedPoliceStation) {
+  } else if ((destinationInfo && showDestinationCard) || selectedPoliceStation || selectedStore) {
     currentContentHeight = LOCATION_CARD_HEIGHT;
   } else if (routes.length > 0 && !isNavigating) {
     currentContentHeight = ROUTE_CAROUSEL_HEIGHT;
@@ -588,77 +635,7 @@ export default function Map() {
   const handleDismissLocationSentCard = () => {
     stopTrackingMode({ isEmergency: true });
     setShowLocationSentCard(false);
-  };
-
-  const handleSearch = (query: string, latitude?: number, longitude?: number) => {
-    if (location) {
-      setDestinationMarker(null);
-      setSelectedLocation(null);
-      setDestination(query); // Keep the query for display purposes if needed
-
-      if (latitude !== undefined && longitude !== undefined) {
-        // If coordinates are provided, use them as the destination
-        getRoutes(location.coords, `${latitude},${longitude}`);
-      } else {
-        // Otherwise, use the query string as the destination
-        getRoutes(location.coords, query);
-      }
-      lastRecalculation.current = Date.now();
-    }
-  };
-
-  const handleSuggestionSelected = (description: string, latitude: number, longitude: number) => {
-    const locationData = {
-      name: description.split(',')[0], // 取第一部分作為名稱
-      address: description,
-      latitude: latitude,
-      longitude: longitude
-    };
-    console.log('handleSuggestionSelected called with:', { description, latitude, longitude });
-    setSelectedLocation(locationData);
-    setDestinationMarker(locationData);
-    setDestinationInfo(locationData);
-    setShowDestinationCard(true);
-
-    // 移動地圖到選定位置
-    if (mapRef.current) {
-      mapRef.current.animateToRegion({
-        latitude: latitude,
-        longitude: longitude,
-        latitudeDelta: 0.01,
-        longitudeDelta: 0.01,
-      }, 1000);
-    }
-  };
-
-  // Debug: track destinationInfo / showDestinationCard changes to help diagnose why the LocationCard may not appear
-  useEffect(() => {
-    console.log('DESTINATION STATE CHANGE ->', { destinationInfo, showDestinationCard });
-  }, [destinationInfo, showDestinationCard]);
-
-  const handleStartNavigation = (route: RouteInfo) => {
-    if (location) {
-      console.log("--- Starting Real Navigation ---");
-      startNavigation(route);
-      // 清除 POI 選擇和 callout
-      setSelectedPoiType(null);
-      setCalloutVisible(null);
-      setDestinationInfo(null);
-      setShowDestinationCard(false);
-    }
-  };
-
-  const handleCancelRouteSelection = () => {
-    setDestination(null);
-    setSelectedRoute(null);
-    setSelectedPoliceStation(null); // 清除警察局卡片
-    setSelectedLocation(null);
-    setDestinationMarker(null);
-    setCalloutVisible(null); // 隱藏 callout
-    clearRoutes();
-    setDestinationInfo(null);
-    setShowDestinationCard(false);
-  };
+  };  
 
   useEffect(() => {
     if (routes.length > 0) {
@@ -683,92 +660,12 @@ export default function Map() {
     }
   }, [routes, pendingAutoNavigateTo, isNavigating, location]);
 
-  useEffect(() => {
-    console.log('IS_NAVIGATING:', isNavigating);
-  }, [isNavigating]);
-
   const getRouteColor = (mode: string, isSelected: boolean) => {
-    if (isSelected) return '#007BFF'; // 選中的路線顯示藍色
-    return '#808080'; // 未選中的路線統一顯示灰色
+    if (isSelected) return '#007BFF';
+    return '#808080';
   };
 
 
-
-  // Helper to normalize route.polyline into an array of {latitude, longitude}
-  const getCoordinatesFromPolyline = (polyline: any) => {
-    if (!polyline) return [];
-    // If it's a string, assume encoded polyline
-    if (typeof polyline === 'string') {
-      try {
-        return decodePolyline(polyline);
-      } catch (e) {
-        console.warn('Failed to decode polyline string, returning empty coords.', e);
-        return [];
-      }
-    }
-    // If it's already an array
-    if (Array.isArray(polyline)) {
-      const first = polyline[0];
-      if (!first) return [];
-      // case: array of [lat, lng]
-      if (Array.isArray(first) && first.length >= 2) {
-        return (polyline as Array<[number, number]>).map(([lat, lng]) => ({ latitude: lat, longitude: lng }));
-      }
-      // case: array of { latitude, longitude }
-      if (typeof first === 'object' && 'latitude' in first && 'longitude' in first) {
-        return polyline as Array<{ latitude: number; longitude: number }>;
-      }
-    }
-    return [];
-  };
-
-  const getPoiIcon = (poi: POI) => {
-    if (poi.type === 'police') {
-      return require('@/assets/icons/police-station.png');
-    }
-    if (poi.type === 'store') {
-      switch (poi.brand) {
-        case '711':
-          return require('@/assets/icons/711.png');
-        case 'familymart':
-          return require('@/assets/icons/family-mart.png');
-        case 'ok':
-          return require('@/assets/icons/OK.png');
-        case 'hilife':
-          return require('@/assets/icons/hilife.png');
-        default:
-          return require('@/assets/icons/family-mart.png'); // A default store icon
-      }
-    }
-    return require('@/assets/icons/family-mart.png'); // Default icon
-  };
-
-
-  if (!location) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#0000ff" />
-        <Text>正在獲取您的位置...</Text>
-      </View>
-    );
-  }
-
-  // ***
-
-  // ***
-
-  const filteredPois = selectedPoiType && location
-    ? pois.filter(poi => {
-      if (poi.type !== selectedPoiType) {
-        return false;
-      }
-      const distance = haversineDistance(
-        { latitude: location.coords.latitude, longitude: location.coords.longitude },
-        { latitude: poi.latitude, longitude: poi.longitude }
-      );
-      return distance <= 2.2;
-    })
-    : [];
   console.log("Map component rendering...");
   return (
     <View style={styles.container}>
@@ -863,11 +760,7 @@ export default function Map() {
                 setCalloutVisible(null);
               } else {
                 setCalloutVisible(poi.id);
-                if (poi.type === 'police') {
-                  handlePoliceStationPress(poi);
-                } else {
-                  setSelectedPoi(poi);
-                }
+                handlePoiPress(poi);
               }
             }}
           >
@@ -879,9 +772,7 @@ export default function Map() {
               <Callout tooltip={true}>
                 <View style={styles.calloutContainer}>
                   <Text style={styles.calloutTitle}>{poi.name}</Text>
-                  {poi.type === 'police' && (
-                    <Text style={styles.calloutDescription}>點擊以查看步行時間</Text>
-                  )}
+                  <Text style={styles.calloutDescription}>點擊以查看步行時間</Text>
                 </View>
               </Callout>
             )}
@@ -1067,8 +958,22 @@ export default function Map() {
                   setSelectedPoliceStation(null);
                   setCalloutVisible(null);
                 }}
-                onNavigate={handleNavigateToPoliceStation}
+                onNavigate={() => handleNavigateToPoi(selectedPoliceStation)}
                 locationType="police"
+              />
+            )}
+
+            {selectedStore && (
+              <LocationCard
+                name={selectedStore.name}
+                address={selectedStore.address}
+                walkingTime={selectedStore.walkingTime}
+                onClose={() => {
+                  setSelectedStore(null);
+                  setCalloutVisible(null);
+                }}
+                onNavigate={() => handleNavigateToPoi(selectedStore)}
+                locationType="store"
               />
             )}
 
