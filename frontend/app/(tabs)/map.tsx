@@ -692,6 +692,8 @@ export default function Map() {
     return '#808080'; // 未選中的路線統一顯示灰色
   };
 
+
+
   // Helper to normalize route.polyline into an array of {latitude, longitude}
   const getCoordinatesFromPolyline = (polyline: any) => {
     if (!polyline) return [];
@@ -770,6 +772,8 @@ export default function Map() {
   console.log("Map component rendering...");
   return (
     <View style={styles.container}>
+
+      
       <MapView
         ref={mapRef}
         style={styles.map}
