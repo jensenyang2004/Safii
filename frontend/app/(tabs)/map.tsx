@@ -23,36 +23,30 @@ import TrackModeCard from '@/components/Tracking/track_base';
 import Card_ongoing from '@/components/Tracking/track_ongoning';
 import ReportSafetyCard from '@/components/Tracking/ReportSafetyCard';
 import MapCarousel from '@/components/Map/carousel';
-import ToolCard from '@/components/Safety_tools/tools_card';
 import { useTracking } from '@/context/TrackProvider';
 import { useEmergencyListener } from '@/hooks/useEmergencyListener';
 import { useFriendSharing } from '@/hooks/useFriendSharing';
-import EmergencyList from '@/components/Emergency/EmergencyList';
 import EmergencyInfoModal from '@/components/Emergency/EmergencyInfoModal';
 import LocationSentCard from '@/components/Tracking/LocationSentCard';
 import SharingSessionCard from '@/components/Tracking/SharingSessionCard';
 import AvatarMarker from '@/components/Map/AvatarMarker';
 import { EmergencyBubble } from '@/components/Emergency/EmergencyBubbles';
-import { decodePolyline } from '@/utils/polyline';
-import { haversineDistance } from '@/utils/geo';
 import { useSafeSpotSearch } from '@/hooks/useSafeSpotSearch';
 import { useMapNavigationFeature } from '@/hooks/useMapNavigationFeature';
+import { calculateWalkingTime } from '@/libs/googleMaps';
+import { usePoiFilter } from '@/hooks/usePoiFilter';
 
-import { pois } from '../../constants/pois';
 import { POI } from '@/types';
 import { EmergencyData } from '@/types/emergency';
 import MapSearchBar from '@/components/Map/MapSearchBar';
 import RouteCarousel from '@/components/Map/RouteCarousel';
-import { RouteInfo } from '@/types';
 
 import LocationCard from '@/components/Map/LocationCard';
-import { useAuth } from '@/context/AuthProvider';
 import NavigationInstructionsCard from '@/components/Map/NavigationInstructionsCard';
 import Theme from '@/constants/Theme';
 
 const GOOGLE_MAPS_API_KEY = Constants.expoConfig?.extra?.GOOGLE_MAPS_API_KEY;
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
-const POI_UPDATE_DISTANCE_THRESHOLD = 5; // meters
 
 export default function Map() {
   const [location, setLocation] = useState<Location.LocationObject | null>(null);
@@ -61,7 +55,7 @@ export default function Map() {
   const activeMode = trackingModes.find(mode => mode.id === trackingModeId);
   const { emergencyData: emergencies } = useEmergencyListener();
   const { sharedByFriends } = useFriendSharing();
-  const [showToolCard, setShowToolCard] = useState(false);
+  // const [showToolCard, setShowToolCard] = useState(false);
   const [selectedEmergency, setSelectedEmergency] = useState<EmergencyData | null>(null);
   const [bottomComponentHeight, setBottomComponentHeight] = useState(0);
   const [showLocationSentCard, setShowLocationSentCard] = useState(false);
@@ -69,29 +63,6 @@ export default function Map() {
   const tabBarHeight = screenHeight * 0.09;
 
   const mapRef = useRef<MapView>(null);
-
-  const calculateWalkingTime = async (origin: Location.LocationObject, destination: { latitude: number; longitude: number }) => {
-    try {
-      const originStr = `${origin.coords.latitude},${origin.coords.longitude}`;
-      const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${originStr}&destination=${destination.latitude},${destination.longitude}&mode=walking&language=zh-TW&key=${GOOGLE_MAPS_API_KEY}`;
-      const response = await fetch(url);
-      const data = await response.json();
-
-      if (data.status !== 'OK') {
-        console.error('Google Directions API error:', data.status);
-        return '計算錯誤';
-      }
-
-      if (data.routes && data.routes[0] && data.routes[0].legs && data.routes[0].legs[0]) {
-        return data.routes[0].legs[0].duration.text;
-      }
-
-      return '無法計算';
-    } catch (error) {
-      console.error('Error calculating walking time:', error);
-      return '計算錯誤';
-    }
-  };
 
   const [selectedPoiType, setSelectedPoiType] = useState<'police' | 'store' | null>(null);
   const [selectedPoi, setSelectedPoi] = useState<POI | null>(null);
@@ -215,7 +186,6 @@ export default function Map() {
 
   const routeSheetHeight = currentContentHeight > 0 ? currentContentHeight + tabBarHeight : 0;
   const showRouteSheet = currentContentHeight > 0;
-  const isLocationCardVisible = !!selectedPoliceStation || !!selectedLocation;
 
   useEffect(() => {
     Animated.timing(routeSheetAnimation, {
@@ -300,47 +270,8 @@ export default function Map() {
     }
   }, [emergencies, selectedEmergency]);
 
-  const [poiSearchLocation, setPoiSearchLocation] = useState<Location.LocationObject | null>(null);
-  const lastPoiSearchLocation = useRef<Location.LocationObject | null>(null);
-
-  useEffect(() => {
-    const currentUserLocation = navUserLocation || location;
-
-    if (!currentUserLocation) return;
-
-    if (!lastPoiSearchLocation.current) {
-      lastPoiSearchLocation.current = currentUserLocation;
-      setPoiSearchLocation(currentUserLocation);
-      return;
-    }
-
-    const distance = haversineDistance(
-      lastPoiSearchLocation.current.coords,
-      currentUserLocation.coords
-    );
-
-    if (distance * 1000 > POI_UPDATE_DISTANCE_THRESHOLD) {
-      console.log(`User moved ${distance * 1000}m, updating POIs.`);
-      lastPoiSearchLocation.current = currentUserLocation;
-      setPoiSearchLocation(currentUserLocation);
-    }
-  }, [navUserLocation, location]);
-
-  const filteredPois = React.useMemo(() => {
-    if (!selectedPoiType || !poiSearchLocation) {
-      return [];
-    }
-    return pois.filter(poi => {
-      if (poi.type !== selectedPoiType) {
-        return false;
-      }
-      const distance = haversineDistance(
-        { latitude: poiSearchLocation.coords.latitude, longitude: poiSearchLocation.coords.longitude },
-        { latitude: poi.latitude, longitude: poi.longitude }
-      );
-      return distance <= 2.2;
-    });
-  }, [poiSearchLocation, selectedPoiType]);
+  // Use the extracted POI filter hook
+  const filteredPois = usePoiFilter(navUserLocation || location, selectedPoiType);
 
   useEffect(() => {
     console.log('DESTINATION STATE CHANGE ->', { destinationInfo, showDestinationCard });
