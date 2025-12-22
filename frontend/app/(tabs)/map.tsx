@@ -36,18 +36,17 @@ import { EmergencyBubble } from '@/components/Emergency/EmergencyBubbles';
 import { decodePolyline } from '@/utils/polyline';
 import { haversineDistance } from '@/utils/geo';
 import { useSafeSpotSearch } from '@/hooks/useSafeSpotSearch';
+import { useMapNavigationFeature } from '@/hooks/useMapNavigationFeature';
 
 import { pois } from '../../constants/pois';
 import { POI } from '@/types';
 import { EmergencyData } from '@/types/emergency';
 import MapSearchBar from '@/components/Map/MapSearchBar';
-import { useRoutePlanner } from '@/apis/useRoutePlanner';
 import RouteCarousel from '@/components/Map/RouteCarousel';
 import { RouteInfo } from '@/types';
 
 import LocationCard from '@/components/Map/LocationCard';
 import { useAuth } from '@/context/AuthProvider';
-import { useLiveNavigation } from '@/hooks/useLiveNavigation';
 import NavigationInstructionsCard from '@/components/Map/NavigationInstructionsCard';
 import Theme from '@/constants/Theme';
 
@@ -94,11 +93,6 @@ export default function Map() {
     }
   };
 
-  const { routes, error, getRoutes, loading: isFetchingRoutes, clearRoutes } = useRoutePlanner();
-  const [selectedRoute, setSelectedRoute] = useState<RouteInfo | null>(null);
-  const [destination, setDestination] = useState<string | null>(null);
-  const [placeToConfirm, setPlaceToConfirm] = useState<{ description: string; latitude: number; longitude: number } | null>(null);
-  const lastRecalculation = useRef<number>(0);
   const [selectedPoiType, setSelectedPoiType] = useState<'police' | 'store' | null>(null);
   const [selectedPoi, setSelectedPoi] = useState<POI | null>(null);
   const [calloutVisible, setCalloutVisible] = useState<string | null>(null);
@@ -109,14 +103,6 @@ export default function Map() {
     longitude: number;
     walkingTime: string | null;
   } | null>(null);
-  const [destinationInfo, setDestinationInfo] = useState<{
-    name: string;
-    address: string;
-    latitude: number;
-    longitude: number;
-  } | null>(null);
-  const [showDestinationCard, setShowDestinationCard] = useState(false);
-  const [destinationMarker, setDestinationMarker] = useState<{ latitude: number, longitude: number, name: string } | null>(null);
   const [selectedLocation, setSelectedLocation] = useState<{
     name: string;
     address: string;
@@ -124,6 +110,57 @@ export default function Map() {
     longitude: number;
   } | null>(null);
   const [showFindSafeSpotCard, setShowFindSafeSpotCard] = useState(false);
+
+  // Hook 1: Safe Spot Search
+  const {
+    isSearchingSafeSpot,
+    showIntermediateSafeSpotCard,
+    showNearestSafeSpotCard,
+    nearestSafeSpotData,
+    setShowNearestSafeSpotCard,
+    setShowIntermediateSafeSpotCard,
+    setNearestSafeSpotData,
+    findNearestSafeSpot,
+  } = useSafeSpotSearch({
+    setDestinationInfo: (info) => setDestinationInfo(info),
+    setShowDestinationCard: (show) => setShowDestinationCard(show),
+    setSelectedPoliceStation,
+  });
+
+  // Hook 2: Map Navigation Feature
+  const {
+    routes,
+    isFetchingRoutes,
+    selectedRoute,
+    destinationInfo,
+    showDestinationCard,
+    destinationMarker,
+    isNavigating,
+    navUserLocation,
+    traveledPath,
+    remainingPath,
+    currentStep,
+    remainingDistance,
+    eta,
+    setSelectedRoute,
+    setDestinationInfo,
+    setShowDestinationCard,
+    setDestinationMarker,
+    setPendingAutoNavigateTo,
+    handleStartNavigation,
+    stopNavigation,
+    handleCancelRouteSelection,
+    handleNavigateToPoliceStation,
+    handleNavigateToLocation,
+    handleSearch,
+    handleSuggestionSelected,
+  } = useMapNavigationFeature({
+    location,
+    setCalloutVisible,
+    setSelectedPoiType,
+    setSelectedPoliceStation,
+    setSelectedLocation,
+  });
 
   const handlePoliceStationPress = async (station: any) => {
     if (!location) {
@@ -133,7 +170,6 @@ export default function Map() {
 
     console.log('Police station pressed:', station);
 
-    // 使用 calculateWalkingTime 來獲取預估時間
     setSelectedPoliceStation({
       name: station.name || '警察局',
       address: station.address || station.description || '',
@@ -147,7 +183,6 @@ export default function Map() {
       longitude: station.longitude
     });
 
-    // 更新警察局資訊包含步行時間
     setSelectedPoliceStation(prev => {
       if (!prev) return null;
       return {
@@ -156,75 +191,6 @@ export default function Map() {
       };
     });
   };
-
-  const handleNavigateToPoliceStation = () => {
-    if (!selectedPoliceStation || !location) return;
-
-    const destinationString = `${selectedPoliceStation.latitude},${selectedPoliceStation.longitude}`;
-    setDestination(destinationString);
-
-    getRoutes(location.coords, destinationString);
-
-    setDestinationMarker({
-      latitude: selectedPoliceStation.latitude,
-      longitude: selectedPoliceStation.longitude,
-      name: selectedPoliceStation.name,
-    });
-    setSelectedPoliceStation(null); // 關閉警察局卡片
-    setCalloutVisible(null); // 隱藏 callout
-  };
-
-  const handleNavigateToLocation = () => {
-    if (!destinationInfo || !location) return;
-
-    console.log("規劃路線到:", destinationInfo.name);
-    const destinationString = `${destinationInfo.latitude},${destinationInfo.longitude}`;
-    setDestination(destinationString);
-    getRoutes(location.coords, destinationString);
-    setDestinationMarker({
-      latitude: selectedLocation.latitude,
-      longitude: selectedLocation.longitude,
-      name: selectedLocation.name,
-    });
-    setSelectedLocation(null); // 關閉位置卡片
-  };
-
-  const handleReroute = async (newOrigin: Location.LocationObject) => {
-    if (destination) {
-      console.log("Rerouting from new origin:", newOrigin.coords);
-      await getRoutes(newOrigin.coords, destination);
-    }
-  };
-
-  const {
-    isNavigating,
-    userLocation: navUserLocation,
-    traveledPath,
-    remainingPath,
-    startNavigation,
-    stopNavigation,
-    updateRoute,
-    currentStep,
-    remainingDistance,
-    eta,
-  } = useLiveNavigation({ onReroute: handleReroute });
-
-  const {
-    isSearchingSafeSpot,
-    showIntermediateSafeSpotCard,
-    showNearestSafeSpotCard,
-    nearestSafeSpotData,
-    setShowNearestSafeSpotCard,
-    setShowIntermediateSafeSpotCard,
-    setNearestSafeSpotData,
-    findNearestSafeSpot,
-  } = useSafeSpotSearch({
-    setDestinationInfo,
-    setShowDestinationCard,
-    setSelectedPoliceStation,
-  });
-
-  const [pendingAutoNavigateTo, setPendingAutoNavigateTo] = useState<{ latitude: number; longitude: number } | null>(null);
 
   const [activeMarker, setActiveMarker] = useState<string | null>(null);
   const scaleAnimation = useRef(new Animated.Value(1)).current;
@@ -305,19 +271,9 @@ export default function Map() {
         heading: navUserLocation.coords.heading ?? 0,
         pitch: 45,
         zoom: getDynamicZoom(navUserLocation.coords.speed),
-      }, { duration: 1000 }); // Slower duration for smoother zoom changes
+      }, { duration: 1000 });
     }
   }, [navUserLocation, isNavigating]);
-
-  useEffect(() => {
-    if (destination && location && !isNavigating) {
-      const now = Date.now();
-      if (now - lastRecalculation.current > 10000) { // Recalculate every 10 seconds
-        getRoutes(location.coords, destination);
-        lastRecalculation.current = now;
-      }
-    }
-  }, [location, isNavigating]);
 
   useEffect(() => {
     if (selectedEmergency && mapRef.current) {
@@ -344,42 +300,31 @@ export default function Map() {
     }
   }, [emergencies, selectedEmergency]);
 
-  useEffect(() => {
-    if (error) {
-      Alert.alert('Error', `Failed to get routes: ${error.message}`);
-    }
-  }, [error]);
-
-  // MOVED UP and ADAPTED POI Logic to prevent Hook Error
   const [poiSearchLocation, setPoiSearchLocation] = useState<Location.LocationObject | null>(null);
   const lastPoiSearchLocation = useRef<Location.LocationObject | null>(null);
 
-  // Debounced location for POI searching
   useEffect(() => {
     const currentUserLocation = navUserLocation || location;
 
     if (!currentUserLocation) return;
 
-    // Set the initial search location
     if (!lastPoiSearchLocation.current) {
       lastPoiSearchLocation.current = currentUserLocation;
       setPoiSearchLocation(currentUserLocation);
       return;
     }
 
-    // Calculate distance from the last location where we updated the POIs
     const distance = haversineDistance(
       lastPoiSearchLocation.current.coords,
       currentUserLocation.coords
     );
 
-    // If moved more than the threshold, update the location for POI search
-    if (distance * 1000 > POI_UPDATE_DISTANCE_THRESHOLD) { // haversineDistance returns km
+    if (distance * 1000 > POI_UPDATE_DISTANCE_THRESHOLD) {
       console.log(`User moved ${distance * 1000}m, updating POIs.`);
       lastPoiSearchLocation.current = currentUserLocation;
       setPoiSearchLocation(currentUserLocation);
     }
-  }, [navUserLocation, location]); // Run whenever the user's location changes
+  }, [navUserLocation, location]);
 
   const filteredPois = React.useMemo(() => {
     if (!selectedPoiType || !poiSearchLocation) {
@@ -397,7 +342,10 @@ export default function Map() {
     });
   }, [poiSearchLocation, selectedPoiType]);
 
-  // Early Return MUST be after all Hooks
+  useEffect(() => {
+    console.log('DESTINATION STATE CHANGE ->', { destinationInfo, showDestinationCard });
+  }, [destinationInfo, showDestinationCard]);
+
   if (!location) {
     return (
       <View style={styles.loadingContainer}>
@@ -423,7 +371,7 @@ export default function Map() {
 
   const handleSelectEmergency = (emergency: any) => {
     if (selectedEmergency && selectedEmergency.emergencyDocId === emergency.emergencyDocId) {
-      setSelectedEmergency(null); // Deselect if the same emergency is pressed again
+      setSelectedEmergency(null);
     } else {
       setSelectedEmergency(emergency);
     }
@@ -431,7 +379,6 @@ export default function Map() {
 
   let carouselData: any[] = [];
 
-  // Add SharingSessionCard to the carousel data
   carouselData.push({
     id: 'sharing-sessions',
     component: <SharingSessionCard />,
@@ -495,134 +442,9 @@ export default function Map() {
     setShowLocationSentCard(false);
   };
 
-  const handleSearch = (query: string, latitude?: number, longitude?: number) => {
-    if (location) {
-      setDestinationMarker(null);
-      setSelectedLocation(null);
-      setDestination(query); // Keep the query for display purposes if needed
-
-      if (latitude !== undefined && longitude !== undefined) {
-        // If coordinates are provided, use them as the destination
-        getRoutes(location.coords, `${latitude},${longitude}`);
-      } else {
-        // Otherwise, use the query string as the destination
-        getRoutes(location.coords, query);
-      }
-      lastRecalculation.current = Date.now();
-    }
-  };
-
-  const handleSuggestionSelected = (description: string, latitude: number, longitude: number) => {
-    const locationData = {
-      name: description.split(',')[0], // 取第一部分作為名稱
-      address: description,
-      latitude: latitude,
-      longitude: longitude
-    };
-    console.log('handleSuggestionSelected called with:', { description, latitude, longitude });
-    setSelectedLocation(locationData);
-    setDestinationMarker(locationData);
-    setDestinationInfo(locationData);
-    setShowDestinationCard(true);
-
-    // 移動地圖到選定位置
-    if (mapRef.current) {
-      mapRef.current.animateToRegion({
-        latitude: latitude,
-        longitude: longitude,
-        latitudeDelta: 0.01,
-        longitudeDelta: 0.01,
-      }, 1000);
-    }
-  };
-
-  // Debug: track destinationInfo / showDestinationCard changes to help diagnose why the LocationCard may not appear
-  useEffect(() => {
-    console.log('DESTINATION STATE CHANGE ->', { destinationInfo, showDestinationCard });
-  }, [destinationInfo, showDestinationCard]);
-
-  const handleStartNavigation = (route: RouteInfo) => {
-    if (location) {
-      console.log("--- Starting Real Navigation ---");
-      startNavigation(route);
-      // 清除 POI 選擇和 callout
-      setSelectedPoiType(null);
-      setCalloutVisible(null);
-      setDestinationInfo(null);
-      setShowDestinationCard(false);
-    }
-  };
-
-  const handleCancelRouteSelection = () => {
-    setDestination(null);
-    setSelectedRoute(null);
-    setSelectedPoliceStation(null); // 清除警察局卡片
-    setSelectedLocation(null);
-    setDestinationMarker(null);
-    setCalloutVisible(null); // 隱藏 callout
-    clearRoutes();
-    setDestinationInfo(null);
-    setShowDestinationCard(false);
-  };
-
-  useEffect(() => {
-    if (routes.length > 0) {
-      const newSelectedRoute = routes.find(r => r.mode === 'safest') || routes[0];
-      setSelectedRoute(newSelectedRoute);
-
-      console.log("Auto-selected route:", newSelectedRoute.mode);
-      // If we are already navigating, this means this is a reroute.
-      // Update the navigation hook with the new route.
-      if (isNavigating) {
-        updateRoute(newSelectedRoute);
-      }
-
-      // If a UI action requested immediate navigation (e.g. user tapped LocationCard -> Navigate),
-      // start navigation automatically when routes become available.
-      if (pendingAutoNavigateTo && !isNavigating && location) {
-        console.log('Auto-starting navigation to pending destination');
-        // Use the existing handler so behavior matches other start-navigation flows
-        handleStartNavigation(newSelectedRoute);
-        setPendingAutoNavigateTo(null);
-      }
-    }
-  }, [routes, pendingAutoNavigateTo, isNavigating, location]);
-
-  useEffect(() => {
-    console.log('IS_NAVIGATING:', isNavigating);
-  }, [isNavigating]);
-
   const getRouteColor = (mode: string, isSelected: boolean) => {
-    if (isSelected) return '#007BFF'; // 選中的路線顯示藍色
-    return '#808080'; // 未選中的路線統一顯示灰色
-  };
-
-  // Helper to normalize route.polyline into an array of {latitude, longitude}
-  const getCoordinatesFromPolyline = (polyline: any) => {
-    if (!polyline) return [];
-    // If it's a string, assume encoded polyline
-    if (typeof polyline === 'string') {
-      try {
-        return decodePolyline(polyline);
-      } catch (e) {
-        console.warn('Failed to decode polyline string, returning empty coords.', e);
-        return [];
-      }
-    }
-    // If it's already an array
-    if (Array.isArray(polyline)) {
-      const first = polyline[0];
-      if (!first) return [];
-      // case: array of [lat, lng]
-      if (Array.isArray(first) && first.length >= 2) {
-        return (polyline as Array<[number, number]>).map(([lat, lng]) => ({ latitude: lat, longitude: lng }));
-      }
-      // case: array of { latitude, longitude }
-      if (typeof first === 'object' && 'latitude' in first && 'longitude' in first) {
-        return polyline as Array<{ latitude: number; longitude: number }>;
-      }
-    }
-    return [];
+    if (isSelected) return '#007BFF';
+    return '#808080';
   };
 
   console.log("Map component rendering...");
@@ -641,7 +463,7 @@ export default function Map() {
         mapType="standard"
         showsCompass={true}
         compassOffset={{ x: -8, y: 50 }}
-        onPress={() => { Keyboard.dismiss(); setCalloutVisible(null); }} // 點擊地圖時隱藏所有 callout
+        onPress={() => { Keyboard.dismiss(); setCalloutVisible(null); }}
       >
         {navUserLocation && (
           <Marker
@@ -659,7 +481,6 @@ export default function Map() {
           />
         )}
 
-        {/* Marker for the nearest safe spot found by findNearestSafeSpot() */}
         {nearestSafeSpotData && showNearestSafeSpotCard && (
           <Marker
             coordinate={{ latitude: nearestSafeSpotData.latitude, longitude: nearestSafeSpotData.longitude }}
@@ -717,9 +538,9 @@ export default function Map() {
             onPress={() => {
               handleMarkerPress(poi.id);
               if (calloutVisible === poi.id) {
-                setCalloutVisible(null);  // 如果已經顯示，則隱藏
+                setCalloutVisible(null);
               } else {
-                setCalloutVisible(poi.id); // 顯示新的 callout
+                setCalloutVisible(poi.id);
                 if (poi.type === 'police') {
                   handlePoliceStationPress(poi);
                 } else {
@@ -805,8 +626,6 @@ export default function Map() {
         </ScrollView>
       </Animated.View>
 
-      {/* Top button now opens the bottom route-sheet LocationCard via showFindSafeSpotCard */}
-
       {selectedEmergency && (
         <EmergencyInfoModal emergency={selectedEmergency} onClose={() => setSelectedEmergency(null)} />
       )}
@@ -840,7 +659,7 @@ export default function Map() {
         </View>
       )}
 
-      {!isNavigating && <MapSearchBar onSearch={handleSearch} onSuggestionSelected={handleSuggestionSelected} />}
+      {!isNavigating && <MapSearchBar onSearch={handleSearch} onSuggestionSelected={(desc, lat, lng) => handleSuggestionSelected(desc, lat, lng, mapRef)} />}
 
       {showLocationSentCard && activeMode && (
         <LocationSentCard
@@ -900,9 +719,7 @@ export default function Map() {
                 address="按下搜尋以尋找附近安全地點"
                 onClose={() => setShowFindSafeSpotCard(false)}
                 onNavigate={async () => {
-                  // Wait for the search to finish and the nearestSpot card to be set
                   await findNearestSafeSpot(location, mapRef);
-                  // Close the Find Safe Spot card after nearest spot data is available.
                   setShowFindSafeSpotCard(false);
                 }}
                 locationType="general"
@@ -918,7 +735,7 @@ export default function Map() {
                   setSelectedPoliceStation(null);
                   setCalloutVisible(null);
                 }}
-                onNavigate={handleNavigateToPoliceStation}
+                onNavigate={() => handleNavigateToPoliceStation(selectedPoliceStation)}
                 locationType="police"
               />
             )}
@@ -928,7 +745,7 @@ export default function Map() {
                 name={destinationInfo.name}
                 address={destinationInfo.address}
                 onClose={() => setShowDestinationCard(false)}
-                onNavigate={handleNavigateToLocation}
+                onNavigate={() => handleNavigateToLocation(selectedLocation)}
                 locationType="general"
               />
             )}
@@ -955,17 +772,23 @@ export default function Map() {
                 onNavigate={() => {
                   if (nearestSafeSpotData && location) {
                     const destinationString = `${nearestSafeSpotData.latitude},${nearestSafeSpotData.longitude}`;
-                    setDestination(destinationString);
-                    // Request routes — when routes arrive we'll auto-start navigation
-                    getRoutes(location.coords, destinationString);
+                    setDestinationInfo({
+                        name: nearestSafeSpotData.name,
+                        address: nearestSafeSpotData.address,
+                        latitude: nearestSafeSpotData.latitude,
+                        longitude: nearestSafeSpotData.longitude
+                    }); // Set destination info state
+                    
+                    // Manually trigger route planning since we don't have setDestination in this scope anymore
+                    // But we can set pending navigation
+                    setPendingAutoNavigateTo({ latitude: nearestSafeSpotData.latitude, longitude: nearestSafeSpotData.longitude });
                     setDestinationMarker({
                       latitude: nearestSafeSpotData.latitude,
                       longitude: nearestSafeSpotData.longitude,
                       name: nearestSafeSpotData.name,
                     });
-                    // mark pending auto-start so the routes useEffect will begin navigation
-                    setPendingAutoNavigateTo({ latitude: nearestSafeSpotData.latitude, longitude: nearestSafeSpotData.longitude });
-                    setShowNearestSafeSpotCard(false); // Close the card after initiating route planning
+                    
+                    setShowNearestSafeSpotCard(false); 
                   }
                 }}
                 locationType={nearestSafeSpotData.name.includes('警察局') ? 'police' : 'general'}
