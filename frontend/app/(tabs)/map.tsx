@@ -373,7 +373,6 @@ export default function Map() {
     }
   }, [selectedEmergency]);
 
-
   
   useEffect(() => {
     if (emergencies && emergencies.length > 0 && !selectedEmergency && mapRef.current) {
