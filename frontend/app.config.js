@@ -14,9 +14,7 @@ module.exports = {
 
     // ❌ 絕對不要在這裡寫 newArchEnabled: true
 
-    runtimeVersion: {
-      policy: "appVersion"
-    },
+    runtimeVersion: "1.0.0",
 
     // --- iOS 設定 ---
     ios: {

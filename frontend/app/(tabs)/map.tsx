@@ -10,8 +10,8 @@ import {
   Text,
   Alert,
   Image,
-  Animated,
   Keyboard,
+  Animated,
 } from 'react-native';
 
 // 直接使用 Image 组件，不需要导入 SVG
@@ -123,8 +123,13 @@ export default function Map() {
   const [selectedPoiType, setSelectedPoiType] = useState<'police' | 'store' | null>(null);
   const [selectedPoi, setSelectedPoi] = useState<POI | null>(null);
   const [calloutVisible, setCalloutVisible] = useState<string | null>(null);
-  const [selectedPoliceStation, setSelectedPoliceStation] = useState<POI & { walkingTime: string | null } | null>(null);
-  const [selectedStore, setSelectedStore] = useState<POI & { walkingTime: string | null } | null>(null);
+  const [selectedPoliceStation, setSelectedPoliceStation] = useState<{
+    name: string;
+    address: string;
+    latitude: number;
+    longitude: number;
+    walkingTime: string | null;
+  } | null>(null);
   const [destinationInfo, setDestinationInfo] = useState<{
     name: string;
     address: string;
@@ -141,48 +146,57 @@ export default function Map() {
   } | null>(null);
   const [showFindSafeSpotCard, setShowFindSafeSpotCard] = useState(false);
 
-  const handlePoiPress = async (poi: POI) => {
-    if (!location) return;
-  
-    const commonPoiData = {
-      ...poi,
+  const handlePoliceStationPress = async (station: any) => {
+    if (!location) {
+      console.log('No current location available');
+      return;
+    }
+
+    console.log('Police station pressed:', station);
+
+    // 使用 calculateWalkingTime 來獲取預估時間
+    setSelectedPoliceStation({
+      name: station.name || '警察局',
+      address: station.address || station.description || '',
+      latitude: station.latitude,
+      longitude: station.longitude,
       walkingTime: '計算中...'
-    };
-  
-    if (poi.type === 'police') {
-      setSelectedPoliceStation(commonPoiData);
-    } else if (poi.type === 'store') {
-      setSelectedStore(commonPoiData);
-    }
-  
-    const walkingTime = await calculateWalkingTime(location, {
-      latitude: poi.latitude,
-      longitude: poi.longitude
     });
-  
-    if (poi.type === 'police') {
-      setSelectedPoliceStation(prev => prev ? { ...prev, walkingTime } : null);
-    } else if (poi.type === 'store') {
-      setSelectedStore(prev => prev ? { ...prev, walkingTime } : null);
-    }
+
+    const walkingTime = await calculateWalkingTime(location, {
+      latitude: station.latitude,
+      longitude: station.longitude
+    });
+
+    // 更新警察局資訊包含步行時間
+    setSelectedPoliceStation(prev => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        walkingTime: walkingTime
+      };
+    });
   };
 
-  const handleNavigateToPoi = (poi: POI) => {
-    if (!poi || !location) return;
+  const handleNavigateToPoliceStation = () => {
+    if (!selectedPoliceStation || !location) return;
 
-    const destinationString = `${poi.latitude},${poi.longitude}`;
+    // console.log("規劃路線到警察局:", selectedPoliceStation.name);
+    const destinationString = `${selectedPoliceStation.latitude},${selectedPoliceStation.longitude}`;
     setDestination(destinationString);
-    getRoutes(location.coords, destinationString);
-    
-    setDestinationMarker({
-      latitude: poi.latitude,
-      longitude: poi.longitude,
-      name: poi.name,
-    });
 
-    setSelectedPoliceStation(null);
-    setSelectedStore(null);
-    setCalloutVisible(null);
+    // console.log("Calling getRoutes with:", location.coords, destinationString);
+    getRoutes(location.coords, destinationString);
+    // console.log("Route planning initiated.");
+
+    setDestinationMarker({
+      latitude: selectedPoliceStation.latitude,
+      longitude: selectedPoliceStation.longitude,
+      name: selectedPoliceStation.name,
+    });
+    setSelectedPoliceStation(null); // 關閉警察局卡片
+    setCalloutVisible(null); // 隱藏 callout
+    // console.log("finished handleNavigateToPoliceStation");
   };
 
   const handleNavigateToLocation = () => {
@@ -250,7 +264,7 @@ export default function Map() {
   // If the Find Safe Spot card or nearest-spot card is requested, reserve the location card height so the route sheet opens
   if (showFindSafeSpotCard || showNearestSafeSpotCard) {
     currentContentHeight = LOCATION_CARD_HEIGHT;
-  } else if ((destinationInfo && showDestinationCard) || selectedPoliceStation || selectedStore) {
+  } else if ((destinationInfo && showDestinationCard) || selectedPoliceStation) {
     currentContentHeight = LOCATION_CARD_HEIGHT;
   } else if (routes.length > 0 && !isNavigating) {
     currentContentHeight = ROUTE_CAROUSEL_HEIGHT;
@@ -260,7 +274,7 @@ export default function Map() {
 
   const routeSheetHeight = currentContentHeight > 0 ? currentContentHeight + tabBarHeight : 0;
   const showRouteSheet = currentContentHeight > 0;
-  const isLocationCardVisible = !!selectedPoliceStation || !!selectedLocation || !!selectedStore;
+  const isLocationCardVisible = !!selectedPoliceStation || !!selectedLocation;
 
   useEffect(() => {
     Animated.timing(routeSheetAnimation, {
@@ -638,7 +652,6 @@ export default function Map() {
     setDestination(null);
     setSelectedRoute(null);
     setSelectedPoliceStation(null); // 清除警察局卡片
-    setSelectedStore(null);
     setSelectedLocation(null);
     setDestinationMarker(null);
     setCalloutVisible(null); // 隱藏 callout
@@ -846,7 +859,11 @@ export default function Map() {
                 setCalloutVisible(null);
               } else {
                 setCalloutVisible(poi.id);
-                handlePoiPress(poi);
+                if (poi.type === 'police') {
+                  handlePoliceStationPress(poi);
+                } else {
+                  setSelectedPoi(poi);
+                }
               }
             }}
           >
@@ -858,7 +875,9 @@ export default function Map() {
               <Callout tooltip={true}>
                 <View style={styles.calloutContainer}>
                   <Text style={styles.calloutTitle}>{poi.name}</Text>
-                  <Text style={styles.calloutDescription}>點擊以查看步行時間</Text>
+                  {poi.type === 'police' && (
+                    <Text style={styles.calloutDescription}>點擊以查看步行時間</Text>
+                  )}
                 </View>
               </Callout>
             )}
@@ -1044,22 +1063,8 @@ export default function Map() {
                   setSelectedPoliceStation(null);
                   setCalloutVisible(null);
                 }}
-                onNavigate={() => handleNavigateToPoi(selectedPoliceStation)}
+                onNavigate={handleNavigateToPoliceStation}
                 locationType="police"
-              />
-            )}
-
-            {selectedStore && (
-              <LocationCard
-                name={selectedStore.name}
-                address={selectedStore.address}
-                walkingTime={selectedStore.walkingTime}
-                onClose={() => {
-                  setSelectedStore(null);
-                  setCalloutVisible(null);
-                }}
-                onNavigate={() => handleNavigateToPoi(selectedStore)}
-                locationType="store"
               />
             )}
 
