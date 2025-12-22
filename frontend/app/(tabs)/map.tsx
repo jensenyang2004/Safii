@@ -36,6 +36,7 @@ import { useMapNavigationFeature } from '@/hooks/useMapNavigationFeature';
 import { calculateWalkingTime } from '@/libs/googleMaps';
 import { usePoiFilter } from '@/hooks/usePoiFilter';
 
+
 import { POI } from '@/types';
 import { EmergencyData } from '@/types/emergency';
 import MapSearchBar from '@/components/Map/MapSearchBar';
