@@ -8,9 +8,7 @@ const AuthLayout = () => {
     const { user, loading } = useAuth()
 
     // return here for development purposes
-    return <Redirect href='/(tabs)/home'/>
-
-
+    // return <Redirect href='/(tabs)/home'/>
 
     if( !loading && user ) return <Redirect href='/(tabs)/home'/>
     return (
@@ -31,7 +29,7 @@ const AuthLayout = () => {
         </Stack>
 
         {/* <Loader isLoading={loading} /> */}
-        <StatusBar backgroundColor="#161622" style="light" />
+        <StatusBar style="dark" />
     </>
   ); 
 }

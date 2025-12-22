@@ -1,18 +1,27 @@
 {
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
+    "useUnknownInCatchVariables": false,
     "strict": true,
+    "jsx": "react-native",
+    "moduleResolution": "bundler",
+    "baseUrl": ".",
     "paths": {
       "@/*": [
         "./*"
       ]
-    }
+    },
+    "allowJs": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true
   },
   "include": [
     "**/*.ts",
     "**/*.tsx",
+    "types/svg.d.ts",
+    "types/css.d.ts",
+    "nativewind-env.d.ts",
     ".expo/types/**/*.ts",
-    "expo-env.d.ts",
-    "nativewind-env.d.ts"
-, "app/(tabs)/home.tsx"  ]
+    "expo-env.d.ts"
+  ]
 }

@@ -1,166 +1,163 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, Image, StyleSheet, Animated, Easing } from 'react-native';
-// import { useLiveActivity } from '@/hooks/useCountDown';
+// components/Tracking/track_base.tsx
+import React from 'react';
+import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
 import { useTracking } from '@/context/TrackProvider';
+import { BlurView } from 'expo-blur';
+import * as Theme from '../../constants/Theme'; // Keep Theme for colors and radii
+import { uiParameters } from '../../constants/Theme';
 
 type TrackModeCardProps = {
   id: string;
   name: string;
-  contacts: { id: string; url: string; name: string }[];
+  contacts: { id: string; url: any; name: string }[];
+  checkIntervalMinutes: number;
+  intervalReductionMinutes: number;
 };
 
-const avatarImg = require('../../assets/images/person.png'); // Replace with your actual avatar image
-
-export default function TrackModeCard({ id, name, contacts }: TrackModeCardProps) {
-  const [expanded, setExpanded] = useState(false);
-  const [animation] = useState(new Animated.Value(0));
+export default function TrackModeCard({ id, name, contacts, checkIntervalMinutes, intervalReductionMinutes }: TrackModeCardProps) {
   const { startTrackingMode } = useTracking();
-  // const { startActivity } = useLiveActivity();
 
-  const handlePress = () => {
-    setExpanded(!expanded);
-    Animated.timing(animation, {
-      toValue: expanded ? 0 : 1,
-      duration: 250,
-      easing: Easing.ease,
-      useNativeDriver: false,
-    }).start();
-  };
-
-  const expandedHeight = animation.interpolate({
-    inputRange: [0, 1],
-    outputRange: [60, 120], // collapsed height, expanded height
-  });
-
-  // Show up to 3 avatars, rest are counted in "+N"
   const visibleContacts = contacts.slice(0, 3);
   const moreCount = contacts.length - visibleContacts.length;
+  const hasContacts = contacts && contacts.length > 0;
+
+  // Use reduction minutes from the mode config (passed in). Fallback to 3 if missing.
+  // const defaultReductionMinutes = intervalReductionMinutes ?? 3;
+  const defaultReductionMinutes = 1;
 
   return (
-    <View style={styles.container}>
-      <TouchableOpacity style={styles.header} onPress={() => {startTrackingMode(id)}} activeOpacity={0.8}>
-        <Text style={styles.headerText}>開起{name}模式</Text>
-      </TouchableOpacity>
-      <Animated.View style={[styles.bottom, { height: expandedHeight }]}>
-        <TouchableOpacity style={styles.bottomContent} onPress={handlePress} activeOpacity={0.8}>
-          <Text style={styles.notifyText}>緊急時將通知</Text>
-          <View style={styles.avatarsRow}>
-            {visibleContacts.map((contact) => (
-              <Image key={contact.id} source={avatarImg} style={styles.avatar} />
-            ))}
-            {moreCount > 0 && (
-              <View style={styles.moreCircle}>
-                <Text style={styles.moreText}>{`+${moreCount}`}</Text>
-              </View>
-            )}
-            <Text style={styles.arrow}>{'>'}</Text>
-          </View>
-          {expanded && (
-            <View style={styles.expandedContent}>
-              {contacts.map((contact) => (
-                <Text key={contact.id} style={styles.expandedText}>
-                  {contact.name}
-                </Text>
-              ))}
+    <View style={styles.shadowContainer}>
+      <BlurView
+        intensity={90}
+        tint="light"
+        style={styles.blurView}
+      >
+        <View style={[styles.innerContainer, { backgroundColor: uiParameters.mainComponent.background, justifyContent: hasContacts ? 'space-between' : 'center' }]}>
+          <TouchableOpacity
+            onPress={() => startTrackingMode(id, checkIntervalMinutes, defaultReductionMinutes)}
+            activeOpacity={0.8}
+            style={[
+              styles.button,
+              { backgroundColor: uiParameters.buttons.action.background },
+              !hasContacts && { width: '100%' }
+            ]}
+          >
+              <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.buttonText, { color: Theme.tracking_colors.white, flexShrink: 1 }]}>
+                開啟{name}模式
+              </Text>
+          </TouchableOpacity>
+
+          {/* Edit button removed — edit flow moved to Home */}
+
+          {/* Avatars Row */}
+          {hasContacts && (
+            <View style={styles.avatarContainer}>
+              {visibleContacts.map((contact, index) =>
+                contact.url ? (
+                  <Image
+                    key={contact.id}
+                    source={contact.url}
+                    style={[styles.avatar, { marginLeft: index > 0 ? -10 : 0, zIndex: index }]}
+                  />
+                ) : (
+                  <View
+                    key={contact.id}
+                    style={[styles.avatar, styles.avatarPlaceholder, { marginLeft: index > 0 ? -10 : 0, zIndex: index }]}
+                  >
+                    <Text style={styles.avatarText}>
+                      {(contact.name || 'U')[0].toUpperCase()}
+                    </Text>
+                  </View>
+                )
+              )}
+              {moreCount > 0 && (
+                <View
+                  style={[styles.avatar, styles.moreCount, { marginLeft: visibleContacts.length > 0 ? -10 : 0, zIndex: visibleContacts.length }]}
+                >
+                  <Text style={styles.moreCountText}>{`+${moreCount}`}</Text>
+                </View>
+              )}
             </View>
           )}
-        </TouchableOpacity>
-      </Animated.View>
+        </View>
+      </BlurView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    backgroundColor: '#F8F1EC',
-    borderRadius: 20,
-    padding: 0,
-    margin: 10,
-    width: '100%',
+  shadowContainer: {
+    width: '90%',
+    height: 100,
+    paddingTop: 10,
+    paddingBottom: 10,
+    alignSelf: 'center',
+    marginVertical: 10,
     shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
-  },
-  header: {
-    backgroundColor: '#F18C8E',
-    borderRadius: 16,
-    margin: 8,
-    marginBottom: 0,
-    paddingVertical: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#F18C8E',
     shadowOpacity: 0.2,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 5,
+    elevation: 5,
   },
-  headerText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 22,
-    letterSpacing: 2,
-  },
-  bottom: {
-    backgroundColor: '#F8F1EC',
-    borderRadius: 16,
-    margin: 8,
-    marginTop: 12,
-    overflow: 'hidden',
-    justifyContent: 'center',
-  },
-  bottomContent: {
-    alignItems: 'center',
-    justifyContent: 'center',
+  blurView: {
     width: '100%',
     height: '100%',
+    borderRadius: 9999,
+    overflow: 'hidden',
   },
-  notifyText: {
-    color: '#888',
-    fontSize: 14,
-    marginBottom: 4,
-  },
-  avatarsRow: {
+  innerContainer: {
+    width: '100%',
+    height: '100%',
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 2,
+    paddingVertical: 12,
+    paddingHorizontal: 32,
+  },
+  button: {
+    padding: 10,
+    borderRadius: 50,
+    paddingHorizontal: 30,
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  buttonText: {
+    fontWeight: 'bold',
+    fontSize: 20,
+  },
+  avatarContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   avatar: {
     width: 32,
     height: 32,
-    borderRadius: 16,
-    marginHorizontal: -6,
+    borderRadius: Theme.radii.full,
     borderWidth: 2,
-    borderColor: '#fff',
-    backgroundColor: '#eee',
+    borderColor: Theme.colors.primary,
+    backgroundColor: Theme.colors.gray75,
   },
-  moreCircle: {
-    backgroundColor: '#E5E5E5',
-    borderRadius: 12,
-    width: 32,
-    height: 32,
-    alignItems: 'center',
+  avatarPlaceholder: {
     justifyContent: 'center',
-    marginLeft: 4,
-  },
-  moreText: {
-    color: '#444',
-    fontWeight: 'bold',
-    fontSize: 14,
-  },
-  arrow: {
-    fontSize: 22,
-    color: '#888',
-    marginLeft: 8,
-    fontWeight: 'bold',
-  },
-  expandedContent: {
-    marginTop: 10,
     alignItems: 'center',
   },
-  expandedText: {
-    color: '#888',
+  avatarText: {
+    color: Theme.colors.textPrimary,
+    fontWeight: 'bold',
     fontSize: 14,
+  },
+  moreCount: {
+    backgroundColor: Theme.colors.gray150,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  moreCountText: {
+    color: Theme.colors.textPrimary,
+    fontWeight: Theme.typography.fontWeights.bold,
+    fontSize: Theme.typography.fontSizes.caption,
   },
 });

@@ -1,13 +1,17 @@
-import { Text, StyleSheet, View, TextInput, TouchableOpacity, SafeAreaView, ActivityIndicator, Alert } from 'react-native'
+import { Text, StyleSheet, View, TextInput, TouchableOpacity, SafeAreaView, ActivityIndicator, Alert, TouchableWithoutFeedback, Keyboard } from 'react-native'
 import React, { useState } from 'react'
-import { createUserWithEmailAndPassword } from 'firebase/auth'
+import {
+  createUserWithEmailAndPassword,
+  updateProfile,
+  User as FirebaseUser,
+} from 'firebase/auth';
 import { auth, db } from '@/libs/firebase'
-import { doc, setDoc } from 'firebase/firestore'
-import { router } from 'expo-router'
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { router, Stack } from 'expo-router';
 import { AntDesign } from '@expo/vector-icons'
-import { Stack } from 'expo-router';
+import { FirebaseError } from 'firebase/app';
 
-const SignUp = () => {
+export default function SignUp() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -15,178 +19,228 @@ const SignUp = () => {
   const [username, setUsername] = useState('');
 
   const handleSignUp = async () => {
-    if (password !== confirmPassword) {
-      alert('Passwords do not match!')
-      return
+    if (!email || !password || !username || !confirmPassword) {
+        Alert.alert('錯誤', '請填寫所有欄位');
+        return;
     }
+    if (password !== confirmPassword) {
+      Alert.alert('錯誤', '密碼與確認密碼不符');
+      return;
+    }
+
     setLoading(true)
     try {
-      const res = await createUserWithEmailAndPassword(auth, email, password)
-      await setDoc(doc(db, "users", res.user.uid), {
+      // 1) 建帳號
+      const cred = await createUserWithEmailAndPassword(auth, email, password);
+      const user: FirebaseUser = cred.user;
+
+      // 2) 在 Auth Profile 加上 displayName
+      await updateProfile(user, { displayName: username });
+
+      // 3) 組出你的完整 User Schema
+      const userDoc = {
+        uid: user.uid,
+        phone: '',                // 如果有電話，可傳入
+        email: user.email!,
         username: username,
-        email: email,
-        id: res.user.uid,
-      });
-    } catch (err) {
-      console.log(err)
-      let errorMessage = 'An error occurred during sign up';
-      if (err && typeof err === 'object' && 'message' in err) {
-        errorMessage = String((err as { message?: unknown }).message);
+        avatarUrl: '',            // 可後續讓使用者上傳
+        gender: 'other',
+        createdAt: serverTimestamp(),
+        lastActiveAt: serverTimestamp(),
+        locationSharing: true,
+        currentLocation: { latitude: 0, longitude: 0 },
+        subscriptionStatus: 'free',
+        emergencyLevel: 'basic',
+        deviceTokens: [],
+        blockList: [],
+        reportCount: 0,
+        isHelper: false,
+        isVerified: false,
+      };
+
+      // 4) 寫入 Firestore
+      await setDoc(doc(db, 'users', user.uid), userDoc);
+
+      // console.log('User registered with UID:', user.uid);
+      // 5) 註冊成功，跳到主畫面
+      setLoading(false);
+
+      // console.log('User registered with UID:', user.uid);
+      // router.replace('/(onboarding)');
+
+    } catch (err: unknown) {
+      setLoading(false);
+
+      if (err instanceof FirebaseError) {
+        switch (err.code) {
+          case 'auth/email-already-in-use':
+            Alert.alert('註冊失敗', '此電子郵件已經註冊。');
+            break;
+          case 'auth/invalid-email':
+            Alert.alert('註冊失敗', '請輸入有效的電子郵件地址。');
+            break;
+          case 'auth/weak-password':
+            Alert.alert('註冊失敗', '密碼強度不足，請使用 6 個以上字元。');
+            break;
+          default:
+            Alert.alert('註冊失敗', err.message);
+        }
+      } else {
+        Alert.alert('註冊失敗', '發生未知錯誤，請稍後再試。');
+        console.error(err);
       }
-      Alert.alert('Error', errorMessage);
-    } finally {
-      setLoading(false)
     }
   }
 
   return (
     <>
-      {/* <Stack.Screen
-        options={{
-          animation: 'slide_from_left',
-          presentation: 'modal',
-        }}
-      /> */}
       <Stack.Screen
         options={{
           animation: 'slide_from_right',
           presentation: 'card',
+          headerShown: false,
         }}
       />
-
-      <SafeAreaView style={styles.container}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => {
-            router.replace({
-              pathname: '/(auth)/sign-in',
-            });
-          }}
-        // onPress={() => router.replace('/(auth)/sign-in')}
-        >
-          <AntDesign name="arrowleft" size={24} color="black" />
-        </TouchableOpacity>
-        <View style={styles.formContainer}>
-          <Text style={styles.title}>Create Account</Text>
-
-          <TextInput
-            style={styles.input}
-            placeholder="Email"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-          />
-
-          <TextInput
-            style={styles.input}
-            placeholder="Username"
-            value={username}
-            onChangeText={setUsername}
-            keyboardType="email-address"
-            autoCapitalize="none"
-          />
-
-          <TextInput
-            style={styles.input}
-            placeholder="Password"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-          />
-
-          <TextInput
-            style={styles.input}
-            placeholder="Confirm Password"
-            value={confirmPassword}
-            onChangeText={setConfirmPassword}
-            secureTextEntry
-          />
-
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+        <SafeAreaView style={styles.container}>
           <TouchableOpacity
-            style={styles.button}
-            onPress={handleSignUp}
-            disabled={loading} // Disable the button while loading
+            style={styles.backButton}
+            onPress={() => {
+              if (router.canGoBack()) {
+                  router.back();
+              } else {
+                  router.replace('/(auth)/sign-in');
+              }
+            }}
           >
-            {loading ? (
-              <ActivityIndicator color="white" /> // Show loading indicator
-            ) : (
-              <Text style={styles.buttonText}>Sign Up</Text>
-            )}
+            <AntDesign name="arrow-left" size={28} color="#F18C8E" />
           </TouchableOpacity>
+          <View style={styles.formContainer}>
+            <Text style={styles.title}>建立帳號</Text>
 
-          <TouchableOpacity
-            style={styles.googleButton}
-            onPress={() => console.log('Sign up with Google')} // Replace with Google sign-up logic
-            disabled={loading} // Disable the button while loading
-          >
-            {loading ? (
-              <ActivityIndicator color="white" /> // Show loading indicator
-            ) : (
-              <Text style={styles.buttonText}>Sign Up with Google</Text>
-            )}
-          </TouchableOpacity>
+            <View style={styles.inputWrapper}>
+              <TextInput
+                style={styles.input}
+                placeholder="電子郵件"
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                placeholderTextColor="#A9A9A9"
+              />
+            </View>
 
-        </View>
-      </SafeAreaView>
+            <View style={styles.inputWrapper}>
+              <TextInput
+                style={styles.input}
+                placeholder="使用者名稱"
+                value={username}
+                onChangeText={setUsername}
+                autoCapitalize="none"
+                placeholderTextColor="#A9A9A9"
+              />
+            </View>
+
+            <View style={styles.inputWrapper}>
+              <TextInput
+                style={styles.input}
+                placeholder="密碼"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+                placeholderTextColor="#A9A9A9"
+              />
+            </View>
+
+            <View style={styles.inputWrapper}>
+              <TextInput
+                style={styles.input}
+                placeholder="確認密碼"
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                secureTextEntry
+                placeholderTextColor="#A9A9A9"
+              />
+            </View>
+
+            <TouchableOpacity
+              style={[styles.button, loading && styles.buttonDisabled]}
+              onPress={handleSignUp}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.buttonText}>註冊</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+      </TouchableWithoutFeedback>
     </>
-
   )
 }
 
-export default SignUp
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  formContainer: {
-    flex: 1,
-    padding: 20,
-    justifyContent: 'center',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 30,
-    textAlign: 'center',
-  },
-  input: {
-    height: 50,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    paddingHorizontal: 15,
-    marginBottom: 15,
-    fontSize: 16,
-  },
-  button: {
-    backgroundColor: '#007AFF',
-    height: 50,
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 20,
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  backButton: {
-    position: 'absolute',
-    top: 50,
-    left: 20,
-    zIndex: 1,
-    padding: 10,
-  },
-  googleButton: {
-    backgroundColor: '#DB4437',
-    height: 50,
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 20,
-  },
+    container: {
+        flex: 1,
+        backgroundColor: '#FFF6F0',
+    },
+    formContainer: {
+        flex: 1,
+        padding: 24,
+        justifyContent: 'center',
+    },
+    backButton: {
+        position: 'absolute',
+        top: 60,
+        left: 24,
+        zIndex: 1,
+        padding: 10,
+    },
+    title: {
+        fontSize: 32,
+        fontWeight: 'bold',
+        marginBottom: 40,
+        textAlign: 'center',
+        color: '#333',
+    },
+    inputWrapper: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: 20,
+        marginBottom: 20,
+        shadowColor: '#000',
+        shadowOpacity: 0.08,
+        shadowRadius: 8,
+        shadowOffset: { width: 0, height: 4 },
+        elevation: 5,
+    },
+    input: {
+        height: 55,
+        paddingHorizontal: 20,
+        fontSize: 16,
+        color: '#333',
+    },
+    button: {
+        backgroundColor: '#F18C8E',
+        borderRadius: 20,
+        paddingVertical: 18,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginTop: 10,
+        shadowColor: '#F18C8E',
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        shadowOffset: { width: 0, height: 4 },
+        elevation: 5,
+    },
+    buttonDisabled: { 
+        opacity: 0.6 
+    },
+    buttonText: {
+        color: '#fff',
+        fontSize: 18,
+        fontWeight: 'bold',
+    },
 })

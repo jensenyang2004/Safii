@@ -10,23 +10,14 @@ import { StyleSheet } from 'react-native'
 //   presentation: 'fullScreenModal',
 //   gestureEnabled: true,
 // }
-const avatarMap: Record<string, any> = {
-  alice: require('../../assets/avatar-photo/alice.jpg'),
-  bob:   require('../../assets/avatar-photo/bob.jpg'),
-  mike:   require('../../assets/avatar-photo/mike.jpg'),
-}
 
 export default function InteractiveCallRoute() {
   const { contact } = useLocalSearchParams<{ contact: string }>()
   const key = contact?.toLowerCase() ?? ''
-  const photo = avatarMap[key] ?? require('../../assets/avatar-photo/Wowzowski.jpg')
 
   return (
     <SafeAreaView style={styles.container}>
-      <InteractiveCallScreen
-        contactName={contact ?? 'Unknown'}
-        contactPhoto={photo}
-      />
+
     </SafeAreaView>
   )
   
