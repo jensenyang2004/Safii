@@ -377,6 +377,7 @@ export default function Map() {
     if (isSelected) return '#007BFF';
     return '#808080';
   };
+  
 
   console.log("Map component rendering...");
   return (
