@@ -201,7 +201,7 @@ export default function Map() {
 
   const handleNavigateToLocation = () => {
     if (!destinationInfo || !location) return;
-
+    
     console.log("規劃路線到:", destinationInfo.name);
     const destinationString = `${destinationInfo.latitude},${destinationInfo.longitude}`;
     setDestination(destinationString);
@@ -373,6 +373,8 @@ export default function Map() {
     }
   }, [selectedEmergency]);
 
+
+  
   useEffect(() => {
     if (emergencies && emergencies.length > 0 && !selectedEmergency && mapRef.current) {
       const firstEmergency = emergencies[0];
