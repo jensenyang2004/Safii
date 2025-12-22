@@ -1,11 +1,12 @@
 export interface POI {
   id: string;
-  type: 'police' | 'hospital' | 'store' | 'light' | 'camera';
+  type: 'police' | 'hospital' | 'store' | 'light' | 'camera' | 'test';
   name: string;
   latitude: number;
   longitude: number;
   open_hours?: string;
   weight: number;
+  brand?: string;
 }
 
 export interface HeatmapCell {

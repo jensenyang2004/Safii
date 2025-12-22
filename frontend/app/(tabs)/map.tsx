@@ -123,13 +123,8 @@ export default function Map() {
   const [selectedPoiType, setSelectedPoiType] = useState<'police' | 'store' | null>(null);
   const [selectedPoi, setSelectedPoi] = useState<POI | null>(null);
   const [calloutVisible, setCalloutVisible] = useState<string | null>(null);
-  const [selectedPoliceStation, setSelectedPoliceStation] = useState<{
-    name: string;
-    address: string;
-    latitude: number;
-    longitude: number;
-    walkingTime: string | null;
-  } | null>(null);
+  const [selectedPoliceStation, setSelectedPoliceStation] = useState<POI & { walkingTime: string | null } | null>(null);
+  const [selectedStore, setSelectedStore] = useState<POI & { walkingTime: string | null } | null>(null);
   const [destinationInfo, setDestinationInfo] = useState<{
     name: string;
     address: string;
@@ -146,57 +141,48 @@ export default function Map() {
   } | null>(null);
   const [showFindSafeSpotCard, setShowFindSafeSpotCard] = useState(false);
 
-  const handlePoliceStationPress = async (station: any) => {
-    if (!location) {
-      console.log('No current location available');
-      return;
-    }
-
-    console.log('Police station pressed:', station);
-
-    // 使用 calculateWalkingTime 來獲取預估時間
-    setSelectedPoliceStation({
-      name: station.name || '警察局',
-      address: station.address || station.description || '',
-      latitude: station.latitude,
-      longitude: station.longitude,
+  const handlePoiPress = async (poi: POI) => {
+    if (!location) return;
+  
+    const commonPoiData = {
+      ...poi,
       walkingTime: '計算中...'
-    });
-
+    };
+  
+    if (poi.type === 'police') {
+      setSelectedPoliceStation(commonPoiData);
+    } else if (poi.type === 'store') {
+      setSelectedStore(commonPoiData);
+    }
+  
     const walkingTime = await calculateWalkingTime(location, {
-      latitude: station.latitude,
-      longitude: station.longitude
+      latitude: poi.latitude,
+      longitude: poi.longitude
     });
-
-    // 更新警察局資訊包含步行時間
-    setSelectedPoliceStation(prev => {
-      if (!prev) return null;
-      return {
-        ...prev,
-        walkingTime: walkingTime
-      };
-    });
+  
+    if (poi.type === 'police') {
+      setSelectedPoliceStation(prev => prev ? { ...prev, walkingTime } : null);
+    } else if (poi.type === 'store') {
+      setSelectedStore(prev => prev ? { ...prev, walkingTime } : null);
+    }
   };
 
-  const handleNavigateToPoliceStation = () => {
-    if (!selectedPoliceStation || !location) return;
+  const handleNavigateToPoi = (poi: POI) => {
+    if (!poi || !location) return;
 
-    // console.log("規劃路線到警察局:", selectedPoliceStation.name);
-    const destinationString = `${selectedPoliceStation.latitude},${selectedPoliceStation.longitude}`;
+    const destinationString = `${poi.latitude},${poi.longitude}`;
     setDestination(destinationString);
-
-    // console.log("Calling getRoutes with:", location.coords, destinationString);
     getRoutes(location.coords, destinationString);
-    // console.log("Route planning initiated.");
-
+    
     setDestinationMarker({
-      latitude: selectedPoliceStation.latitude,
-      longitude: selectedPoliceStation.longitude,
-      name: selectedPoliceStation.name,
+      latitude: poi.latitude,
+      longitude: poi.longitude,
+      name: poi.name,
     });
-    setSelectedPoliceStation(null); // 關閉警察局卡片
-    setCalloutVisible(null); // 隱藏 callout
-    // console.log("finished handleNavigateToPoliceStation");
+
+    setSelectedPoliceStation(null);
+    setSelectedStore(null);
+    setCalloutVisible(null);
   };
 
   const handleNavigateToLocation = () => {
@@ -250,10 +236,6 @@ export default function Map() {
   const [pendingAutoNavigateTo, setPendingAutoNavigateTo] = useState<{ latitude: number; longitude: number } | null>(null);
 
 
-  // const flatListRef = useRef<FlatList>(null);
-  const [activeMarker, setActiveMarker] = useState<string | null>(null);
-  const scaleAnimation = useRef(new Animated.Value(1)).current;
-
   const [mapCarouselHeight, setMapCarouselHeight] = useState(0);
   const routeSheetAnimation = useRef(new Animated.Value(0)).current;
 
@@ -268,7 +250,7 @@ export default function Map() {
   // If the Find Safe Spot card or nearest-spot card is requested, reserve the location card height so the route sheet opens
   if (showFindSafeSpotCard || showNearestSafeSpotCard) {
     currentContentHeight = LOCATION_CARD_HEIGHT;
-  } else if ((destinationInfo && showDestinationCard) || selectedPoliceStation) {
+  } else if ((destinationInfo && showDestinationCard) || selectedPoliceStation || selectedStore) {
     currentContentHeight = LOCATION_CARD_HEIGHT;
   } else if (routes.length > 0 && !isNavigating) {
     currentContentHeight = ROUTE_CAROUSEL_HEIGHT;
@@ -278,7 +260,7 @@ export default function Map() {
 
   const routeSheetHeight = currentContentHeight > 0 ? currentContentHeight + tabBarHeight : 0;
   const showRouteSheet = currentContentHeight > 0;
-  const isLocationCardVisible = !!selectedPoliceStation || !!selectedLocation;
+  const isLocationCardVisible = !!selectedPoliceStation || !!selectedLocation || !!selectedStore;
 
   useEffect(() => {
     Animated.timing(routeSheetAnimation, {
@@ -301,10 +283,6 @@ export default function Map() {
     outputRange: [0, routeSheetHeight],
   });
 
-  const handleMarkerPress = (markerId: string) => {
-    setActiveMarker(markerId);
-  };
-
   // const auth = useAuth();
   // const currentUserId = auth.user?.uid;
 
@@ -315,14 +293,29 @@ export default function Map() {
 
   useEffect(() => {
     (async () => {
-      let { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission to access location was denied');
-        return;
-      }
+      // Original location fetching logic commented out for testing
+      // let { status } = await Location.requestForegroundPermissionsAsync();
+      // if (status !== 'granted') {
+      //   Alert.alert('Permission to access location was denied');
+      //   return;
+      // }
+      // let currentLocation = await Location.getCurrentPositionAsync({});
+      // setLocation(currentLocation);
 
-      let currentLocation = await Location.getCurrentPositionAsync({});
-      setLocation(currentLocation);
+      // Set location to the test location in Taipei
+      const testLocation = {
+        coords: {
+          latitude: 25.0330,
+          longitude: 121.5650,
+          altitude: null,
+          accuracy: null,
+          altitudeAccuracy: null,
+          heading: null,
+          speed: null,
+        },
+        timestamp: Date.now(),
+      };
+      setLocation(testLocation as Location.LocationObject);
     })();
   }, []);
 
@@ -645,6 +638,7 @@ export default function Map() {
     setDestination(null);
     setSelectedRoute(null);
     setSelectedPoliceStation(null); // 清除警察局卡片
+    setSelectedStore(null);
     setSelectedLocation(null);
     setDestinationMarker(null);
     setCalloutVisible(null); // 隱藏 callout
@@ -713,6 +707,26 @@ export default function Map() {
     return [];
   };
 
+  const getPoiIcon = (poi: POI) => {
+    if (poi.type === 'police') {
+      return require('@/assets/icons/police-station.png');
+    }
+    if (poi.type === 'store') {
+      switch (poi.brand) {
+        case '711':
+          return require('@/assets/icons/711.png');
+        case 'familymart':
+          return require('@/assets/icons/family-mart.png');
+        case 'ok':
+          return require('@/assets/icons/OK.png');
+        case 'hilife':
+          return require('@/assets/icons/hilife.png');
+        default:
+          return require('@/assets/icons/family-mart.png'); // A default store icon
+      }
+    }
+    return require('@/assets/icons/family-mart.png'); // Default icon
+  };
 
 
   if (!location) {
@@ -728,7 +742,6 @@ export default function Map() {
 
   // ***
 
-  // const filteredPois = selectedPoiType ? pois.filter(poi => poi.type === selectedPoiType) : [];
   const filteredPois = selectedPoiType && location
     ? pois.filter(poi => {
       if (poi.type !== selectedPoiType) {
@@ -824,44 +837,32 @@ export default function Map() {
         ))}
 
         {filteredPois.map(poi => (
-          <Marker.Animated
+          <Marker
             key={poi.id}
-            anchor={{ x: 0.5, y: 1 }}
             coordinate={{ latitude: poi.latitude, longitude: poi.longitude }}
             title={poi.name}
-            tracksViewChanges={activeMarker === poi.id}
             onPress={() => {
-              handleMarkerPress(poi.id);
               if (calloutVisible === poi.id) {
-                setCalloutVisible(null);  // 如果已經顯示，則隱藏
+                setCalloutVisible(null);
               } else {
-                setCalloutVisible(poi.id); // 顯示新的 callout
-                if (poi.type === 'police') {
-                  handlePoliceStationPress(poi);
-                } else {
-                  setSelectedPoi(poi);
-                }
+                setCalloutVisible(poi.id);
+                handlePoiPress(poi);
               }
             }}
-            zIndex={activeMarker === poi.id ? 999 : 1}
           >
-            <Animated.View style={{ transform: [{ scale: activeMarker === poi.id ? scaleAnimation : 1 }] }}>
-              <Image
-                source={poi.type === 'police' ? require('@/assets/icons/police-station.png') : require('@/assets/icons/family-mart.png')}
-                style={{ width: 32, height: 32 }}
-              />
-            </Animated.View>
+            <Image
+              source={getPoiIcon(poi)}
+              style={{ width: 32, height: 32 }}
+            />
             {calloutVisible === poi.id && (
               <Callout tooltip={true}>
                 <View style={styles.calloutContainer}>
                   <Text style={styles.calloutTitle}>{poi.name}</Text>
-                  {poi.type === 'police' && (
-                    <Text style={styles.calloutDescription}>點擊以查看步行時間</Text>
-                  )}
+                  <Text style={styles.calloutDescription}>點擊以查看步行時間</Text>
                 </View>
               </Callout>
             )}
-          </Marker.Animated>
+          </Marker>
         ))}
 
         {destinationInfo && (
@@ -937,6 +938,15 @@ export default function Map() {
             }}
           >
             <Text style={[styles.filterButtonText, selectedPoiType === 'police' && styles.selectedFilterButtonText]}>警察局</Text>
+          </Pressable>
+          <Pressable
+            style={[styles.filterButton, selectedPoiType === 'store' && styles.selectedFilterButton]}
+            onPress={() => {
+              setSelectedPoiType(selectedPoiType === 'store' ? null : 'store');
+              setCalloutVisible(null);
+            }}
+          >
+            <Text style={[styles.filterButtonText, selectedPoiType === 'store' && styles.selectedFilterButtonText]}>便利商店</Text>
           </Pressable>
         </View>
       )}
@@ -1034,8 +1044,22 @@ export default function Map() {
                   setSelectedPoliceStation(null);
                   setCalloutVisible(null);
                 }}
-                onNavigate={handleNavigateToPoliceStation}
+                onNavigate={() => handleNavigateToPoi(selectedPoliceStation)}
                 locationType="police"
+              />
+            )}
+
+            {selectedStore && (
+              <LocationCard
+                name={selectedStore.name}
+                address={selectedStore.address}
+                walkingTime={selectedStore.walkingTime}
+                onClose={() => {
+                  setSelectedStore(null);
+                  setCalloutVisible(null);
+                }}
+                onNavigate={() => handleNavigateToPoi(selectedStore)}
+                locationType="store"
               />
             )}
 
