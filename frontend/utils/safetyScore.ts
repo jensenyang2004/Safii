@@ -24,13 +24,19 @@ const haversineDistance = (
 
 export const calculateSafetyScore = (
   polyline: { latitude: number; longitude: number }[],
-  routeLength: number
+  routeLength: number,
+  destinationPoiId: string | null
 ): number => {
   let poiScore = 0;
   const poiRadius = 0.2; // 200 meters
 
+  // Pre-filter the POIs to exclude the destination, if a destination POI ID is provided.
+  const poisToCheck = destinationPoiId
+    ? pois.filter(p => p.id !== destinationPoiId)
+    : pois;
+
   for (const point of polyline) {
-    for (const poi of pois) {
+    for (const poi of poisToCheck) {
       const distance = haversineDistance(point, { latitude: poi.latitude, longitude: poi.longitude });
       if (distance <= poiRadius) {
         poiScore += poi.weight;

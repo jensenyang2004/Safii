@@ -3,7 +3,6 @@ import * as Location from 'expo-location';
 import * as Speech from 'expo-speech';
 import { RouteInfo, Step } from '../types';
 import { findNearestPointOnPolyline, getDistance } from '../utils/route';
-// import { decodePolyline } from '../utils/polyline'; // No longer needed here
 
 // Helper to strip HTML tags for speech
 const stripHtml = (html: string) => {
@@ -13,6 +12,20 @@ const stripHtml = (html: string) => {
 export interface UseLiveNavigationProps {
   onReroute: (origin: Location.LocationObject) => void;
 }
+
+// Define a test location in Taipei
+const testLocation: Location.LocationObject = {
+  coords: {
+    latitude: 25.0330,
+    longitude: 121.5650,
+    altitude: null,
+    accuracy: 5,
+    altitudeAccuracy: null,
+    heading: 0,
+    speed: 0,
+  },
+  timestamp: Date.now(),
+};
 
 export const useLiveNavigation = ({ onReroute }: UseLiveNavigationProps) => {
   const [isNavigating, setIsNavigating] = useState(false);
@@ -29,6 +42,12 @@ export const useLiveNavigation = ({ onReroute }: UseLiveNavigationProps) => {
 
   const locationSubscription = useRef<Location.LocationSubscription | null>(null);
   const lastRerouteTime = useRef<number>(0);
+
+  // --- TEMP: Set user location to test location for development ---
+  useEffect(() => {
+    setUserLocation(testLocation);
+  }, []);
+  // ----------------------------------------------------------------
 
   useEffect(() => {
     if (currentStep) {
@@ -119,22 +138,25 @@ export const useLiveNavigation = ({ onReroute }: UseLiveNavigationProps) => {
     setCurrentStepIndex(0);
     lastRerouteTime.current = 0;
 
-    const { status } = await Location.requestForegroundPermissionsAsync();
-    if (status !== 'granted') {
-      console.error('Location permission not granted');
-      setIsNavigating(false);
-      return;
-    }
+    // --- TEMP: Using test location, so no need to request permissions or watch position ---
+    setUserLocation(testLocation);
+    console.log("Navigation started with test location:", testLocation.coords);
+    
+    // const { status } = await Location.requestForegroundPermissionsAsync();
+    // if (status !== 'granted') {
+    //   console.error('Location permission not granted');
+    //   setIsNavigating(false);
+    //   return;
+    // }
 
-    // Just set the user location, the useEffect will handle the rest
-    locationSubscription.current = await Location.watchPositionAsync(
-      {
-        accuracy: Location.Accuracy.BestForNavigation,
-        timeInterval: 1000,
-        distanceInterval: 10,
-      },
-      setUserLocation
-    );
+    // locationSubscription.current = await Location.watchPositionAsync(
+    //   {
+    //     accuracy: Location.Accuracy.BestForNavigation,
+    //     timeInterval: 1000,
+    //     distanceInterval: 10,
+    //   },
+    //   setUserLocation
+    // );
   };
 
   const stopNavigation = () => {

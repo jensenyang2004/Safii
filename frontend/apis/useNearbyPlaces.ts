@@ -1,0 +1,79 @@
+import { useState } from 'react';
+import Constants from 'expo-constants';
+
+// Get the API key from Expo constants, same as in useRoutePlanner
+const GOOGLE_MAPS_API_KEY = Constants.expoConfig?.extra?.GOOGLE_MAPS_API_KEY;
+
+// Define a type for the place information we want to store
+export interface PlaceInfo {
+  place_id: string;
+  name: string;
+  vicinity: string;
+  geometry: {
+    location: {
+      lat: number;
+      lng: number;
+    };
+  };
+  opening_hours?: {
+    open_now: boolean;
+  };
+  photos?: {
+    photo_reference: string;
+  }[];
+}
+
+export const useNearbyPlaces = () => {
+  const [places, setPlaces] = useState<PlaceInfo[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  /**
+   * Searches for places near a given location based on a keyword.
+   * @param location The user's current location { latitude, longitude }.
+   * @param keyword The search term (e.g., "coffee shop", "atm").
+   * @param radius The search radius in meters. Defaults to 1000.
+   */
+  const searchNearby = async (location: { latitude: number; longitude: number }, keyword: string, radius: number = 1000) => {
+    if (!GOOGLE_MAPS_API_KEY) {
+      setError('Missing Google Maps API Key.');
+      return;
+    }
+    if (!keyword || keyword.trim() === '') {
+      setError('Search keyword cannot be empty.');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${location.latitude},${location.longitude}&radius=${radius}&keyword=${encodeURIComponent(keyword)}&key=${GOOGLE_MAPS_API_KEY}&language=zh-TW`;
+
+    try {
+      const response = await fetch(url);
+      const data = await response.json();
+
+      if (data.status === 'OK') {
+        setPlaces(data.results);
+      } else {
+        // Handle Google API errors (e.g., ZERO_RESULTS, INVALID_REQUEST)
+        console.error('Google Places API Error:', data.error_message || data.status);
+        setError(data.error_message || `Google API Error: ${data.status}`);
+        setPlaces([]);
+      }
+    } catch (e: any) {
+      console.error('Failed to fetch nearby places:', e);
+      setError('Failed to fetch nearby places. Please check your connection.');
+      setPlaces([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const clearPlaces = () => {
+    setPlaces([]);
+    setError(null);
+  };
+
+  return { places, loading, error, searchNearby, clearPlaces };
+};

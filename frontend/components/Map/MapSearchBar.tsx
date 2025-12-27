@@ -6,16 +6,19 @@ import {
   Text, 
   StyleSheet, 
   FlatList, 
-  ActivityIndicator, 
-  Keyboard // [確認] 有引入 Keyboard，很好
+  ActivityIndicator,
+  Keyboard
 } from 'react-native';
 import Constants from 'expo-constants';
 import { BlurView } from 'expo-blur';
+import { MaterialIcons } from '@expo/vector-icons';
+import { haversineDistance } from '@/utils/geo';
 
 const GOOGLE_PLACES_API_KEY = Constants.expoConfig?.extra?.GOOGLE_MAPS_API_KEY ?? '';
 
 interface MapSearchBarProps {
   onSearch: (query: string, latitude?: number, longitude?: number) => void;
+  onNearbySearch: (query: string) => void; // New prop for nearby search
   onSuggestionSelected: (description: string, latitude: number, longitude: number) => void;
   userLocation?: { latitude: number; longitude: number } | null;
 }
@@ -26,29 +29,31 @@ interface PlacePrediction {
   structured_formatting?: { main_text: string; secondary_text: string };
 }
 
-const MapSearchBar: React.FC<MapSearchBarProps> = ({ onSearch, onSuggestionSelected, userLocation }) => {
+// Enriched suggestion type that includes distance
+interface EnrichedSuggestion extends PlacePrediction {
+  distance: number | null; // distance in km
+}
+
+const MapSearchBar: React.FC<MapSearchBarProps> = ({ onSearch, onNearbySearch, onSuggestionSelected, userLocation }) => {
   const [query, setQuery] = useState('');
-  const [suggestions, setSuggestions] = useState<PlacePrediction[]>([]);
+  const [suggestions, setSuggestions] = useState<EnrichedSuggestion[]>([]);
   const [loading, setLoading] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   
   const debounceTimeout = useRef<NodeJS.Timeout | null>(null);
-  const shouldSearchRef = useRef(true); // 控制 API 搜尋的開關
-
-  // [移除] 移除了 isSuggestionSelectedRef，因為我們不需要它了
+  const shouldSearchRef = useRef(true);
 
   useEffect(() => {
     if (debounceTimeout.current) {
       clearTimeout(debounceTimeout.current);
     }
 
-    // 檢查：如果是空字串，或是由程式填入的 (shouldSearchRef=false)
     if (query.length === 0 || !shouldSearchRef.current) {
       if (query.length === 0) {
         setSuggestions([]);
         setShowSuggestions(false);
       }
-      shouldSearchRef.current = true; // 重置開關
+      shouldSearchRef.current = true;
       return; 
     }
 
@@ -57,20 +62,60 @@ const MapSearchBar: React.FC<MapSearchBarProps> = ({ onSearch, onSuggestionSelec
 
     debounceTimeout.current = setTimeout(async () => {
       try {
-        let apiUrl = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(query)}&key=${GOOGLE_PLACES_API_KEY}&language=zh-TW&components=country:tw`;
-
-        if (userLocation) {
-          apiUrl += `&location=${userLocation.latitude},${userLocation.longitude}&radius=50000&locationbias=circle:50000@${userLocation.latitude},${userLocation.longitude}`;
-        }
+        // <<< MODIFICATION: Removed location and radius bias for global search results >>>
+        const apiUrl = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(query)}&key=${GOOGLE_PLACES_API_KEY}&language=zh-TW&components=country:tw`;
 
         const response = await fetch(apiUrl);
         const data = await response.json();
 
+        let finalSuggestions: EnrichedSuggestion[] = [];
+
+        // Create and add the special "Search Nearby" suggestion
+        const specialSuggestion: EnrichedSuggestion = {
+          place_id: `search_nearby_${query}`,
+          description: `搜尋附近的「${query}」`,
+          structured_formatting: {
+            main_text: `搜尋附近的「${query}」`,
+            secondary_text: '尋找此區域的相關地點',
+          },
+          distance: null,
+        };
+        finalSuggestions.push(specialSuggestion);
+
         if (data.status === 'OK' && data.predictions) {
-          setSuggestions(data.predictions);
+          const apiSuggestions: EnrichedSuggestion[] = data.predictions.map((p: PlacePrediction) => ({
+            ...p,
+            distance: null,
+          }));
+          finalSuggestions.push(...apiSuggestions);
+          
+          setSuggestions(finalSuggestions);
+
+          // If we have a user location, we can still fetch details to show distance
+          if (userLocation) {
+            const detailPromises = data.predictions.map((p: PlacePrediction) => 
+              fetch(`https://maps.googleapis.com/maps/api/place/details/json?place_id=${p.place_id}&fields=geometry&key=${GOOGLE_PLACES_API_KEY}`)
+                .then(res => res.json())
+            );
+
+            const detailResults = await Promise.all(detailPromises);
+
+            const suggestionsWithDistance = finalSuggestions.map((suggestion) => {
+              const apiPredictionIndex = data.predictions.findIndex((p: PlacePrediction) => p.place_id === suggestion.place_id);
+              if (apiPredictionIndex > -1) {
+                const detail = detailResults[apiPredictionIndex];
+                if (detail.result && detail.result.geometry) {
+                  const { lat, lng } = detail.result.geometry.location;
+                  const distance = haversineDistance(userLocation, { latitude: lat, longitude: lng });
+                  return { ...suggestion, distance };
+                }
+              }
+              return suggestion;
+            });
+            setSuggestions(suggestionsWithDistance);
+          }
         } else {
-            console.log("Place API status:", data.status);
-            setSuggestions([]);
+          setSuggestions(finalSuggestions);
         }
       } catch (error) {
         console.error("Error fetching place predictions:", error);
@@ -85,19 +130,26 @@ const MapSearchBar: React.FC<MapSearchBarProps> = ({ onSearch, onSuggestionSelec
         clearTimeout(debounceTimeout.current);
       }
     };
-  }, [query, userLocation]); // [修正 1] 補上 userLocation，這樣 GPS 定位完成後會自動刷新搜尋結果
+  }, [query, userLocation]);
 
   const handleSelectSuggestion = async (prediction: PlacePrediction) => {
-    shouldSearchRef.current = false; // 1. 阻止 useEffect 搜尋
+    // If the special "Search Nearby" suggestion is selected
+    if (prediction.place_id.startsWith('search_nearby_')) {
+      onNearbySearch(query);
+      setShowSuggestions(false);
+      Keyboard.dismiss();
+      return;
+    }
 
+    // Existing logic for normal place suggestions
+    shouldSearchRef.current = false;
     setQuery(prediction.description);
     setSuggestions([]);
     setShowSuggestions(false);
-    Keyboard.dismiss(); // 2. 關閉鍵盤
+    Keyboard.dismiss();
     setLoading(true);
 
     try {
-      // 這裡請求詳細資料 (包含座標)
       const response = await fetch(
         `https://maps.googleapis.com/maps/api/place/details/json?place_id=${prediction.place_id}&fields=geometry&key=${GOOGLE_PLACES_API_KEY}`
       );
@@ -107,6 +159,7 @@ const MapSearchBar: React.FC<MapSearchBarProps> = ({ onSearch, onSuggestionSelec
         const { lat, lng } = data.result.geometry.location;
         onSuggestionSelected(prediction.description, lat, lng);
       } else {
+        // Fallback to onSearch if details fail
         onSearch(prediction.description);
       }
     } catch (error) {
@@ -114,7 +167,6 @@ const MapSearchBar: React.FC<MapSearchBarProps> = ({ onSearch, onSuggestionSelec
       onSearch(prediction.description);
     } finally {
       setLoading(false);
-      // [移除] 不需要 setTimeout 重置 ref 了，useEffect 已經處理好了
     }
   };
 
@@ -124,24 +176,31 @@ const MapSearchBar: React.FC<MapSearchBarProps> = ({ onSearch, onSuggestionSelec
         <View style={styles.searchContainer}>
           <TextInput
             style={styles.input}
-            placeholder="輸入目的地"
+            placeholder="搜尋地點或附近的地點"
             value={query}
             onChangeText={(text) => {
-              shouldSearchRef.current = true; // 手動打字，允許搜尋
+              shouldSearchRef.current = true;
               setQuery(text);
             }}
             onFocus={() => {
-                if (suggestions.length > 0) setShowSuggestions(true);
+                if (query.length > 0) setShowSuggestions(true);
             }}
-            // [修正 2] 移除了 onBlur，因為它會跟 FlatList 點擊事件打架
-            // 我們改用 keyboardShouldPersistTaps 處理
+            returnKeyType="search"
+            onSubmitEditing={() => {
+              // Pressing enter will now search for the destination, not nearby
+              if (query.trim().length > 0) {
+                onSearch(query);
+                setShowSuggestions(false);
+                Keyboard.dismiss();
+              }
+            }}
           />
         </View>
       </BlurView>
       {showSuggestions && (suggestions.length > 0 || loading) && (
         <View style={styles.suggestionsContainer}>
           <BlurView intensity={90} tint="light" style={styles.suggestionsBlurView}>
-            {loading ? (
+            {loading && suggestions.length === 0 ? (
               <ActivityIndicator size="small" color="#0000ff" style={styles.loadingIndicator} />
             ) : (
               <FlatList
@@ -152,11 +211,21 @@ const MapSearchBar: React.FC<MapSearchBarProps> = ({ onSearch, onSuggestionSelec
                     style={styles.suggestionItem}
                     onPress={() => handleSelectSuggestion(item)}
                   >
-                    <Text style={styles.suggestionText}>{item.description}</Text>
+                    <MaterialIcons 
+                      name={item.place_id.startsWith('search_nearby_') ? 'search' : 'location-on'} 
+                      size={24} 
+                      color="#555" 
+                      style={styles.icon} 
+                    />
+                    <View style={styles.textContainer}>
+                      <Text style={styles.suggestionMainText}>{item.structured_formatting?.main_text ?? item.description.split(',')[0]}</Text>
+                      <Text style={styles.suggestionSecondaryText}>{item.structured_formatting?.secondary_text ?? item.description.substring(item.description.indexOf(',') + 1).trim()}</Text>
+                    </View>
+                    {item.distance !== null && (
+                       <Text style={styles.distanceText}>{item.distance.toFixed(1)} km</Text>
+                    )}
                   </TouchableOpacity>
                 )}
-                // [修正 3] handled 是最佳解 (比 always 好)
-                // 這行保證了點擊列表時，優先觸發 onPress，然後才讓鍵盤收起來
                 keyboardShouldPersistTaps="handled" 
               />
             )}
@@ -190,22 +259,46 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     padding: 20,
+    fontSize: 16,
   },
   suggestionsContainer: {
-    maxHeight: 200,
+    maxHeight: 240,
     borderColor: '#ccc',
     borderTopWidth: 1,
+    marginTop: 8,
+    borderRadius: 10,
+    overflow: 'hidden',
   },
   suggestionsBlurView: {
     overflow: 'hidden',
   },
   suggestionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
     padding: 15,
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
   },
-  suggestionText: {
+  icon: {
+    marginRight: 15,
+  },
+  textContainer: {
+    flex: 1,
+    marginRight: 10,
+  },
+  suggestionMainText: {
     fontSize: 16,
+    fontWeight: '500',
+  },
+  suggestionSecondaryText: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 2,
+  },
+  distanceText: {
+    fontSize: 14,
+    color: '#333',
+    fontWeight: '600',
   },
   loadingIndicator: {
     padding: 10,
