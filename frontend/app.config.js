@@ -1,4 +1,5 @@
 // frontend/app.config.js
+require("dotenv").config();
 const fs = require("fs");
 const path = require("path");
 
@@ -22,7 +23,7 @@ module.exports = {
       buildNumber: "1", 
       supportsTablet: true,
       config: {
-        googleMapsApiKey: "AIzaSyDeiltvsroXFIU0YWpNVnphyxv0V60_wTM",
+        googleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY,
         usesNonExemptEncryption: false
       },
       googleServicesFile: "./GoogleService-Info.plist",
@@ -48,7 +49,7 @@ module.exports = {
       },
       config: {
         googleMaps: {
-          apiKey: "AIzaSyDeiltvsroXFIU0YWpNVnphyxv0V60_wTM"
+          apiKey: process.env.GOOGLE_MAPS_API_KEY
         }
       },
       googleServicesFile: "./google-services.json",
@@ -72,7 +73,8 @@ module.exports = {
 
     // --- 前端變數 ---
     extra: {
-      GOOGLE_MAPS_API_KEY: "AIzaSyDeiltvsroXFIU0YWpNVnphyxv0V60_wTM",
+      GOOGLE_MAPS_API_KEY: process.env.GOOGLE_MAPS_API_KEY,
+      FIREBASE_API_KEY: process.env.FIREBASE_API_KEY,
       router: {
         origin: false
       },
