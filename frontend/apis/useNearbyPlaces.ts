@@ -47,7 +47,7 @@ export const useNearbyPlaces = () => {
     setLoading(true);
     setError(null);
 
-    const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${location.latitude},${location.longitude}&radius=${radius}&keyword=${encodeURIComponent(keyword)}&key=${GOOGLE_MAPS_API_KEY}&language=zh-TW`;
+    const url = `https://maps.googleapis.com/maps/api/place/ㄎㄎsearch/json?location=${location.latitude},${location.longitude}&radius=${radius}&keyword=${encodeURIComponent(keyword)}&key=${GOOGLE_MAPS_API_KEY}&language=zh-TW`;
 
     try {
       const response = await fetch(url);
