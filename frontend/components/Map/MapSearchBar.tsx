@@ -1,17 +1,20 @@
+import 'react-native-get-random-values';
+
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  View, 
-  TextInput, 
-  TouchableOpacity, 
-  Text, 
-  StyleSheet, 
-  FlatList, 
+import {
+  View,
+  TextInput,
+  TouchableOpacity,
+  Text,
+  StyleSheet,
+  FlatList,
   ActivityIndicator,
-  Keyboard
+  Keyboard,
 } from 'react-native';
 import Constants from 'expo-constants';
 import { BlurView } from 'expo-blur';
 import { MaterialIcons } from '@expo/vector-icons';
+import { v4 as uuidv4 } from 'uuid';
 import { haversineDistance } from '@/utils/geo';
 
 const GOOGLE_PLACES_API_KEY = Constants.expoConfig?.extra?.GOOGLE_MAPS_API_KEY ?? '';
@@ -34,12 +37,19 @@ interface EnrichedSuggestion extends PlacePrediction {
   distance: number | null; // distance in km
 }
 
-const MapSearchBar: React.FC<MapSearchBarProps> = ({ onSearch, onNearbySearch, onSuggestionSelected, userLocation }) => {
+const MapSearchBar: React.FC<MapSearchBarProps> = ({
+  onSearch,
+  onNearbySearch,
+  onSuggestionSelected,
+  userLocation,
+}) => {
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState<EnrichedSuggestion[]>([]);
   const [loading, setLoading] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  
+  // const [sessionToken, setSessionToken] = useState<string | undefined>(undefined);
+  const sessionTokenRef = useRef<string>(uuidv4());
+
   const debounceTimeout = useRef<NodeJS.Timeout | null>(null);
   const shouldSearchRef = useRef(true);
 
@@ -52,25 +62,34 @@ const MapSearchBar: React.FC<MapSearchBarProps> = ({ onSearch, onNearbySearch, o
       if (query.length === 0) {
         setSuggestions([]);
         setShowSuggestions(false);
+        // Start a new session when input is cleared
+        // setSessionToken(uuidv4());
+        sessionTokenRef.current = uuidv4();
       }
       shouldSearchRef.current = true;
-      return; 
+      return;
     }
 
     setLoading(true);
     setShowSuggestions(true);
 
     debounceTimeout.current = setTimeout(async () => {
+  
       try {
-        // <<< MODIFICATION: Removed location and radius bias for global search results >>>
-        const apiUrl = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(query)}&key=${GOOGLE_PLACES_API_KEY}&language=zh-TW&components=country:tw`;
+        let originParam = '';
+        if (userLocation) {
+          originParam = `&origin=${userLocation.latitude},${userLocation.longitude}`;
+        }
+
+        const apiUrl = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(
+          query
+        )}&key=${GOOGLE_PLACES_API_KEY}&language=zh-TW&components=country:tw&sessiontoken=${sessionTokenRef.current}${originParam}`;
 
         const response = await fetch(apiUrl);
         const data = await response.json();
 
         let finalSuggestions: EnrichedSuggestion[] = [];
 
-        // Create and add the special "Search Nearby" suggestion
         const specialSuggestion: EnrichedSuggestion = {
           place_id: `search_nearby_${query}`,
           description: `搜尋附近的「${query}」`,
@@ -83,42 +102,21 @@ const MapSearchBar: React.FC<MapSearchBarProps> = ({ onSearch, onNearbySearch, o
         finalSuggestions.push(specialSuggestion);
 
         if (data.status === 'OK' && data.predictions) {
-          const apiSuggestions: EnrichedSuggestion[] = data.predictions.map((p: PlacePrediction) => ({
-            ...p,
-            distance: null,
+          const apiSuggestions: EnrichedSuggestion[] = data.predictions.map((p: any) => ({
+            place_id: p.place_id,
+            description: p.description,
+            structured_formatting: p.structured_formatting,
+            // Google 回傳的是公尺，我們轉成公里
+            distance: p.distance_meters ? p.distance_meters / 1000 : null, 
           }));
-          finalSuggestions.push(...apiSuggestions);
           
+          finalSuggestions.push(...apiSuggestions);
           setSuggestions(finalSuggestions);
-
-          // If we have a user location, we can still fetch details to show distance
-          if (userLocation) {
-            const detailPromises = data.predictions.map((p: PlacePrediction) => 
-              fetch(`https://maps.googleapis.com/maps/api/place/details/json?place_id=${p.place_id}&fields=geometry&key=${GOOGLE_PLACES_API_KEY}`)
-                .then(res => res.json())
-            );
-
-            const detailResults = await Promise.all(detailPromises);
-
-            const suggestionsWithDistance = finalSuggestions.map((suggestion) => {
-              const apiPredictionIndex = data.predictions.findIndex((p: PlacePrediction) => p.place_id === suggestion.place_id);
-              if (apiPredictionIndex > -1) {
-                const detail = detailResults[apiPredictionIndex];
-                if (detail.result && detail.result.geometry) {
-                  const { lat, lng } = detail.result.geometry.location;
-                  const distance = haversineDistance(userLocation, { latitude: lat, longitude: lng });
-                  return { ...suggestion, distance };
-                }
-              }
-              return suggestion;
-            });
-            setSuggestions(suggestionsWithDistance);
-          }
         } else {
           setSuggestions(finalSuggestions);
         }
       } catch (error) {
-        console.error("Error fetching place predictions:", error);
+        console.error('Error fetching place predictions:', error);
         setSuggestions([]);
       } finally {
         setLoading(false);
@@ -133,15 +131,16 @@ const MapSearchBar: React.FC<MapSearchBarProps> = ({ onSearch, onNearbySearch, o
   }, [query, userLocation]);
 
   const handleSelectSuggestion = async (prediction: PlacePrediction) => {
-    // If the special "Search Nearby" suggestion is selected
     if (prediction.place_id.startsWith('search_nearby_')) {
       onNearbySearch(query);
       setShowSuggestions(false);
       Keyboard.dismiss();
+      // Start a new session for the next search
+
+      sessionTokenRef.current = uuidv4();
       return;
     }
 
-    // Existing logic for normal place suggestions
     shouldSearchRef.current = false;
     setQuery(prediction.description);
     setSuggestions([]);
@@ -151,7 +150,7 @@ const MapSearchBar: React.FC<MapSearchBarProps> = ({ onSearch, onNearbySearch, o
 
     try {
       const response = await fetch(
-        `https://maps.googleapis.com/maps/api/place/details/json?place_id=${prediction.place_id}&fields=geometry&key=${GOOGLE_PLACES_API_KEY}`
+        `https://maps.googleapis.com/maps/api/place/details/json?place_id=${prediction.place_id}&fields=geometry&key=${GOOGLE_PLACES_API_KEY}&sessiontoken=${sessionTokenRef.current}`
       );
       const data = await response.json();
 
@@ -159,14 +158,15 @@ const MapSearchBar: React.FC<MapSearchBarProps> = ({ onSearch, onNearbySearch, o
         const { lat, lng } = data.result.geometry.location;
         onSuggestionSelected(prediction.description, lat, lng);
       } else {
-        // Fallback to onSearch if details fail
         onSearch(prediction.description);
       }
     } catch (error) {
-      console.error("Error fetching place details:", error);
+      console.error('Error fetching place details:', error);
       onSearch(prediction.description);
     } finally {
       setLoading(false);
+
+      sessionTokenRef.current = uuidv4();
     }
   };
 
@@ -183,11 +183,12 @@ const MapSearchBar: React.FC<MapSearchBarProps> = ({ onSearch, onNearbySearch, o
               setQuery(text);
             }}
             onFocus={() => {
-                if (query.length > 0) setShowSuggestions(true);
+              if (query.length > 0) setShowSuggestions(true);
+              // Ensure a session token exists when focusing on the search bar
+            
             }}
             returnKeyType="search"
             onSubmitEditing={() => {
-              // Pressing enter will now search for the destination, not nearby
               if (query.trim().length > 0) {
                 onSearch(query);
                 setShowSuggestions(false);
@@ -211,22 +212,27 @@ const MapSearchBar: React.FC<MapSearchBarProps> = ({ onSearch, onNearbySearch, o
                     style={styles.suggestionItem}
                     onPress={() => handleSelectSuggestion(item)}
                   >
-                    <MaterialIcons 
-                      name={item.place_id.startsWith('search_nearby_') ? 'search' : 'location-on'} 
-                      size={24} 
-                      color="#555" 
-                      style={styles.icon} 
+                    <MaterialIcons
+                      name={item.place_id.startsWith('search_nearby_') ? 'search' : 'location-on'}
+                      size={24}
+                      color="#555"
+                      style={styles.icon}
                     />
                     <View style={styles.textContainer}>
-                      <Text style={styles.suggestionMainText}>{item.structured_formatting?.main_text ?? item.description.split(',')[0]}</Text>
-                      <Text style={styles.suggestionSecondaryText}>{item.structured_formatting?.secondary_text ?? item.description.substring(item.description.indexOf(',') + 1).trim()}</Text>
+                      <Text style={styles.suggestionMainText}>
+                        {item.structured_formatting?.main_text ?? item.description.split(',')[0]}
+                      </Text>
+                      <Text style={styles.suggestionSecondaryText}>
+                        {item.structured_formatting?.secondary_text ??
+                          item.description.substring(item.description.indexOf(',') + 1).trim()}
+                      </Text>
                     </View>
                     {item.distance !== null && (
-                       <Text style={styles.distanceText}>{item.distance.toFixed(1)} km</Text>
+                      <Text style={styles.distanceText}>{item.distance.toFixed(1)} km</Text>
                     )}
                   </TouchableOpacity>
                 )}
-                keyboardShouldPersistTaps="handled" 
+                keyboardShouldPersistTaps="handled"
               />
             )}
           </BlurView>

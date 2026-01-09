@@ -496,20 +496,19 @@ export default function Map() {
 
         {/* Static POIs (Police) - V1 Style Callout Logic */}
         {staticFilteredPois.map(poi => (
-          <Marker.Animated
+          <Marker // Changed from Marker.Animated
             key={poi.id}
             anchor={{ x: 0.5, y: 1 }}
             coordinate={{ latitude: poi.latitude, longitude: poi.longitude }}
-            tracksViewChanges={activeMarker === poi.id}
             onPress={() => {
               handleMarkerPress({ ...poi, type: 'police' });
               setCalloutVisible(prev => prev === poi.id ? null : poi.id);
             }}
             zIndex={activeMarker === poi.id ? 999 : 1}
           >
-             <Animated.View style={{ transform: [{ scale: activeMarker === poi.id ? scaleAnimation : 1 }] }}>
+             <View>
               <Image source={require('@/assets/icons/police-station.png')} style={{ width: 32, height: 32 }} />
-            </Animated.View>
+            </View>
             {calloutVisible === poi.id && (
               <Callout tooltip={true}>
                 <View style={styles.calloutContainer}>
@@ -518,7 +517,7 @@ export default function Map() {
                 </View>
               </Callout>
             )}
-          </Marker.Animated>
+          </Marker>
         ))}
 
         {/* Dynamic Places */}
@@ -575,9 +574,12 @@ export default function Map() {
               if (selectedPoiType === 'police') {
                 setSelectedPoiType(null);
                 setCalloutVisible(null);
+
               } else {
+                console.log("💕 Police filter pressed");
                 handleCancelRouteSelection();
                 setSelectedPoiType('police');
+                console.log("💕💕 Police filter pressed");
               }
             }}
           >
@@ -592,9 +594,11 @@ export default function Map() {
                 clearPlaces();
               } else {
                 if (location) {
+                  console.log("🎃 Store filter pressed");
                   handleCancelRouteSelection();
                   setSelectedPoiType('store');
                   searchNearby(location.coords, "超商");
+                  console.log("🎃🎃 Store filter pressed");
                 }
               }
             }}
@@ -715,10 +719,11 @@ function createStyles(bottomHeight: number, tabBarHeight: number, isLocationCard
       paddingHorizontal: 14,
       borderRadius: 20,
       margin: 4,
+      marginVertical: 16,
       shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.2, shadowRadius: 2, elevation: 3,
     },
     selectedFilterButton: { backgroundColor: Theme.colors.primary },
-    filterButtonText: { color: 'black', fontWeight: 'bold', fontSize: 13 },
+    filterButtonText: { color: 'black', fontWeight: 'bold', fontSize: 14 },
     selectedFilterButtonText: { color: 'white' },
 
     // ★★★ V1 Styles: Top Carousel Bubbles ★★★

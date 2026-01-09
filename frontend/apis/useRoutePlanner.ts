@@ -69,8 +69,11 @@ export const useRoutePlanner = () => {
   const [error, setError] = useState<Error | null>(null);
   const [loading, setLoading] = useState(false);
   const routeCache = useRef(new Map<string, RouteInfo[]>());
+  const requestCounter = useRef(0); // Add a request counter
 
   const getRoutes = async (origin: { latitude: number; longitude: number }, destination: string, destinationPoiId: string | null = null) => {
+    const currentRequestId = ++requestCounter.current; // Increment and get current request ID
+
     if (!GOOGLE_MAPS_API_KEY) {
       setError(new Error('缺少 Google 地圖 API 金鑰。'));
       return;
@@ -91,16 +94,18 @@ export const useRoutePlanner = () => {
       const response = await fetch(url);
       const data = await response.json();
 
+      // If the request is no longer the latest, discard the result
+      if (currentRequestId !== requestCounter.current) {
+        console.log('Discarding outdated route request.');
+        return;
+      }
+
       if (data.routes && data.routes.length > 0) {
         
-        // Process routes one by one to fetch dynamic POIs for each
         const calculatedRoutesPromises = data.routes.map(async (route: any) => {
           const leg = route.legs[0];
           const decodedPolyline = decodePolyline(route.overview_polyline.points);
-
-          // Fetch dynamic POIs for this specific route
           const dynamicPois = await fetchPoisAlongRoute(decodedPolyline);
-
           const safetyScore = calculateSafetyScore(decodedPolyline, leg.distance.value, destinationPoiId, dynamicPois);
           
           return {
@@ -114,6 +119,12 @@ export const useRoutePlanner = () => {
 
         const calculatedRoutes = await Promise.all(calculatedRoutesPromises);
 
+        // If the request is no longer the latest after the long async operations, discard the result
+        if (currentRequestId !== requestCounter.current) {
+          console.log('Discarding outdated route request after processing.');
+          return;
+        }
+
         const fastestRoute = [...calculatedRoutes].sort((a, b) => a.duration.value - b.duration.value)[0];
         const shortestRoute = [...calculatedRoutes].sort((a, b) => a.distance.value - b.distance.value)[0];
         const safestRoute = [...calculatedRoutes].sort((a, b) => b.safetyScore - a.safetyScore)[0];
@@ -122,9 +133,6 @@ export const useRoutePlanner = () => {
         const polylineSet = new Set<string>();
 
         const addRoute = (route: any, mode: 'fastest' | 'shortest' | 'safest') => {
-          // The polyline object itself is an array of objects, cannot be used in Set directly.
-          // A quick solution is to stringify it, but a better one would be a unique ID if available.
-          // For now, we assume the polyline array can be uniquely identified by its content.
           const polylineKey = JSON.stringify(route.polyline);
           if (route && !polylineSet.has(polylineKey)) {
             uniqueRoutes.push({ ...route, mode });
@@ -147,11 +155,15 @@ export const useRoutePlanner = () => {
       setError(new Error('無法獲取路線。'));
       setRoutes([]);
     } finally {
-      setLoading(false);
+      // Only stop loading if this is the latest request
+      if (currentRequestId === requestCounter.current) {
+        setLoading(false);
+      }
     }
   };
 
   const clearRoutes = () => {
+    requestCounter.current++; // Invalidate any ongoing requests
     setRoutes([]);
     setError(null);
     setLoading(false);
