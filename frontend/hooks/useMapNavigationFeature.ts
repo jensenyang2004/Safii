@@ -1,25 +1,38 @@
 import { useState, useRef, useEffect } from 'react';
 import { RouteInfo, POI } from '@/types';
 import * as Location from 'expo-location';
-import { useRoutePlanner } from '@/apis/useRoutePlanner';
 import { useLiveNavigation } from '@/hooks/useLiveNavigation';
+import { useNearbyPlaces, PlaceInfo } from '@/apis/useNearbyPlaces';
 
 interface UseMapNavigationFeatureProps {
   location: Location.LocationObject | null;
+  selectedPoiType: 'police' | 'store' | null;
   setCalloutVisible: (visible: string | null) => void;
   setSelectedPoiType: (type: 'police' | 'store' | null) => void;
-  setSelectedPoliceStation: (station: any) => void;
   setSelectedLocation: (location: any) => void;
+  setShowLocationCard: (show: boolean) => void;
+  setSelectedLocationInfo: (info: any) => void;
+  routes: RouteInfo[];
+  getRoutes: (origin: { latitude: number; longitude: number }, destination: string, destinationPoiId?: string | null) => Promise<void>;
+  clearRoutes: () => void;
+  isFetchingRoutes: boolean;
+  routeError: Error | null;
 }
 
 export const useMapNavigationFeature = ({
   location,
+  selectedPoiType,
   setCalloutVisible,
   setSelectedPoiType,
-  setSelectedPoliceStation,
   setSelectedLocation,
+  setShowLocationCard,
+  setSelectedLocationInfo,
+  routes,
+  getRoutes,
+  clearRoutes,
+  isFetchingRoutes,
+  routeError,
 }: UseMapNavigationFeatureProps) => {
-  const { routes, error: routeError, getRoutes, loading: isFetchingRoutes, clearRoutes } = useRoutePlanner();
   const [selectedRoute, setSelectedRoute] = useState<RouteInfo | null>(null);
   const [destination, setDestination] = useState<string | null>(null);
   const lastRecalculation = useRef<number>(0);
@@ -32,6 +45,8 @@ export const useMapNavigationFeature = ({
   const [showDestinationCard, setShowDestinationCard] = useState(false);
   const [destinationMarker, setDestinationMarker] = useState<{ latitude: number, longitude: number, name: string } | null>(null);
   const [pendingAutoNavigateTo, setPendingAutoNavigateTo] = useState<{ latitude: number; longitude: number } | null>(null);
+  
+  const { places, loading: isSearchingPlaces, searchNearby, clearPlaces } = useNearbyPlaces(selectedPoiType);
 
   const handleReroute = async (newOrigin: Location.LocationObject) => {
     if (destination) {
@@ -66,33 +81,16 @@ export const useMapNavigationFeature = ({
   };
 
   const handleCancelRouteSelection = () => {
-    setDestination(null);
-    setSelectedRoute(null);
-    setSelectedPoliceStation(null);
-    setSelectedLocation(null);
-    setDestinationMarker(null);
-    setCalloutVisible(null);
+    console.log("Cancelling route selection and clearing data.");
     clearRoutes();
+    setSelectedRoute(null);
+    setDestination(null);
+    setDestinationMarker(null);
     setDestinationInfo(null);
     setShowDestinationCard(false);
   };
 
-  const handleNavigateToPoliceStation = (selectedStation: any) => {
-    if (!selectedStation || !location) return;
-
-    const destinationString = `${selectedStation.latitude},${selectedStation.longitude}`;
-    setDestination(destinationString);
-    getRoutes(location.coords, destinationString);
-
-    setDestinationMarker({
-      latitude: selectedStation.latitude,
-      longitude: selectedStation.longitude,
-      name: selectedStation.name,
-    });
-    setSelectedPoliceStation(null);
-    setCalloutVisible(null);
-  };
-
+  
   const handleNavigateToLocation = (selectedLoc: any) => {
     if (!destinationInfo || !location) return;
 
@@ -120,6 +118,24 @@ export const useMapNavigationFeature = ({
         getRoutes(location.coords, query);
       }
       lastRecalculation.current = Date.now();
+    }
+  };
+
+  const handleNearbySearch = (query: string) => {
+    if (!location) return;
+    const lowerQuery = query.toLowerCase();
+
+    if (lowerQuery.includes('警察局')) {
+      handleCancelRouteSelection();
+      setSelectedPoiType('police');
+    } else if (lowerQuery.includes('便利商店') || lowerQuery.includes('超商')) {
+      handleCancelRouteSelection();
+      setSelectedPoiType('store');
+      searchNearby(location.coords, "超商");
+    } else {
+      handleCancelRouteSelection();
+      setSelectedPoiType(null);
+      searchNearby(location.coords, query);
     }
   };
 
@@ -166,20 +182,17 @@ export const useMapNavigationFeature = ({
   }, [routes, pendingAutoNavigateTo, isNavigating, location]);
 
   // Periodic recalculation
-  useEffect(() => {
-    if (destination && location && !isNavigating) {
-      const now = Date.now();
-      if (now - lastRecalculation.current > 10000) {
-        getRoutes(location.coords, destination);
-        lastRecalculation.current = now;
-      }
-    }
-  }, [location, isNavigating]);
+  // useEffect(() => {
+  //   if (destination && location && !isNavigating) {
+  //     const now = Date.now();
+  //     if (now - lastRecalculation.current > 10000) {
+  //       getRoutes(location.coords, destination);
+  //       lastRecalculation.current = now;
+  //     }
+  //   }
+  // }, [location, isNavigating, destination]);
 
   return {
-    routes,
-    routeError,
-    isFetchingRoutes,
     selectedRoute,
     destination,
     destinationInfo,
@@ -201,9 +214,9 @@ export const useMapNavigationFeature = ({
     handleStartNavigation,
     stopNavigation,
     handleCancelRouteSelection,
-    handleNavigateToPoliceStation,
     handleNavigateToLocation,
     handleSearch,
+    handleNearbySearch,
     handleSuggestionSelected,
   };
 };

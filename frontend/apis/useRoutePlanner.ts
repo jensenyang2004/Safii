@@ -167,6 +167,7 @@ export const useRoutePlanner = () => {
     setRoutes([]);
     setError(null);
     setLoading(false);
+    routeCache.current.clear();
   };
 
   return { routes, error, getRoutes, loading, clearRoutes };

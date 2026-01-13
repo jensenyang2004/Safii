@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Constants from 'expo-constants';
 
 // Get the API key from Expo constants, same as in useRoutePlanner
@@ -23,7 +23,9 @@ export interface PlaceInfo {
   }[];
 }
 
-export const useNearbyPlaces = () => {
+export const useNearbyPlaces = (
+  selectedPoiType: 'police' | 'store' | null
+) => {
   const [places, setPlaces] = useState<PlaceInfo[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -74,6 +76,11 @@ export const useNearbyPlaces = () => {
     setPlaces([]);
     setError(null);
   };
-
+  
+  useEffect(() => {
+    if (selectedPoiType === 'police') {
+       setPlaces([]); // ✅ 正確：包在 useEffect 裡
+    }
+  }, [selectedPoiType]);
   return { places, loading, error, searchNearby, clearPlaces };
 };

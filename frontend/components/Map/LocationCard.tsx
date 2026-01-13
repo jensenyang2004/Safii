@@ -17,7 +17,7 @@ interface LocationCardProps {
   onClose: () => void;
   onNavigate: () => void;
   bottomOffset?: number;
-  locationType?: 'police' | 'general';
+  locationType?:  'police' | 'store' | 'search' | 'general' | 'safe_spot';
 }
 
 export default function LocationCard({

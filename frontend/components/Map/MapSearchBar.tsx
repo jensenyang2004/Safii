@@ -21,9 +21,11 @@ const GOOGLE_PLACES_API_KEY = Constants.expoConfig?.extra?.GOOGLE_MAPS_API_KEY ?
 
 interface MapSearchBarProps {
   onSearch: (query: string, latitude?: number, longitude?: number) => void;
-  onNearbySearch: (query: string) => void; // New prop for nearby search
+  onNearbySearch: (query: string) => void;
   onSuggestionSelected: (description: string, latitude: number, longitude: number) => void;
   userLocation?: { latitude: number; longitude: number } | null;
+  isSearchActive: boolean;
+  onSearchActiveChange: (isActive: boolean) => void;
 }
 
 interface PlacePrediction {
@@ -42,16 +44,24 @@ const MapSearchBar: React.FC<MapSearchBarProps> = ({
   onNearbySearch,
   onSuggestionSelected,
   userLocation,
+  isSearchActive,
+  onSearchActiveChange,
 }) => {
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState<EnrichedSuggestion[]>([]);
   const [loading, setLoading] = useState(false);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  // const [sessionToken, setSessionToken] = useState<string | undefined>(undefined);
   const sessionTokenRef = useRef<string>(uuidv4());
 
   const debounceTimeout = useRef<NodeJS.Timeout | null>(null);
   const shouldSearchRef = useRef(true);
+
+  useEffect(() => {
+    if (!isSearchActive) {
+      setQuery('');
+      setSuggestions([]);
+      Keyboard.dismiss();
+    }
+  }, [isSearchActive]);
 
   useEffect(() => {
     if (debounceTimeout.current) {
@@ -61,9 +71,7 @@ const MapSearchBar: React.FC<MapSearchBarProps> = ({
     if (query.length === 0 || !shouldSearchRef.current) {
       if (query.length === 0) {
         setSuggestions([]);
-        setShowSuggestions(false);
         // Start a new session when input is cleared
-        // setSessionToken(uuidv4());
         sessionTokenRef.current = uuidv4();
       }
       shouldSearchRef.current = true;
@@ -71,7 +79,6 @@ const MapSearchBar: React.FC<MapSearchBarProps> = ({
     }
 
     setLoading(true);
-    setShowSuggestions(true);
 
     debounceTimeout.current = setTimeout(async () => {
   
@@ -128,13 +135,12 @@ const MapSearchBar: React.FC<MapSearchBarProps> = ({
         clearTimeout(debounceTimeout.current);
       }
     };
-  }, [query, userLocation]);
+  }, [query, userLocation, isSearchActive]);
 
   const handleSelectSuggestion = async (prediction: PlacePrediction) => {
     if (prediction.place_id.startsWith('search_nearby_')) {
       onNearbySearch(query);
-      setShowSuggestions(false);
-      Keyboard.dismiss();
+      onSearchActiveChange(false);
       // Start a new session for the next search
 
       sessionTokenRef.current = uuidv4();
@@ -144,8 +150,7 @@ const MapSearchBar: React.FC<MapSearchBarProps> = ({
     shouldSearchRef.current = false;
     setQuery(prediction.description);
     setSuggestions([]);
-    setShowSuggestions(false);
-    Keyboard.dismiss();
+    onSearchActiveChange(false);
     setLoading(true);
 
     try {
@@ -174,31 +179,31 @@ const MapSearchBar: React.FC<MapSearchBarProps> = ({
     <View style={styles.container}>
       <BlurView intensity={90} tint="light" style={styles.blurView}>
         <View style={styles.searchContainer}>
+          {isSearchActive && (
+            <TouchableOpacity onPress={() => onSearchActiveChange(false)} style={styles.backButton}>
+              <MaterialIcons name="arrow-back" size={24} color="#333" />
+            </TouchableOpacity>
+          )}
           <TextInput
-            style={styles.input}
+            style={[styles.input, isSearchActive && styles.inputActive]}
             placeholder="搜尋地點或附近的地點"
             value={query}
             onChangeText={(text) => {
               shouldSearchRef.current = true;
               setQuery(text);
             }}
-            onFocus={() => {
-              if (query.length > 0) setShowSuggestions(true);
-              // Ensure a session token exists when focusing on the search bar
-            
-            }}
+            onFocus={() => onSearchActiveChange(true)}
             returnKeyType="search"
             onSubmitEditing={() => {
               if (query.trim().length > 0) {
                 onSearch(query);
-                setShowSuggestions(false);
-                Keyboard.dismiss();
+                onSearchActiveChange(false);
               }
             }}
           />
         </View>
       </BlurView>
-      {showSuggestions && (suggestions.length > 0 || loading) && (
+      {isSearchActive && (suggestions.length > 0 || loading) && (
         <View style={styles.suggestionsContainer}>
           <BlurView intensity={90} tint="light" style={styles.suggestionsBlurView}>
             {loading && suggestions.length === 0 ? (
@@ -261,11 +266,19 @@ const styles = StyleSheet.create({
   },
   searchContainer: {
     flexDirection: 'row',
+    alignItems: 'center',
+  },
+  backButton: {
+    paddingLeft: 20,
+    paddingRight: 10,
   },
   input: {
     flex: 1,
     padding: 20,
     fontSize: 16,
+  },
+  inputActive: {
+    paddingLeft: 10,
   },
   suggestionsContainer: {
     maxHeight: 240,

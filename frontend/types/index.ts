@@ -7,6 +7,7 @@ export interface POI {
   open_hours?: string;
   weight: number;
   brand?: string;
+  address?: string;
 }
 
 export interface HeatmapCell {
