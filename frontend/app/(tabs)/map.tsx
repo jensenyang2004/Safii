@@ -221,14 +221,14 @@ export default function Map() {
         return;
       }
 
-      const testLocation = {
-        coords: { latitude: 25.0330, longitude: 121.5650, heading: 0, speed: 0, altitude: 0, accuracy: 0, altitudeAccuracy: 0 },
-        timestamp: Date.now(),
-      };
-      setLocation(testLocation as Location.LocationObject);
+      // const testLocation = {
+      //   coords: { latitude: 25.0330, longitude: 121.5650, heading: 0, speed: 0, altitude: 0, accuracy: 0, altitudeAccuracy: 0 },
+      //   timestamp: Date.now(),
+      // };
+      // setLocation(testLocation as Location.LocationObject);
 
-      // let currentLocation = await Location.getCurrentPositionAsync({});
-      // setLocation(currentLocation);
+      let currentLocation = await Location.getCurrentPositionAsync({});
+      setLocation(currentLocation);
     })();
   }, []);
 
@@ -418,6 +418,9 @@ export default function Map() {
         <Pressable style={styles.findSafeBubble} onPress={() => {
           setShowFindSafeSpotCard(true)
           setIsFindingSafeSpot(true)
+          setSelectedPoiType(null);
+          setCalloutVisible(null);
+          clearPlaces();
         } 
         }>
           <MaterialIcons name="warning" size={22} color="black" />
@@ -584,7 +587,18 @@ export default function Map() {
             }
             }
           >
-            <Image source={require('@/assets/icons/location-icon.png')} style={{ width: 32, height: 32 }} />
+            {/* <View style={{ 
+              width: 30,
+              height: 48,
+              justifyContent: 'center',
+              alignItems: 'center' }}
+              >
+              <Image 
+                source={require('@/assets/icons/location-icon.png')} 
+                style={{ width: 23, height: 33 }} 
+                />
+            </View> */}
+            
           </Marker>
         ))}
 
