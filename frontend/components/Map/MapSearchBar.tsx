@@ -1,3 +1,5 @@
+// frontend/components/Map/MapSearchBar.tsx
+
 import 'react-native-get-random-values';
 
 import React, { useState, useEffect, useRef } from 'react';

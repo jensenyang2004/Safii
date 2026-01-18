@@ -91,6 +91,7 @@ module.exports = {
     plugins: [
       "expo-router", // 👈 補上
       "expo-font",   // 👈 補上
+      "expo-sqlite",
       "expo-web-browser",
       "expo-dev-client",
       "expo-secure-store",

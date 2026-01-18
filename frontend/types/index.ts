@@ -42,7 +42,7 @@ export interface Leg {
 }
 
 export interface RouteInfo {
-  mode: 'fastest' | 'shortest' | 'safest';
+  mode: '最快' | '最短' | '最安全';
   distance: { text: string; value: number };
   duration: { text: string; value: number };
   polyline: { latitude: number; longitude: number }[];

@@ -1,4 +1,5 @@
 import { registerRootComponent } from 'expo';
+import 'buffer'; // Add this line for Buffer polyfill
 
 import App from './App';
 

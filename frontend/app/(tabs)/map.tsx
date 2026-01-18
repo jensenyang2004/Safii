@@ -84,6 +84,7 @@ export default function Map() {
     longitude: number;
   } | null>(null);
   const [showFindSafeSpotCard, setShowFindSafeSpotCard] = useState(false);
+  const [isFindingSafeSpot, setIsFindingSafeSpot] = useState(false);
 
   // Hook 1: Safe Spot Search
   const {
@@ -91,16 +92,13 @@ export default function Map() {
     showIntermediateSafeSpotCard,
     showNearestSafeSpotCard,
     nearestSafeSpotData,
-    setShowNearestSafeSpotCard,
-    setShowIntermediateSafeSpotCard,
     setNearestSafeSpotData,
+    setShowNearestSafeSpotCard,
     findNearestSafeSpot,
   } = useSafeSpotSearch({
     setDestinationInfo: (info) => setDestinationInfo(info),
     setShowDestinationCard: (show) => setShowDestinationCard(show),
   });
-
-
 
   // Use the extracted POI filter hookx
   // ***
@@ -161,9 +159,10 @@ export default function Map() {
     clearRoutes,
     isFetchingRoutes,
     routeError,
+    searchNearby: searchNearby,
   });
 
-  const LOCATION_CARD_HEIGHT = 150;
+  const LOCATION_CARD_HEIGHT = 130;
   const ROUTE_CAROUSEL_HEIGHT = 150;
   const END_NAVIGATION_BUTTON_HEIGHT = 35;
 
@@ -276,6 +275,11 @@ export default function Map() {
     }
   }, [emergencies, selectedEmergency]);
 
+  // ***
+  useEffect(() => {
+    console.log("⚽️⚽️ 結束導航狀態變更:", isNavigating, showLocationCard, showFindSafeSpotCard, routes.length);
+  }, [isNavigating]);
+
 
   interface DisplayableLocation {
     id?: string;
@@ -300,23 +304,6 @@ export default function Map() {
   };
 
   // ***
-  useEffect(() => {
-    console.log(`✅ routes 的值已經更新為:  ${routes}`)
-    console.log(`✅ destinationString 的值已經更新為:  ${destinationString}`);
-  }, [routes, destinationString]);
-
-
-  // useEffect(() => {
-  //   console.log(`✅ selectedPoiType 的值已經更新為:  ${selectedPoiType}`
-  //   );
-  // }, [selectedPoiType]);
-
-  // useEffect(() => {
-  //   console.log(`✅ filteredPois 的值已經更新為:  ${selectedPoiType}`
-  //   );
-  // }, [filteredPois]);
-
-
   const handleMarkerPress_sec = async (locationData: DisplayableLocation) => {
     handleCancelRouteSelection();
     setActiveMarker(locationData.id || locationData.name); // Track active for animation if needed
@@ -428,7 +415,11 @@ export default function Map() {
     {
       id: 'find-safe-spot',
       component: (
-        <Pressable style={styles.findSafeBubble} onPress={() => setShowFindSafeSpotCard(true)}>
+        <Pressable style={styles.findSafeBubble} onPress={() => {
+          setShowFindSafeSpotCard(true)
+          setIsFindingSafeSpot(true)
+        } 
+        }>
           <MaterialIcons name="warning" size={22} color="black" />
         </Pressable>
       ),
@@ -453,6 +444,10 @@ export default function Map() {
     if (isSelected) return '#007BFF';
     return '#808080';
   };
+
+
+
+
 
 
   console.log("Map component rendering...");
@@ -586,11 +581,10 @@ export default function Map() {
               handleMarkerPress_sec({
                 id: place.place_id, name: place.name, address: place.vicinity, latitude: place.geometry.location.lat, longitude: place.geometry.location.lng, type: 'store'
               });
-              // console.log("🏞️ Places:", places);
             }
             }
           >
-            {/* <Image source={require('@/assets/icons/location-icon.png')} style={{ width: 32, height: 32 }} /> */}
+            <Image source={require('@/assets/icons/location-icon.png')} style={{ width: 32, height: 32 }} />
           </Marker>
         ))}
 
@@ -655,7 +649,7 @@ export default function Map() {
         <EmergencyInfoModal emergency={selectedEmergency} onClose={() => setSelectedEmergency(null)} />
       )}
 
-      {!isNavigating && !showLocationCard && routes.length <= 0 && (
+      {!isNavigating && !showLocationCard && !showFindSafeSpotCard && routes.length <= 0 && (
         <View style={styles.filterContainer}>
 
           {/* button for police offices */}
@@ -706,8 +700,6 @@ export default function Map() {
                   Alert.alert("定位中", "請稍後再試，正在獲取您的位置...");
                 }
               }
-              console.log("🏞️ Places:", places);
-
               setTimeout(() => { isTogglingRef.current = false; }, 500);
             }}
           >
@@ -791,7 +783,7 @@ export default function Map() {
           )}
 
 
-          {routes.length > 0 && !isNavigating && destinationString &&(
+          {routes.length > 0 && !isNavigating && destinationString && (
             <>
               <RouteCarousel
                 routes={routes}
@@ -810,7 +802,13 @@ export default function Map() {
           )}
 
           {isNavigating && (
-            <Pressable style={styles.endNavigationButton} onPress={stopNavigation}>
+            <Pressable style={styles.endNavigationButton} onPress={() => {
+              if(isFindingSafeSpot) {
+                handleCancelRouteSelection()
+                setIsFindingSafeSpot(false)
+              }
+              stopNavigation()
+            }}>
               <Text style={styles.endNavigationButtonText}>結束導航</Text>
             </Pressable>
           )}
@@ -825,6 +823,7 @@ export default function Map() {
                 setShowFindSafeSpotCard(false);
               }}
               locationType="general"
+              instructions='搜尋'
             />
           )}
 
@@ -862,6 +861,12 @@ export default function Map() {
               onNavigate={() => {
                 if (nearestSafeSpotData && location) {
                   const destinationString = `${nearestSafeSpotData.latitude},${nearestSafeSpotData.longitude}`;
+
+                  // --- FIX START ---
+                  // Explicitly call getRoutes to fetch route data
+                  getRoutes(location.coords, destinationString);
+                  // --- FIX END ---
+
                   setDestinationInfo({
                     name: nearestSafeSpotData.name,
                     address: nearestSafeSpotData.address,

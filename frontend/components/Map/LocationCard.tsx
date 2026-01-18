@@ -18,6 +18,7 @@ interface LocationCardProps {
   onNavigate: () => void;
   bottomOffset?: number;
   locationType?:  'police' | 'store' | 'search' | 'general' | 'safe_spot';
+  instructions?: string;
 }
 
 export default function LocationCard({
@@ -27,7 +28,8 @@ export default function LocationCard({
   onClose,
   onNavigate,
   bottomOffset = 0,
-  locationType = 'general'
+  locationType = 'general',
+  instructions = '規劃路線',
 }: LocationCardProps) {
   return (
     <View style={[styles.card, { bottom: bottomOffset }]}>
@@ -67,7 +69,8 @@ export default function LocationCard({
             onPress={onNavigate}
           >
             <MaterialIcons name="directions" size={20} color="white" style={styles.navigationIcon} />
-            <Text style={styles.navigationButtonText}>規劃路線</Text>
+            <Text style={styles.navigationButtonText}>{instructions}</Text>
+            {/* <Text style={styles.navigationButtonText}>規劃路線</Text> */}
           </Pressable>
         </View>
       </BlurView>
@@ -79,8 +82,10 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: 'transparent',
     width: '90%',
+    height: 190,
+    position: 'absolute',
+    marginBottom: 20,
     alignSelf: 'center',
-    margin: 10,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -94,9 +99,11 @@ const styles = StyleSheet.create({
   blurView: {
     borderRadius: 32,
     overflow: 'hidden',
+    flex: 1,
   },
   innerContainer: {
-    
+    flex: 1,
+    justifyContent: 'space-between',
     backgroundColor: '#ECECEC',
     padding: 16,
   },

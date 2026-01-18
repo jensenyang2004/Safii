@@ -17,6 +17,7 @@ interface UseMapNavigationFeatureProps {
   clearRoutes: () => void;
   isFetchingRoutes: boolean;
   routeError: Error | null;
+  searchNearby: (location: { latitude: number; longitude: number }, keyword: string) => Promise<void>;
 }
 
 export const useMapNavigationFeature = ({
@@ -32,6 +33,7 @@ export const useMapNavigationFeature = ({
   clearRoutes,
   isFetchingRoutes,
   routeError,
+  searchNearby,
 }: UseMapNavigationFeatureProps) => {
   const [selectedRoute, setSelectedRoute] = useState<RouteInfo | null>(null);
   const [destination, setDestination] = useState<string | null>(null);
@@ -46,8 +48,6 @@ export const useMapNavigationFeature = ({
   const [destinationMarker, setDestinationMarker] = useState<{ latitude: number, longitude: number, name: string } | null>(null);
   const [pendingAutoNavigateTo, setPendingAutoNavigateTo] = useState<{ latitude: number; longitude: number } | null>(null);
   
-  const { places, loading: isSearchingPlaces, searchNearby, clearPlaces } = useNearbyPlaces(selectedPoiType);
-
   const handleReroute = async (newOrigin: Location.LocationObject) => {
     if (destination) {
       console.log("Rerouting from new origin:", newOrigin.coords);
@@ -81,7 +81,6 @@ export const useMapNavigationFeature = ({
   };
 
   const handleCancelRouteSelection = () => {
-    console.log("Cancelling route selection and clearing data.");
     clearRoutes();
     setSelectedRoute(null);
     setDestination(null);
@@ -122,19 +121,26 @@ export const useMapNavigationFeature = ({
   };
 
   const handleNearbySearch = (query: string) => {
-    if (!location) return;
+    console.log("💡 handleNearbySearch called with query:", query);
+    if (!location) {
+      console.log("💡 handleNearbySearch: No user location available.");
+      return;
+    }
     const lowerQuery = query.toLowerCase();
 
     if (lowerQuery.includes('警察局')) {
       handleCancelRouteSelection();
       setSelectedPoiType('police');
+      console.log("handleNearbySearch: Setting selectedPoiType to 'police'.");
     } else if (lowerQuery.includes('便利商店') || lowerQuery.includes('超商')) {
       handleCancelRouteSelection();
       setSelectedPoiType('store');
+      console.log("handleNearbySearch: Setting selectedPoiType to 'store' and calling searchNearby for '超商'.");
       searchNearby(location.coords, "超商");
     } else {
       handleCancelRouteSelection();
-      setSelectedPoiType(null);
+      setSelectedPoiType(null); // For generic nearby search, clear specific POI type
+      console.log("💡 💡 handleNearbySearch: Performing generic nearby search for query:", query);
       searchNearby(location.coords, query);
     }
   };
