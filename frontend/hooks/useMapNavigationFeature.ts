@@ -2,7 +2,6 @@ import { useState, useRef, useEffect } from 'react';
 import { RouteInfo, POI } from '@/types';
 import * as Location from 'expo-location';
 import { useLiveNavigation } from '@/hooks/useLiveNavigation';
-import { useNearbyPlaces, PlaceInfo } from '@/apis/useNearbyPlaces';
 
 interface UseMapNavigationFeatureProps {
   location: Location.LocationObject | null;
@@ -66,7 +65,7 @@ export const useMapNavigationFeature = ({
     currentStep,
     remainingDistance,
     eta,
-  } = useLiveNavigation({ onReroute: handleReroute });
+  } = useLiveNavigation({ onReroute: handleReroute, simulatedLocation: location });
 
   const handleStartNavigation = (route: RouteInfo) => {
     if (location) {

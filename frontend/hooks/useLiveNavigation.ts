@@ -11,23 +11,10 @@ const stripHtml = (html: string) => {
 
 export interface UseLiveNavigationProps {
   onReroute: (origin: Location.LocationObject) => void;
+  simulatedLocation?: Location.LocationObject | null; // Prop to receive simulated location
 }
 
-// Define a test location in Taipei
-const testLocation: Location.LocationObject = {
-  coords: {
-    latitude: 25.0330,
-    longitude: 121.5650,
-    altitude: null,
-    accuracy: 5,
-    altitudeAccuracy: null,
-    heading: 0,
-    speed: 0,
-  },
-  timestamp: Date.now(),
-};
-
-export const useLiveNavigation = ({ onReroute }: UseLiveNavigationProps) => {
+export const useLiveNavigation = ({ onReroute, simulatedLocation }: UseLiveNavigationProps) => {
   const [isNavigating, setIsNavigating] = useState(false);
   const [activeRoute, setActiveRoute] = useState<RouteInfo | null>(null);
   const [userLocation, setUserLocation] = useState<Location.LocationObject | null>(null);
@@ -43,11 +30,55 @@ export const useLiveNavigation = ({ onReroute }: UseLiveNavigationProps) => {
   const locationSubscription = useRef<Location.LocationSubscription | null>(null);
   const lastRerouteTime = useRef<number>(0);
 
-  // --- TEMP: Set user location to test location for development ---
+  // --- NEW LOGIC: Handle location updates from either simulation or real GPS ---
   useEffect(() => {
-    setUserLocation(testLocation);
-  }, []);
-  // ----------------------------------------------------------------
+    // If not navigating, ensure any existing watcher is stopped.
+    if (!isNavigating) {
+      if (locationSubscription.current) {
+        locationSubscription.current.remove();
+        locationSubscription.current = null;
+      }
+      return;
+    }
+
+    // If navigating and a simulated location is provided, use it.
+    if (simulatedLocation) {
+      setUserLocation(simulatedLocation);
+      // Ensure no real GPS watcher is active during simulation.
+      if (locationSubscription.current) {
+        locationSubscription.current.remove();
+        locationSubscription.current = null;
+      }
+    } else {
+      // If navigating and no simulation, use real GPS.
+      const startWatching = async () => {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          console.error('Location permission not granted');
+          stopNavigation(); // Stop navigation if permissions are denied
+          return;
+        }
+
+        locationSubscription.current = await Location.watchPositionAsync(
+          {
+            accuracy: Location.Accuracy.BestForNavigation,
+            timeInterval: 1000,
+            distanceInterval: 10,
+          },
+          setUserLocation
+        );
+      };
+      startWatching();
+    }
+
+    // Cleanup function to remove watcher when navigation stops or component unmounts
+    return () => {
+      if (locationSubscription.current) {
+        locationSubscription.current.remove();
+      }
+    };
+  }, [isNavigating, simulatedLocation]);
+  // --------------------------------------------------------------------------
 
   useEffect(() => {
     if (currentStep) {
@@ -70,6 +101,10 @@ export const useLiveNavigation = ({ onReroute }: UseLiveNavigationProps) => {
     // --- Deviation Detection ---
     const DEVIATION_THRESHOLD = 40; // meters
     const REROUTE_COOLDOWN = 10000; // 10 seconds
+
+    // --- DEBUG LOG ---
+    console.log(`[Navigation Debug] Current deviation: ${nearestPoint.distance?.toFixed(2)} meters`);
+    // -----------------
 
     if (nearestPoint.distance && nearestPoint.distance > DEVIATION_THRESHOLD) {
       const now = Date.now();
@@ -131,32 +166,12 @@ export const useLiveNavigation = ({ onReroute }: UseLiveNavigationProps) => {
     setCurrentStepIndex(0);
   };
 
-  const startNavigation = async (route: RouteInfo) => {
+  const startNavigation = (route: RouteInfo) => {
     console.log('Starting real navigation...');
     setActiveRoute(route);
     setIsNavigating(true);
     setCurrentStepIndex(0);
     lastRerouteTime.current = 0;
-
-    // --- TEMP: Using test location, so no need to request permissions or watch position ---
-    setUserLocation(testLocation);
-    console.log("Navigation started with test location:", testLocation.coords);
-    
-    // const { status } = await Location.requestForegroundPermissionsAsync();
-    // if (status !== 'granted') {
-    //   console.error('Location permission not granted');
-    //   setIsNavigating(false);
-    //   return;
-    // }
-
-    // locationSubscription.current = await Location.watchPositionAsync(
-    //   {
-    //     accuracy: Location.Accuracy.BestForNavigation,
-    //     timeInterval: 1000,
-    //     distanceInterval: 10,
-    //   },
-    //   setUserLocation
-    // );
   };
 
   const stopNavigation = () => {

@@ -32,7 +32,6 @@ import { useEmergencyListener } from '@/hooks/useEmergencyListener';
 import { useFriendSharing } from '@/hooks/useFriendSharing';
 import { useRoutePlanner } from '@/apis/useRoutePlanner';
 import { useNearbyPlaces, PlaceInfo } from '@/apis/useNearbyPlaces';
-import { useLiveNavigation } from '@/hooks/useLiveNavigation';
 import { usePoiFilter } from '@/hooks/usePoiFilter';
 
 import EmergencyInfoModal from '@/components/Emergency/EmergencyInfoModal';
@@ -214,22 +213,36 @@ export default function Map() {
   const styles = createStyles(tabBarHeight, location !== null);
 
   useEffect(() => {
-    (async () => {
+    let subscription: Location.LocationSubscription | null = null;
+
+    const startWatching = async () => {
       let { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert('Permission to access location was denied');
         return;
       }
 
-      // const testLocation = {
-      //   coords: { latitude: 25.0330, longitude: 121.5650, heading: 0, speed: 0, altitude: 0, accuracy: 0, altitudeAccuracy: 0 },
-      //   timestamp: Date.now(),
-      // };
-      // setLocation(testLocation as Location.LocationObject);
+      // Start watching for location changes
+      subscription = await Location.watchPositionAsync(
+        {
+          accuracy: Location.Accuracy.High,
+          timeInterval: 2000, // Update every 2 seconds
+          distanceInterval: 5, // Or every 5 meters
+        },
+        (newLocation) => {
+          setLocation(newLocation); // Continuously update the base location
+        }
+      );
+    };
 
-      let currentLocation = await Location.getCurrentPositionAsync({});
-      setLocation(currentLocation);
-    })();
+    startWatching();
+
+    // Cleanup function to remove the subscription when the component unmounts
+    return () => {
+      if (subscription) {
+        subscription.remove();
+      }
+    };
   }, []);
 
   const getDynamicZoom = (speed: number | null) => {
@@ -275,6 +288,50 @@ export default function Map() {
     }
   }, [emergencies, selectedEmergency]);
 
+
+
+  // --- Simulation State & Logic ---
+  const [isSimulating, setIsSimulating] = useState(false);
+  const simulationInterval = useRef<NodeJS.Timeout | null>(null);
+  const currentLocationRef = useRef(location);
+
+  useEffect(() => {
+    currentLocationRef.current = location;
+  }, [location]);
+
+  const toggleSimulation = () => {
+    if (isSimulating) {
+      // Stop simulation
+      if (simulationInterval.current) {
+        clearInterval(simulationInterval.current);
+      }
+      setIsSimulating(false);
+    } else {
+      // Start simulation
+      setIsSimulating(true);
+      simulationInterval.current = setInterval(() => {
+        if (!currentLocationRef.current) return;
+
+        const newCoords = {
+          ...currentLocationRef.current.coords,
+          latitude: currentLocationRef.current.coords.latitude + 0.0001, // Move north
+          longitude: currentLocationRef.current.coords.longitude + 0.0001, // Move east
+        };
+
+        const newLocation: Location.LocationObject = {
+          ...currentLocationRef.current,
+          coords: newCoords,
+          timestamp: Date.now(),
+        };
+        
+        setLocation(newLocation);
+
+      }, 2000); // Update every 2 seconds
+    }
+  };
+  // --- End Simulation Logic ---
+
+  
   // ***
   useEffect(() => {
     console.log("⚽️⚽️ 結束導航狀態變更:", isNavigating, showLocationCard, showFindSafeSpotCard, routes.length);
@@ -403,7 +460,19 @@ export default function Map() {
     carouselData.push(...modeCards);
   }
 
+  
+
   const topCarouselData: any[] = [
+    /*
+    {
+      id: 'sim-button',
+      component: (
+        <Pressable style={styles.recenterBubble} onPress={toggleSimulation}>
+          <MaterialIcons name={isSimulating ? "pause" : "play-arrow"} size={24} color="blue" />
+        </Pressable>
+      ),
+    },
+    */
     {
       id: 'recenter-button',
       component: (
@@ -467,6 +536,7 @@ export default function Map() {
           latitudeDelta: 0.01,
           longitudeDelta: 0.01,
         }}
+        // showsUserLocation={false} 
         showsUserLocation={true}
         mapType="standard"
         showsCompass={true}
@@ -477,6 +547,15 @@ export default function Map() {
           setIsSearchActive(false);
         }}
       >
+        
+        {/* {(location || navUserLocation) && (
+          <Marker
+            coordinate={isSimulating ? location!.coords : (navUserLocation || location)!.coords}
+            title="My Location"
+            pinColor="blue"
+            tracksViewChanges={isSimulating}
+          />
+        )} */}
         {navUserLocation && (
           <Marker
             coordinate={navUserLocation.coords}
