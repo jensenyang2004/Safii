@@ -20,8 +20,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import MapView, { Marker, Polyline, Callout } from 'react-native-maps';
 import * as Location from 'expo-location';
 import TrackModeCard from '@/components/Tracking/track_base';
-import Card_ongoing from '@/components/Tracking/track_ongoning';
-import ReportSafetyCard from '@/components/Tracking/ReportSafetyCard';
+import UnifiedTrackingCard from '@/components/Tracking/UnifiedTrackingCard';
 import MapCarousel from '@/components/Map/carousel';
 import { useTracking } from '@/context/TrackProvider';
 import { useEmergencyListener } from '@/hooks/useEmergencyListener';
@@ -45,7 +44,7 @@ import LocationCard from '@/components/Map/LocationCard';
 import NavigationInstructionsCard from '@/components/Map/NavigationInstructionsCard';
 import Theme from '@/constants/Theme';
 
-const GOOGLE_MAPS_API_KEY = Constants.expoConfig?.extra?.GOOGLE_MAPS_API_KEY;
+// const GOOGLE_MAPS_API_KEY = Constants.expoConfig?.extra?.GOOGLE_MAPS_API_KEY;
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 export default function Map() {
@@ -81,6 +80,13 @@ export default function Map() {
     longitude: number;
   } | null>(null);
   const [showFindSafeSpotCard, setShowFindSafeSpotCard] = useState(false);
+
+  // Effect to trigger LocationSentCard when emergency info is sent
+  useEffect(() => {
+    if (isInfoSent) {
+      setShowLocationSentCard(true);
+    }
+  }, [isInfoSent]);
 
   // Hook 1: Safe Spot Search
   const {
@@ -318,11 +324,7 @@ export default function Map() {
   if (isTracking && trackingModeId) {
     const activeMode = trackingModes.find(mode => mode.id === trackingModeId);
     if (activeMode) {
-      if (isReportDue) {
-        carouselData.push({ id: 'report-safety', component: <ReportSafetyCard /> });
-      } else {
-        carouselData.push({ id: activeMode.id, component: <Card_ongoing trackingMode={activeMode} /> });
-      }
+      carouselData.push({ id: activeMode.id, component: <UnifiedTrackingCard trackingMode={activeMode} /> });
     }
   } else {
     const modeCards = (trackingModes ?? []).map((mode: any) => ({

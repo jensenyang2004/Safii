@@ -9,8 +9,8 @@ export function usePermissions() {
   const [backgroundLocationStatus, setBackgroundLocationStatus] = useState<'granted' | 'denied' | 'idle'>('idle');
   const [foregroundLocationStatus, setForegroundLocationStatus] = useState<'granted' | 'denied' | 'idle'>('idle');
 
-  const checkPermissions = async () => {
-    setIsLoading(true);
+  const checkPermissions = async (silent = false) => {
+    if (!silent) setIsLoading(true);
     // Check Notification Permission
     const notifStatus = await Notifications.getPermissionsAsync();
     if (notifStatus.granted) {
@@ -38,7 +38,7 @@ export function usePermissions() {
         : (foregroundLocStatus.canAskAgain ? 'idle' : 'denied')
     );
 
-    setIsLoading(false);
+    if (!silent) setIsLoading(false);
   };
 
   useEffect(() => {
@@ -48,7 +48,7 @@ export function usePermissions() {
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextAppState) => {
       if (nextAppState === 'active') {
-        checkPermissions();
+        checkPermissions(true);
       }
     });
     return () => {

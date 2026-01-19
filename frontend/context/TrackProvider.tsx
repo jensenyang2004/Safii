@@ -1,93 +1,40 @@
-// context/TrackingContext.tsx
-import React, { createContext, useState, useEffect, useContext } from 'react';
-import { collection, getDocs, doc, getDoc, updateDoc, query, where, addDoc, setDoc, Timestamp, serverTimestamp, deleteDoc, onSnapshot } from 'firebase/firestore';
-import { db } from '@/libs/firebase';
-import * as TaskManager from 'expo-task-manager';
-import * as Location from 'expo-location';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { defineTask } from 'expo-task-manager';
-import { Alert, AppState, Platform } from 'react-native';
+import React, { createContext, useState, useEffect, useContext, useRef, useCallback } from 'react';
+import { AppState, Platform, Alert } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { useAuth } from './AuthProvider';
-import { usePermissions } from '../hooks/usePermissions'; // ADDED
+import { usePermissions } from '../hooks/usePermissions';
+import { useTrackingReducer } from '../hooks/useTrackingReducer';
+import { 
+  TimelineEvent, 
+  TrackingMode, 
+  NotificationData, 
+  TrackingContextType 
+} from '@/types/tracking';
+import { calculateFullTimeline } from '@/utils/trackingCalculator';
+import * as TrackingStorage from '@/services/tracking/storage';
+import * as TrackingFirestore from '@/services/tracking/firestore';
+import * as TrackingNotifications from '@/services/tracking/notifications';
+import * as TrackingLocation from '@/services/tracking/location';
+import { collection, query, where, onSnapshot, doc, getDoc } from 'firebase/firestore';
+import { db } from '@/libs/firebase';
+import * as Location from 'expo-location';
 
-const STORAGE_KEYS = {
-  TIMELINE: 'calculated_timeline',
-  IS_ACTIVE: 'tracking_active',
-  START_TIME: 'tracking_start_time',
-  CURRENT_STRIKE: 'current_strike',
-  NOTIFICATION_IDS: 'scheduled_notification_ids',
-  REPORT_DEADLINE: 'report_deadline_time', // New key for report deadline
-  TRACKING_MODE_ID: 'tracking_mode_id', // Keep this for tracking mode details
-  INITIAL_SESSION_MINUTES: 'initial_session_minutes',
-  INITIAL_REDUCTION_MINUTES: 'initial_reduction_minutes',
-  CURRENT_USER_ID: 'current_user_id', // For background task
-  EMERGENCY_CONTACT_IDS: 'emergency_contact_ids', // For emergency handler
-  ACTIVE_TRACKING_DOC_ID: 'active_tracking_doc_id', // For the random doc ID
-  UNRESPONSIVE_THRESHOLD: 'unresponsive_threshold', // New key for unresponsive threshold
-};
-
-// Types
-interface TimelineEvent {
-  time: number;
-  type: 'session_end' | 'missed_report';
-  strike: number;
-  description: string;
-  deadline?: number;
-  strikeThreshold?: number;
-}
-
-interface NotificationData {
-  type: string;
-  strike: number;
-  eventTime: number;
-  deadline?: number;
-  strikeThreshold?: number;
-}
-
-type TrackingContextType = {
-  trackingModes: any[];
-  loading: boolean;
-  startTrackingMode: (modeId: any, sessionMinutes: number, reductionMinutes: number) => Promise<void>;
-  stopTrackingMode: (options?: { isEmergency: boolean }) => Promise<void>;
-  reportSafety: () => Promise<void>;
-  createTrackingMode: (newMode: Omit<TrackingMode, 'id' | 'userId'>) => Promise<void>;
-  updateTrackingMode: (modeId: string, updates: Partial<TrackingMode>) => Promise<void>;
-  deleteTrackingMode: (modeId: string) => Promise<void>;
-  isTracking: boolean;
-  trackingModeId: string | null;
-  timeline: TimelineEvent[];
-  currentStrike: number;
-  isReportDue: boolean;
-  reportDeadline: number | null;
-  nextCheckInTime: number | null;
-  isInfoSent: boolean;
-  setIsInfoSent: React.Dispatch<React.SetStateAction<boolean>>;
-  justReportedSafety: boolean;
-  setJustReportedSafety: React.Dispatch<React.SetStateAction<boolean>>;
-};
-
-const TrackingContext = createContext<TrackingContextType | null>(null);
-const BACKGROUND_LOCATION_TASK = 'background-location-task-tracking';
-
-// Configure notification handler
+// --- Global Notification Handler Setup ---
 Notifications.setNotificationHandler({
   handleNotification: async (notification) => {
     console.log('📱 Notification received:', notification.request.content.title);
     const data = notification.request.content.data as unknown as NotificationData;
 
-    if (data?.type === 'missed_report' && data.strike === (data.strikeThreshold || 3)) {
-      console.log('🚨 FINAL STRIKE NOTIFICATION RECEIVED! Emergency is handled by contact-side listener.');
-
-    } else if (data?.type === 'session_end') {
+    if (data?.type === 'session_end') {
       console.log(`⏰ Session ${data.strike + 1} ended - Report required`);
       if (data.deadline) {
-        await AsyncStorage.setItem(STORAGE_KEYS.REPORT_DEADLINE, data.deadline.toString());
+        await TrackingStorage.saveReportDeadline(data.deadline);
       }
-      await AsyncStorage.setItem(STORAGE_KEYS.IS_ACTIVE, 'true'); // Ensure active state
+      await TrackingStorage.setTrackingActive(true);
     } else if (data?.type === 'missed_report') {
       console.log(`❌ Missed report ${data.strike} - Starting next session`);
-      await handleMissedReport(data.strike);
+      await TrackingStorage.saveCurrentStrike(data.strike);
+      await TrackingStorage.clearReportDeadline();
     }
 
     return {
@@ -100,398 +47,202 @@ Notifications.setNotificationHandler({
   },
 });
 
-const handleMissedReport = async (strike: number): Promise<void> => {
-  try {
-    await AsyncStorage.setItem(STORAGE_KEYS.CURRENT_STRIKE, strike.toString());
-    await AsyncStorage.removeItem(STORAGE_KEYS.REPORT_DEADLINE); // Clear report deadline
-    console.log(`📈 Strike count updated to: ${strike}`);
-  } catch (error) {
-    console.error('Error handling missed report:', error);
-  }
-};
-
-// Forward declaration for stopTrackingMode
-let stopTrackingMode: (options?: { isEmergency: boolean }) => Promise<void>;
-
-const requestBackgroundPermissions = async () => {
-  const { status: backgroundStatus } = await Location.requestBackgroundPermissionsAsync();
-  if (backgroundStatus !== 'granted') {
-    Alert.alert(
-      "Permission Required",
-      "Background location access is required for emergency tracking",
-      [{ text: "OK" }]
-    );
-    return false;
-  }
-  return true;
-};
-
-// NEW REUSABLE FUNCTION
-const updateLocationInFirestore = async (location: Location.LocationObject, userId: string) => {
-  if (!userId) {
-    console.error("❌ updateLocationInFirestore: could not find user ID.");
-    return;
-  }
-  try {
-    const { latitude, longitude } = location.coords;
-    const updateTime = new Date(location.timestamp);
-
-    console.log('📍 Location Update:', { latitude, longitude, timestamp: updateTime.toISOString() });
-
-    const userDocRef = doc(db, 'users', userId);
-    await setDoc(userDocRef, {}, { merge: true });
-
-    const locationData = {
-      lat: latitude,
-      long: longitude,
-      updateTime: Timestamp.fromDate(updateTime),
-    };
-
-    const realTimeRef = doc(db, 'users', userId, 'real_time_location', 'current');
-    await setDoc(realTimeRef, locationData, { merge: true });
-
-    const historyRef = collection(db, 'users', userId, 'location_history');
-    await addDoc(historyRef, locationData);
-
-    console.log(`✅ Successfully updated location for user ${userId}`);
-
-  } catch (dbError) {
-    console.error("❌ Failed to write location to Firebase:", dbError);
-  }
-};
-
-
-// UPDATED defineTask
-defineTask(BACKGROUND_LOCATION_TASK,
-  async ({ data, error }: TaskManager.TaskManagerTaskBody<{ locations: Location.LocationObject[] } | undefined>) => {
-    if (error) {
-      console.error('❌ Background location task error:', error);
-      return;
-    }
-
-    const hasPermission = await requestBackgroundPermissions();
-    if (!hasPermission) {
-      console.error("No background permission");
-      return;
-    }
-
-    const userId = await AsyncStorage.getItem(STORAGE_KEYS.CURRENT_USER_ID);
-    if (!userId) {
-      console.error("❌ Background task could not find user ID. Stopping.");
-      await Location.stopLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
-      return;
-    }
-
-    if (data && data.locations && data.locations[0]) {
-      await updateLocationInFirestore(data.locations[0], userId);
-    }
-  });
-
-type TrackingMode = {
-  id: string;
-  name: string;
-  userId: string;
-  On?: boolean;
-  autoStart?: boolean;
-  checkIntervalMinutes: number;
-  unresponsiveThreshold: number;
-  intervalReductionMinutes: number;
-  startTime: {
-    dayOfWeek: string[];
-    time: string;
-  };
-  emergencyContactIds: string[];
-  activityLocation?: string;
-  activity?: string;
-  notes?: string;
-};
+const TrackingContext = createContext<TrackingContextType | null>(null);
 
 export const TrackingProvider = ({ children }: { children: React.ReactNode }) => {
   const { user, loading: authLoading } = useAuth();
-  const { backgroundLocationStatus, foregroundLocationStatus } = usePermissions(); // ADDED
+  const { backgroundLocationStatus, foregroundLocationStatus } = usePermissions();
+  const { state, dispatch } = useTrackingReducer();
+  
   const [trackingModes, setTrackingModes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isTracking, setIsTracking] = useState<boolean>(false);
-  const [isActive, setIsActive] = useState<boolean>(false);
-  const [trackingModeId, setTrackingModeId] = useState<string | null>(null);
-  const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
-  const [currentStrike, setCurrentStrike] = useState<number>(0);
-  const [isReportDue, setIsReportDue] = useState<boolean>(false);
-  const [reportDeadline, setReportDeadline] = useState<number | null>(null);
-  const [nextCheckInTime, setNextCheckInTime] = useState<number | null>(null);
-  const [isInfoSent, setIsInfoSent] = useState<boolean>(false);
-  const [justReportedSafety, setJustReportedSafety] = useState<boolean>(false);
-  const [foregroundWatcher, setForegroundWatcher] = useState<Location.LocationSubscription | null>(null); // ADDED
+  const [foregroundWatcher, setForegroundWatcher] = useState<Location.LocationSubscription | null>(null);
+  
+  // Use a ref to track if we are currently reconciling to avoid loops
+  const isReconciling = useRef(false);
 
+  // --- Initialization ---
   useEffect(() => {
-    initializeSystem();
-    loadAndReconcileState();
-
-    // Listen for notification tap events
-    const responseSubscription = Notifications.addNotificationResponseReceivedListener(response => {
-      const data = response.notification.request.content.data as unknown as NotificationData;
-      console.log('📱 Notification response received:', response.notification.request.content.title);
-
-      // Only reconcile state if it's the final emergency notification
-      if (data?.type === 'missed_report' && data.strike === (data.strikeThreshold || 3)) {
-        console.log('🚨 Final emergency notification tapped. Reconciling state.');
-        loadAndReconcileState();
-      }
-    });
-
-    return () => {
-      responseSubscription.remove();
+    const init = async () => {
+      await TrackingNotifications.configureNotifications();
     };
+    init();
   }, []);
 
-  const initializeSystem = async () => {
-    try {
-      const { status } = await Notifications.requestPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission Required', 'Notifications are required for this safety system');
-        return;
-      }
-      console.log('✅ Notification permissions granted.');
+  // --- Real-time Tracking Modes ---
+  useEffect(() => {
+    let unsubscribe: () => void;
 
-      if (Platform.OS === 'android') {
-        await Notifications.setNotificationChannelAsync('tracking', {
-          name: 'Safety Tracking',
-          importance: Notifications.AndroidImportance.HIGH,
-          sound: 'default',
-          vibrationPattern: [0, 250, 250, 250],
-          lightColor: '#FF231F7C',
-        });
-        console.log('✅ Notification channel ${tracking} created.');
-      }
-
-    } catch (error) {
-      console.error('❌ Failed to initialize system:', error);
-    }
-  };
-
-  const loadAndReconcileState = async () => {
-    try {
-      const timelineStr = await AsyncStorage.getItem(STORAGE_KEYS.TIMELINE);
-      const isActiveStr = await AsyncStorage.getItem(STORAGE_KEYS.IS_ACTIVE);
-      const startTimeStr = await AsyncStorage.getItem(STORAGE_KEYS.START_TIME);
-      const reportDeadlineStr = await AsyncStorage.getItem(STORAGE_KEYS.REPORT_DEADLINE);
-      const modeId = await AsyncStorage.getItem(STORAGE_KEYS.TRACKING_MODE_ID);
-
-      if (timelineStr && isActiveStr === 'true' && startTimeStr) {
-        const timeline: TimelineEvent[] = JSON.parse(timelineStr);
-        const now = Date.now();
-
-        const finalEvent = timeline[timeline.length - 1];
-        const unresponsiveThresholdStr = await AsyncStorage.getItem(STORAGE_KEYS.UNRESPONSIVE_THRESHOLD);
-        const strikeThreshold = unresponsiveThresholdStr ? parseInt(unresponsiveThresholdStr) : 3; // Default to 3
-
-        // Determine if info has been sent
-        if (finalEvent && now > finalEvent.time) {
-          setIsInfoSent(true);
-          console.log('isInfoSent has been set to true');
-        } else {
-          setIsInfoSent(false);
+    if (user?.uid) {
+      setLoading(true);
+      const colRef = query(collection(db, 'TrackingMode'), where('userId', '==', user.uid));
+      
+      unsubscribe = onSnapshot(colRef, async (querySnapshot) => {
+        try {
+          const data = await Promise.all(
+            querySnapshot.docs.map(async (docSnap) => {
+              const trackingData = docSnap.data();
+              const contacts = await Promise.all(
+                (trackingData.emergencyContactIds || []).map(async (id: string) => {
+                  try {
+                    const contactDoc = await getDoc(doc(db, 'users', id));
+                    return { id: contactDoc.id, ...contactDoc.data() };
+                  } catch (e) {
+                    console.warn(`Failed to fetch contact ${id}`, e);
+                    return { id };
+                  }
+                })
+              );
+              return { id: docSnap.id, ...trackingData, contacts };
+            })
+          );
+          setTrackingModes(data);
+        } catch (error) {
+          console.error('[TrackProvider] Error processing tracking modes:', error);
+        } finally {
+          setLoading(false);
         }
+      });
+    } else {
+      setTrackingModes([]);
+      setLoading(false);
+    }
 
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, [user]);
 
+  // --- State Reconciliation (The Brain) ---
+  const loadAndReconcileState = useCallback(async () => {
+    if (isReconciling.current) return;
+    isReconciling.current = true;
 
+    try {
+      const isActive = await TrackingStorage.isTrackingActive();
+      const timeline = await TrackingStorage.getTimeline();
+      
+      if (isActive && timeline && timeline.length > 0) {
+        const now = Date.now();
+        const modeId = await TrackingStorage.getTrackingModeId();
+        const storedDeadline = await TrackingStorage.getReportDeadline();
+        const startTime = await TrackingStorage.getStartTime() || 0;
+        
+        // Determine current strike based on time
         let currentStrikeCount = 0;
         for (const event of timeline) {
           if (event.type === 'missed_report' && now > event.time) {
             currentStrikeCount = event.strike;
           }
         }
+        await TrackingStorage.saveCurrentStrike(currentStrikeCount);
 
-        console.log(`🔄 Resumed session. Re-calculated strikes: ${currentStrikeCount}`);
-
-        await AsyncStorage.setItem(STORAGE_KEYS.CURRENT_STRIKE, currentStrikeCount.toString());
-
-        setTimeline(timeline);
-        setIsActive(true);
-        setIsTracking(true);
-        setCurrentStrike(currentStrikeCount);
-        setTrackingModeId(modeId);
-
-        if (reportDeadlineStr) {
-          const deadline = parseInt(reportDeadlineStr);
-          if (now < deadline) {
-            setIsReportDue(true);
-            setReportDeadline(deadline);
+        // Check if report is due
+        let isReportDue = false;
+        let reportDeadline = null;
+        if (storedDeadline) {
+          if (now < storedDeadline) {
+            isReportDue = true;
+            reportDeadline = storedDeadline;
           } else {
-            await AsyncStorage.removeItem(STORAGE_KEYS.REPORT_DEADLINE);
-            setIsReportDue(false);
-            setReportDeadline(null);
+             // Deadline passed
+             await TrackingStorage.clearReportDeadline();
           }
-        } else {
-          // If no deadline is in storage, we cannot be in a "report due" state.
-          setIsReportDue(false);
-          setReportDeadline(null);
         }
 
-        const nextSessionEnd = timeline.find(event => event.type === 'session_end' && event.time > now);
-        if (nextSessionEnd) {
-          setNextCheckInTime(nextSessionEnd.time);
-        } else {
-          setNextCheckInTime(null);
-        }
+        // Check if info sent (dead man switch triggered)
+        const finalEvent = timeline[timeline.length - 1];
+        const isInfoSent = finalEvent ? now > finalEvent.time : false;
 
-        console.log('📱 Resumed existing tracking session and reconciled state.');
+        dispatch({ 
+          type: 'RECONCILE_STATE', 
+          payload: {
+            isTracking: true,
+            timeline,
+            trackingModeId: modeId,
+            currentStrike: currentStrikeCount,
+            isReportDue,
+            reportDeadline,
+            isInfoSent,
+            nextCheckInTime: timeline.find(e => e.type === 'session_end' && e.time > now)?.time || null
+          }
+        });
+        
+        console.log('✅ State Reconciled. Strike:', currentStrikeCount);
       } else {
-        setIsActive(false);
-        setIsTracking(false);
-        setTimeline([]);
-        setCurrentStrike(0);
-        setIsReportDue(false);
-        setReportDeadline(null);
-        setNextCheckInTime(null);
-        setTrackingModeId(null);
-        setIsInfoSent(false); // Ensure it's false if not active
+        // Not active
+        dispatch({ type: 'STOP_SESSION' });
       }
     } catch (error) {
-      console.error('Error loading and reconciling state:', error);
-      await stopTrackingMode();
+      console.error('❌ Error reconciling state:', error);
+      await stopTrackingMode(); // Fail safe
+    } finally {
+      isReconciling.current = false;
     }
-  };
+  }, []); // Dependencies should be empty or minimal
 
+  // Initial load
   useEffect(() => {
-    const appStateChangeHandler = (nextAppState: string) => {
+    if (user) {
+      loadAndReconcileState();
+    }
+  }, [user, loadAndReconcileState]);
+
+  // App State Listener
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
       if (nextAppState === 'active') {
         loadAndReconcileState();
       }
-    };
+    });
+    return () => subscription.remove();
+  }, [loadAndReconcileState]);
 
-    const subscription = AppState.addEventListener('change', appStateChangeHandler);
-
-    return () => {
-      subscription.remove();
-    };
-  }, []);
-
+  // Notification Response Listener
   useEffect(() => {
-    let interval: any;
+    const responseSubscription = Notifications.addNotificationResponseReceivedListener(response => {
+      const data = response.notification.request.content.data as unknown as NotificationData;
+      // If it's a critical notification, force a reconcile
+      if (data?.type === 'missed_report') {
+        loadAndReconcileState();
+      }
+    });
+    return () => responseSubscription.remove();
+  }, [loadAndReconcileState]);
+
+  // --- Foreground Timer for UI Updates ---
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    const { isTracking, isReportDue, nextCheckInTime, reportDeadline, timeline } = state;
+
     if (isTracking && !isReportDue && nextCheckInTime) {
       interval = setInterval(() => {
-        const now = Date.now();
-        if (now >= nextCheckInTime) {
-          console.log('Foreground timer: Session ended. Triggering report due state.');
-          const currentEvent = timeline.find(event => event.type === 'session_end' && event.time === nextCheckInTime);
+        if (Date.now() >= nextCheckInTime) {
+          console.log('⏱️ Check-in time reached.');
+          const currentEvent = timeline.find(e => e.type === 'session_end' && e.time === nextCheckInTime);
           if (currentEvent && currentEvent.deadline) {
-            AsyncStorage.setItem(STORAGE_KEYS.REPORT_DEADLINE, currentEvent.deadline.toString())
-              .then(() => {
-                setReportDeadline(currentEvent.deadline);
-                setIsReportDue(true);
-              });
+             TrackingStorage.saveReportDeadline(currentEvent.deadline);
+             dispatch({ 
+               type: 'SET_REPORT_DUE', 
+               payload: { deadline: currentEvent.deadline } 
+             });
           } else {
-            loadAndReconcileState();
+             loadAndReconcileState();
           }
         }
       }, 1000);
     } else if (isTracking && isReportDue && reportDeadline) {
       interval = setInterval(() => {
-        const now = Date.now();
-        if (now >= reportDeadline) {
-          console.log('Foreground timer: Report deadline missed. Reconciling state.');
+        if (Date.now() >= reportDeadline) {
+          console.log('⏱️ Report deadline missed.');
           loadAndReconcileState();
         }
       }, 1000);
     }
     return () => clearInterval(interval);
-  }, [isTracking, isReportDue, nextCheckInTime, reportDeadline, timeline]);
+  }, [state, loadAndReconcileState]);
 
-
-  const calculateFullTimeline = (
-    startTime: number,
-    sessionDurationMs: number,
-    reportDurationMs: number,
-    reductionMs: number,
-    strikeThreshold: number
-  ): TimelineEvent[] => {
-    const timeline: TimelineEvent[] = [];
-    let currentTime = startTime;
-    let currentSessionDuration = sessionDurationMs;
-
-    for (let strike = 0; strike < strikeThreshold; strike++) {
-      const sessionEndTime = currentTime + currentSessionDuration;
-      const reportDeadlineTime = sessionEndTime + reportDurationMs;
-      timeline.push({
-        time: sessionEndTime,
-        type: 'session_end',
-        strike: strike,
-        description: `Session ${strike + 1} ends - Report safety required`,
-        deadline: reportDeadlineTime,
-        strikeThreshold: strikeThreshold,
-      });
-
-      timeline.push({
-        time: reportDeadlineTime,
-        type: 'missed_report',
-        strike: strike + 1,
-        description: `Missed report ${strike + 1} - ${strike < strikeThreshold - 1 ? 'Start next session' : 'EMERGENCY!'}`,
-        strikeThreshold: strikeThreshold
-      });
-
-      currentTime = reportDeadlineTime;
-      currentSessionDuration = Math.max(currentSessionDuration - reductionMs, 1 * 60 * 1000);
-    }
-
-    return timeline;
-  };
-
-  const scheduleAllNotifications = async (timeline: TimelineEvent[]): Promise<string[]> => {
-    const notificationIds: string[] = [];
-
-    for (const event of timeline) {
-      const now = Date.now();
-      if (event.time <= now) {
-        continue;
-      }
-
-      let title: string, body: string;
-      if (event.type === 'session_end') {
-        title = `⏰ 請回報安全`;
-        body = '請在一分鐘內回報安全狀態';
-      } else if (event.type === 'missed_report') {
-        if (event.strike < (event.strikeThreshold ?? 3)) {
-          title = `⚠️ 錯過安全回報`;
-          body = `您未在時限內回報。新的安全追蹤時段已開始，請務必在下次時限內回報。`;
-        } else {
-          title = '🚨 觸發緊急通知';
-          body = `因為尚未回報安全，您的即時位置已經分享給設定的緊急聯絡人`;
-        }
-      } else {
-        title = 'Safety Alert';
-        body = 'Please check your safety status';
-      }
-
-      // Calculate seconds until the event
-      const seconds = Math.max(Math.round((event.time - now) / 1000), 1);
-
-      const notificationId = await Notifications.scheduleNotificationAsync({
-        content: {
-          title,
-          body,
-          sound: 'default',
-          data: {
-            type: event.type,
-            strike: event.strike,
-            eventTime: event.time,
-            deadline: event.deadline,
-            strikeThreshold: event.strikeThreshold,
-          }
-        },
-        trigger: {
-          type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-          seconds,
-          repeats: false,
-        },
-      });
-
-      notificationIds.push(notificationId);
-      console.log(`📅 Scheduled: ${title} in ${seconds} seconds (for ${new Date(event.time).toLocaleTimeString()})`);
-    }
-
-    return notificationIds;
-  };
+  // --- Actions ---
 
   const startTrackingMode = async (modeId: any, sessionMinutes: number, reductionMinutes: number) => {
     if (!user?.uid) {
@@ -499,493 +250,206 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
       return;
     }
     try {
-      const modeRef = doc(db, 'TrackingMode', modeId);
-      // Mark mode as On in Firestore so the mode's state is consistent with the frontend
-      try {
-        await updateDoc(modeRef, { On: true });
-        console.log('✅ Set TrackingMode.On = true in Firestore');
-      } catch (e) {
-        console.warn('Could not update TrackingMode.On to true:', e);
-      }
-
-      // for test
-      // const sessionMs = sessionMinutes * 3 * 1000;
-      const sessionMs = sessionMinutes * 60 * 1000;
-      const reductionMs = reductionMinutes * 60 * 1000;
-      // for test
-      // const reportMs = 1 * 10 * 1000;
-      const reportMs= reductionMinutes * 60 * 1000;
-      const startTime = Date.now();
+      await TrackingFirestore.setTrackingModeActiveStatus(modeId, true);
 
       const activeMode = trackingModes.find(mode => mode.id === modeId);
-      if (!activeMode) {
-        Alert.alert('Error', 'Could not find the selected tracking mode.');
-        return;
-      }
+      if (!activeMode) throw new Error('Mode not found');
 
-      const emergencyContactIds: string[] = activeMode.contacts.map((c: any) => String(c.id));
-      const strikeThreshold = activeMode.unresponsiveThreshold; // Get the value from the DB
+      const sessionMs = sessionMinutes * 60 * 1000;
+      const reductionMs = reductionMinutes * 60 * 1000;
+      const reportMs = reductionMinutes * 60 * 1000; // As per original code logic
+      const strikeThreshold = activeMode.unresponsiveThreshold;
+      const startTime = Date.now();
 
-      console.log('🚀 Starting tracking with pre-calculated timeline...');
+      console.log('🚀 Starting tracking...');
 
-      const calculatedTimeline = calculateFullTimeline(startTime, sessionMs, reportMs, reductionMs, strikeThreshold);
-      const notificationIds = await scheduleAllNotifications(calculatedTimeline);
-
-      const finalEvent = calculatedTimeline[calculatedTimeline.length - 1];
+      const timeline = calculateFullTimeline(startTime, sessionMs, reportMs, reductionMs, strikeThreshold);
+      
+      const notificationIds = await TrackingNotifications.scheduleSessionNotifications(timeline);
+      
+      // Start Dead Man's Switch
+      const finalEvent = timeline[timeline.length - 1];
+      let trackingDocId = '';
       if (finalEvent) {
-        const emergencyActivationTime = Timestamp.fromMillis(finalEvent.time);
-        const trackingDocRef = doc(collection(db, 'active_tracking'));
-
-        const contactStatusMap: Record<string, { status: 'active'; notificationCount: number }> = {};
-        emergencyContactIds.forEach((id: string) => {
-          contactStatusMap[id] = {
-            status: 'active', // Status for each contact
-            notificationCount: 0
-          };
-        });
-
-        await setDoc(trackingDocRef, {
-          trackedUserId: user.uid,
-          emergencyContactIds: emergencyContactIds,
-          emergencyActivationTime: emergencyActivationTime,
-          lastUpdateTime: serverTimestamp(),
-          isActive: true,
-          nextNotificationTime: emergencyActivationTime,
-          overallStatus: 'notifying', // The whole event is active
-          contactStatus: contactStatusMap, // The detailed map
-          activity: activeMode.activity || '',
-          activityLocation: activeMode.activityLocation || '',
-          notes: activeMode.notes || '',
-        });
-        await AsyncStorage.setItem(STORAGE_KEYS.ACTIVE_TRACKING_DOC_ID, trackingDocRef.id);
-        console.log("✅ Dead man's switch set in Firestore.");
-      }
-
-      await AsyncStorage.setItem(STORAGE_KEYS.TIMELINE, JSON.stringify(calculatedTimeline));
-      await AsyncStorage.setItem(STORAGE_KEYS.IS_ACTIVE, 'true');
-      await AsyncStorage.setItem(STORAGE_KEYS.START_TIME, startTime.toString());
-      await AsyncStorage.setItem(STORAGE_KEYS.CURRENT_STRIKE, '0');
-      await AsyncStorage.setItem(STORAGE_KEYS.NOTIFICATION_IDS, JSON.stringify(notificationIds));
-      await AsyncStorage.setItem(STORAGE_KEYS.TRACKING_MODE_ID, modeId);
-      await AsyncStorage.setItem(STORAGE_KEYS.INITIAL_SESSION_MINUTES, sessionMinutes.toString());
-      await AsyncStorage.setItem(STORAGE_KEYS.INITIAL_REDUCTION_MINUTES, reductionMinutes.toString());
-      await AsyncStorage.setItem(STORAGE_KEYS.CURRENT_USER_ID, user.uid);
-      await AsyncStorage.setItem(STORAGE_KEYS.EMERGENCY_CONTACT_IDS, JSON.stringify(emergencyContactIds));
-      await AsyncStorage.setItem(STORAGE_KEYS.UNRESPONSIVE_THRESHOLD, strikeThreshold.toString());
-
-      setTimeline(calculatedTimeline);
-      setIsTracking(true);
-      setCurrentStrike(0);
-      setTrackingModeId(modeId);
-
-      const nextSessionEnd = calculatedTimeline.find(event => event.type === 'session_end' && event.time > Date.now());
-      if (nextSessionEnd) {
-        setNextCheckInTime(nextSessionEnd.time);
-      } else {
-        setNextCheckInTime(null);
-      }
-
-      console.log('✅ Tracking started with full timeline pre-calculated');
-
-      // NEW CONDITIONAL LOGIC
-      if (backgroundLocationStatus === 'granted') {
-        console.log('✅ Background permission granted. Starting background location task.');
-        // Check if task is already running and stop it to prevent duplicates
-        if (await Location.hasStartedLocationUpdatesAsync(BACKGROUND_LOCATION_TASK)) {
-          console.log('⚠️ Duplicate background location task found. Stopping existing task before starting a new one.');
-          await Location.stopLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
-        }
-        await Location.startLocationUpdatesAsync(BACKGROUND_LOCATION_TASK, {
-          accuracy: Location.Accuracy.Balanced,
-          timeInterval: 5000,
-          distanceInterval: 50,
-          showsBackgroundLocationIndicator: true,
-          deferredUpdatesInterval: 30000,
-          pausesUpdatesAutomatically: false,
-          foregroundService: {
-            notificationTitle: 'Tracking',
-            notificationBody: 'Tracking your location...',
-          },
-        });
-      } else if (foregroundLocationStatus === 'granted') {
-        console.log('✅ Foreground permission granted. Starting foreground location watcher.');
-        const watcher = await Location.watchPositionAsync(
-          {
-            accuracy: Location.Accuracy.Balanced,
-            timeInterval: 5000,
-            distanceInterval: 50,
-          },
-          (location) => {
-            updateLocationInFirestore(location, user.uid);
-          }
+        trackingDocId = await TrackingFirestore.startDeadManSwitch(
+          user.uid,
+          finalEvent.time,
+          activeMode.contacts.map((c: any) => c.id), // Ensure we get IDs
+          activeMode
         );
-        setForegroundWatcher(watcher);
-      } else {
-        console.warn('⚠️ No location permissions granted. Location tracking will not start.');
-        Alert.alert("Permission Required", "Location access is required for tracking to function.");
       }
+
+      // Save all state
+      await TrackingStorage.saveTimeline(timeline);
+      await TrackingStorage.setTrackingActive(true);
+      await TrackingStorage.saveStartTime(startTime);
+      await TrackingStorage.saveCurrentStrike(0);
+      await TrackingStorage.saveNotificationIds(notificationIds);
+      await TrackingStorage.saveTrackingModeId(modeId);
+      await TrackingStorage.saveSessionParams(sessionMinutes, reductionMinutes, strikeThreshold);
+      await TrackingStorage.saveUserId(user.uid);
+      await TrackingStorage.saveEmergencyContactIds(activeMode.contacts.map((c: any) => c.id));
+      if (trackingDocId) await TrackingStorage.saveActiveTrackingDocId(trackingDocId);
+
+      // Start Location Tracking
+      if (backgroundLocationStatus === 'granted') {
+        await TrackingLocation.startBackgroundLocationUpdates();
+      } else if (foregroundLocationStatus === 'granted') {
+        const watcher = await TrackingLocation.startForegroundLocationWatcher(user.uid);
+        setForegroundWatcher(watcher);
+      }
+
+      dispatch({ 
+        type: 'START_SESSION', 
+        payload: { modeId, timeline, startTime } 
+      });
 
     } catch (error) {
       console.error('❌ Error starting tracking:', error);
-      const errMsg = (error instanceof Error) ? error.message : String(error);
-      Alert.alert('Error', 'Failed to start tracking: ' + errMsg);
+      Alert.alert('Error', 'Failed to start tracking.');
     }
   };
 
-  const reportSafety = async () => {
-    if (!user?.uid) return;
-    try {
-      console.log('✅ USER REPORTED SAFETY!');
-
-      const notificationIdsStr = await AsyncStorage.getItem(STORAGE_KEYS.NOTIFICATION_IDS);
-      if (notificationIdsStr) {
-        const notificationIds = JSON.parse(notificationIdsStr);
-        for (const id of notificationIds) {
-          await Notifications.cancelScheduledNotificationAsync(id);
-        }
-        console.log('🧹 Cancelled all future notifications');
-      }
-
-      const initialSessionMinutesStr = await AsyncStorage.getItem(STORAGE_KEYS.INITIAL_SESSION_MINUTES);
-      const initialReductionMinutesStr = await AsyncStorage.getItem(STORAGE_KEYS.INITIAL_REDUCTION_MINUTES);
-      const unresponsiveThresholdStr = await AsyncStorage.getItem(STORAGE_KEYS.UNRESPONSIVE_THRESHOLD); // Retrieve threshold
-
-      const sessionMs = initialSessionMinutesStr ? parseInt(initialSessionMinutesStr) * 60 * 1000 : 30 * 60 * 1000;
-      const reductionMs = initialReductionMinutesStr ? parseInt(initialReductionMinutesStr) * 60 * 1000 : 10 * 60 * 1000;
-      const reportMs = 1 * 60 * 1000;
-      // const reportMs = 3 * 60 * 1000;
-      const newStartTime = Date.now();
-      const strikeThreshold = unresponsiveThresholdStr ? parseInt(unresponsiveThresholdStr) : 3; // Default to 3 if not found
-
-      console.log('🔄 Recalculating timeline from current time...');
-      const newTimeline = calculateFullTimeline(newStartTime, sessionMs, reportMs, reductionMs, strikeThreshold);
-      const newNotificationIds = await scheduleAllNotifications(newTimeline);
-
-      const newFinalEvent = newTimeline[newTimeline.length - 1];
-      if (newFinalEvent) {
-        const trackingDocId = await AsyncStorage.getItem(STORAGE_KEYS.ACTIVE_TRACKING_DOC_ID);
-        if (trackingDocId) {
-          const newEmergencyActivationTime = Timestamp.fromMillis(newFinalEvent.time);
-          const trackingDocRef = doc(db, 'active_tracking', trackingDocId);
-          await updateDoc(trackingDocRef, {
-            emergencyActivationTime: newEmergencyActivationTime,
-            lastUpdateTime: serverTimestamp()
-          });
-          console.log("✅ Dead man's switch updated in Firestore.");
-        }
-      }
-
-      await AsyncStorage.setItem(STORAGE_KEYS.TIMELINE, JSON.stringify(newTimeline));
-      await AsyncStorage.setItem(STORAGE_KEYS.START_TIME, newStartTime.toString());
-      await AsyncStorage.setItem(STORAGE_KEYS.CURRENT_STRIKE, '0');
-      await AsyncStorage.setItem(STORAGE_KEYS.NOTIFICATION_IDS, JSON.stringify(newNotificationIds));
-      await AsyncStorage.removeItem(STORAGE_KEYS.REPORT_DEADLINE);
-
-      setTimeline(newTimeline);
-      setCurrentStrike(0);
-      setIsReportDue(false);
-      setReportDeadline(null);
-      setIsTracking(true);
-
-      const nextSessionEnd = newTimeline.find(event => event.type === 'session_end' && event.time > Date.now());
-      if (nextSessionEnd) {
-        setNextCheckInTime(nextSessionEnd.time);
-      } else {
-        setNextCheckInTime(null);
-      }
-
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: '✅ Safety Reported',
-          body: 'Timeline has been recalculated with full session duration.',
-          sound: 'default',
-        },
-        trigger: null,
-      });
-      console.log('🔍 [TrackProvider] About to set justReportedSafety to true');
-      setJustReportedSafety(true);
-      console.log('✅ [TrackProvider] Called setJustReportedSafety(true)');
-    } catch (error) {
-      console.error('❌ Error reporting safety:', error);
-      const errMsg = (error instanceof Error) ? error.message : String(error);
-      Alert.alert('Error', 'Failed to report safety: ' + errMsg);
-    }
-  };
-
-  stopTrackingMode = async (options?: { isEmergency: boolean }) => {
-    if (!user?.uid) return;
-
+  const stopTrackingMode = async (options?: { isEmergency: boolean }) => {
     const isEmergency = options?.isEmergency ?? false;
-
+    
     try {
-      const notificationIdsStr = await AsyncStorage.getItem(STORAGE_KEYS.NOTIFICATION_IDS);
-      const modeId = await AsyncStorage.getItem(STORAGE_KEYS.TRACKING_MODE_ID);
+      // 1. Notifications
+      const ids = await TrackingStorage.getNotificationIds();
+      await TrackingNotifications.cancelAllNotifications(ids);
 
-      if (notificationIdsStr) {
-        const notificationIds = JSON.parse(notificationIdsStr);
-        for (const id of notificationIds) {
-          await Notifications.cancelScheduledNotificationAsync(id);
-        }
-        console.log('🧹 Cancelled all future notifications');
-      }
-
-      // --- CRITICAL: Only stop tracking if it is NOT an emergency ---
+      // 2. Location & Mode Status (Only if NOT emergency)
       if (!isEmergency) {
-        const normalSessionId = await AsyncStorage.getItem('active_sharing_session_doc_id');
-        if (normalSessionId) {
-          console.log('Emergency mode stopped, but leaving background task running for normal sharing session.');
-        } else {
-          if (await Location.hasStartedLocationUpdatesAsync(BACKGROUND_LOCATION_TASK)) {
-            await Location.stopLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
-            console.log('✅ Background location tracking stopped for safe shutdown.');
-          }
-          if (foregroundWatcher) {
-            foregroundWatcher.remove();
-            setForegroundWatcher(null);
-            console.log('✅ Foreground location watcher stopped for safe shutdown.');
-          }
+        await TrackingLocation.stopBackgroundLocationUpdates();
+        if (foregroundWatcher) {
+          foregroundWatcher.remove();
+          setForegroundWatcher(null);
         }
-        // Update the TrackingMode document to mark it as Off (frontend requested this behavior)
-        try {
-          if (modeId) {
-            const modeRef = doc(db, 'TrackingMode', modeId);
-            await updateDoc(modeRef, { On: false });
-            console.log('✅ Set TrackingMode.On = false in Firestore');
-          }
-        } catch (e) {
-          console.warn('Could not update TrackingMode.On to false:', e);
+
+        const modeId = await TrackingStorage.getTrackingModeId();
+        if (modeId) {
+          await TrackingFirestore.setTrackingModeActiveStatus(modeId, false);
         }
-      } else {
-        console.log('🚨 Emergency active: Background location tracking will CONTINUE.');
       }
 
-      const trackingDocId = await AsyncStorage.getItem(STORAGE_KEYS.ACTIVE_TRACKING_DOC_ID);
+      // 3. Dead Man's Switch
+      const trackingDocId = await TrackingStorage.getActiveTrackingDocId();
       if (trackingDocId) {
-        if (isEmergency) {
-          console.log("Emergency stop: Leaving dead man's switch active in Firestore.");
-        } else {
-          const trackingDocRef = doc(db, 'active_tracking', trackingDocId);
-          await updateDoc(trackingDocRef, {
-            isActive: false,
-            stoppedAt: serverTimestamp()
-          });
-          console.log("✅ Dead man's switch deactivated in Firestore for safe stop.");
-        }
+        await TrackingFirestore.stopDeadManSwitch(trackingDocId, isEmergency);
       }
 
-      const keys = Object.values(STORAGE_KEYS);
-      if (isEmergency) {
-        const keysToRemove = keys.filter(k => k !== STORAGE_KEYS.CURRENT_USER_ID);
-        await AsyncStorage.multiRemove(keysToRemove);
-      } else {
-        await AsyncStorage.multiRemove(keys);
-      }
+      // 4. Clear Storage
+      await TrackingStorage.clearAllTrackingData(isEmergency);
 
-      setIsTracking(false);
-      setTrackingModeId(null);
-      setTimeline([]);
-      setCurrentStrike(0);
-      setIsReportDue(false);
-      setReportDeadline(null);
-      setNextCheckInTime(null);
-
-      console.log('🛑 Tracking stopped and local state cleared');
+      // 5. Update State
+      dispatch({ type: 'STOP_SESSION' });
+      console.log('🛑 Tracking stopped.');
 
     } catch (error) {
       console.error('❌ Error stopping tracking:', error);
     }
   };
 
+  const reportSafety = async () => {
+    if (!user?.uid) return;
+    try {
+      console.log('✅ Reporting safety...');
+      
+      // Cancel old notifications
+      const oldIds = await TrackingStorage.getNotificationIds();
+      await TrackingNotifications.cancelAllNotifications(oldIds);
 
-  const fetchTrackingModesWithContacts = async (userId: string) => {
-    setLoading(true); // Ensure loading state is set
-    const colRef = query(collection(db, 'TrackingMode'), where('userId', '==', userId));
+      // Get params to recalculate
+      const params = await TrackingStorage.getSessionParams();
+      const reportMs = 1 * 60 * 1000;
+      const sessionMs = params.sessionMinutes * 60 * 1000;
+      const reductionMs = params.reductionMinutes * 60 * 1000;
+      const newStartTime = Date.now();
 
-    console.log(`[TrackProvider] Setting up onSnapshot for TrackingMode for userId: ${userId}`); // ADDED LOG
+      const newTimeline = calculateFullTimeline(newStartTime, sessionMs, reportMs, reductionMs, params.strikeThreshold);
+      const newNotificationIds = await TrackingNotifications.scheduleSessionNotifications(newTimeline);
 
-    // Use onSnapshot for real-time updates
-    const unsubscribe = onSnapshot(colRef, async (querySnapshot) => {
-      console.log(`[TrackProvider] onSnapshot callback fired. Docs count: ${querySnapshot.docs.length}, Empty: ${querySnapshot.empty}`); // ADDED LOG
-      const data = await Promise.all(
-        querySnapshot.docs.map(async (docSnap) => {
-          const trackingData = docSnap.data();
-          const contacts = await Promise.all(
-            (trackingData.emergencyContactIds || []).map(async (id: string) => {
-              const contactDoc = await getDoc(doc(db, 'users', id));
-              return { id: contactDoc.id, ...contactDoc.data() };
-            })
-          );
-          return {
-            id: docSnap.id,
-            ...trackingData,
-            contacts
-          };
-        })
-      );
-      console.log(`[TrackProvider] Processed data:`, data); // ADDED LOG
-      setTrackingModes(data);
-      setLoading(false);
-    }, (error) => {
-      console.error('[TrackProvider] Error listening to tracking modes:', error); // MODIFIED LOG
-      setTrackingModes([]);
-      setLoading(false);
-    });
-
-    return unsubscribe; // Return the unsubscribe function
-  };
-
-  useEffect(() => {
-    let unsubscribeFromTrackingModes: (() => void) | undefined;
-
-    if (user?.uid) {
-      // Call the async function and store its unsubscribe result
-      const setupListener = async () => {
-        unsubscribeFromTrackingModes = await fetchTrackingModesWithContacts(user.uid);
-      };
-      setupListener();
-    } else if (!authLoading && !user) {
-      // User has signed out, so we need to perform a full cleanup.
-      const signOutCleanup = async () => {
-        console.log('Auth state changed: User signed out. Cleaning up all tracking tasks and data.');
-
-        // Unsubscribe from tracking modes listener if it exists
-        if (unsubscribeFromTrackingModes) {
-          unsubscribeFromTrackingModes();
-          unsubscribeFromTrackingModes = undefined; // Clear it
-          console.log('🧹 Unsubscribed from tracking modes listener.');
-        }
-
-        // 1. Stop the background location task unconditionally
-        if (await Location.hasStartedLocationUpdatesAsync(BACKGROUND_LOCATION_TASK)) {
-          await Location.stopLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
-          console.log('✅ Background location tracking stopped due to sign-out.');
-        }
-        // Stop foreground watcher
-        if (foregroundWatcher) {
-          foregroundWatcher.remove();
-          setForegroundWatcher(null);
-          console.log('✅ Foreground location watcher stopped due to sign-out.');
-        }
-
-        // 2. Cancel all scheduled notifications
-        await Notifications.cancelAllScheduledNotificationsAsync();
-        console.log('🧹 Cancelled all scheduled notifications due to sign-out.');
-
-        // 3. Deactivate the 'dead man's switch' in Firestore
-        const trackingDocId = await AsyncStorage.getItem(STORAGE_KEYS.ACTIVE_TRACKING_DOC_ID);
+      // Update Dead Man's Switch
+      const finalEvent = newTimeline[newTimeline.length - 1];
+      if (finalEvent) {
+        const trackingDocId = await TrackingStorage.getActiveTrackingDocId();
         if (trackingDocId) {
-          const trackingDocRef = doc(db, 'active_tracking', trackingDocId);
-          try {
-            await updateDoc(trackingDocRef, {
-              isActive: false,
-              stoppedAt: serverTimestamp(),
-              overallStatus: 'cancelled_by_sign_out'
-            });
-            console.log("✅ Dead man's switch deactivated in Firestore for sign-out.");
-          } catch (e) {
-            console.error("Failed to update tracking doc on sign-out", e)
-          }
+          await TrackingFirestore.updateDeadManSwitch(trackingDocId, finalEvent.time);
         }
-
-        // 4. Clear all tracking-related data from AsyncStorage
-        const keys = Object.values(STORAGE_KEYS);
-        await AsyncStorage.multiRemove(keys);
-        console.log('🧹 Cleared all tracking data from storage due to sign-out.');
-
-        // 5. Reset the context's state
-        setIsTracking(false);
-        setTrackingModeId(null);
-        setTimeline([]);
-        setCurrentStrike(0);
-        setIsReportDue(false);
-        setReportDeadline(null);
-        setNextCheckInTime(null);
-        setTrackingModes([]); // Clear tracking modes as well
-        console.log('🛑 Tracking context state reset due to sign-out.');
-      };
-
-      signOutCleanup();
-    }
-
-    // Cleanup function for the useEffect
-    return () => {
-      if (unsubscribeFromTrackingModes) {
-        unsubscribeFromTrackingModes();
-        console.log('🧹 Unsubscribed from tracking modes listener on unmount/dependency change.');
       }
-    };
-  }, [user, authLoading]);
+
+      // Update Storage
+      await TrackingStorage.saveTimeline(newTimeline);
+      await TrackingStorage.saveStartTime(newStartTime);
+      await TrackingStorage.saveCurrentStrike(0);
+      await TrackingStorage.saveNotificationIds(newNotificationIds);
+      await TrackingStorage.clearReportDeadline();
+
+      dispatch({ type: 'REPORT_SAFETY', payload: { timeline: newTimeline } });
+      
+      await Notifications.scheduleNotificationAsync({
+        content: { title: '✅ Safety Reported', body: 'Session extended.', sound: 'default' },
+        trigger: null,
+      });
+
+    } catch (error) {
+      console.error('❌ Error reporting safety:', error);
+      Alert.alert('Error', 'Failed to report safety.');
+    }
+  };
 
   const createTrackingMode = async (newMode: Omit<TrackingMode, 'id' | 'userId'>) => {
-    if (!user?.uid) {
-      Alert.alert('Error', 'User not authenticated.');
-      return;
-    }
+    if(!user?.uid) return;
     try {
-      const trackingModeCollection = collection(db, 'TrackingMode');
-      // Persist the mode, defaulting `On` to false if not provided.
-      const { On, ...rest } = newMode as any;
-      await addDoc(trackingModeCollection, {
-        ...rest,
-        On: On ?? false,
-        userId: user.uid,
-      });
-      // Refetch tracking modes to update the list
-      // No need to call fetchTrackingModesWithContacts here, onSnapshot will handle it
-    } catch (error) {
-      console.error('Error creating tracking mode:', error);
-      Alert.alert('Error', 'Failed to create tracking mode.');
+        await TrackingFirestore.createTrackingModeDoc(user.uid, newMode);
+    } catch (e) {
+        console.error(e);
+        Alert.alert("Error", "Failed to create mode");
     }
-  };
+  }
+
+  const updateTrackingMode = async (modeId: string, updates: Partial<TrackingMode>) => {
+    if(!user?.uid) return;
+    try {
+        await TrackingFirestore.updateTrackingModeDoc(modeId, updates);
+    } catch (e) {
+        console.error(e);
+        Alert.alert("Error", "Failed to update mode");
+    }
+  }
 
   const deleteTrackingMode = async (modeId: string) => {
     try {
-      const modeRef = doc(db, 'TrackingMode', modeId);
-      await deleteDoc(modeRef);
-      // Refetch tracking modes to update the list
-      // No need to call fetchTrackingModesWithContacts here, onSnapshot will handle it
-    } catch (error) {
-      console.error('Error deleting tracking mode:', error);
-      Alert.alert('Error', 'Failed to delete tracking mode.');
+        await TrackingFirestore.deleteTrackingModeDoc(modeId);
+    } catch (e) {
+        console.error(e);
+        Alert.alert("Error", "Failed to delete mode");
     }
-  };
+  }
 
-  const updateTrackingMode = async (modeId: string, updates: Partial<TrackingMode>) => {
-    if (!user?.uid) {
-      Alert.alert('Error', 'User not authenticated.');
-      return;
-    }
-    try {
-      const allowedFields = [
-        'name',
-        'checkIntervalMinutes',
-        'unresponsiveThreshold',
-        'intervalReductionMinutes',
-        'startTime',
-        'emergencyContactIds',
-        'On',
-        'autoStart',
-        'activityLocation',
-        'activity',
-        'notes',
-      ];
-
-      const payload: Record<string, any> = {};
-      Object.keys(updates).forEach((key) => {
-        if (allowedFields.includes(key)) {
-          payload[key] = (updates as any)[key];
+  // --- Sign Out Cleanup ---
+  useEffect(() => {
+    if (!authLoading && !user) {
+      const cleanUp = async () => {
+        console.log('🧹 User signed out. Cleaning up...');
+        await TrackingLocation.stopBackgroundLocationUpdates();
+        if (foregroundWatcher) {
+            foregroundWatcher.remove();
+            setForegroundWatcher(null);
         }
-      });
-      payload.updatedAt = serverTimestamp();
-
-      const modeRef = doc(db, 'TrackingMode', modeId);
-      await updateDoc(modeRef, payload);
-      console.log(`✅ Updated TrackingMode ${modeId} with`, payload);
-    } catch (error) {
-      console.error('Error updating tracking mode:', error);
-      Alert.alert('Error', 'Failed to update tracking mode.');
+        await TrackingNotifications.cancelAllSystemNotifications();
+        
+        const trackingDocId = await TrackingStorage.getActiveTrackingDocId();
+        if (trackingDocId) {
+             await TrackingFirestore.stopDeadManSwitch(trackingDocId, false, 'sign_out');
+        }
+        await TrackingStorage.clearAllTrackingData(false);
+        dispatch({ type: 'STOP_SESSION' });
+        setTrackingModes([]);
+      };
+      cleanUp();
     }
-  };
+  }, [user, authLoading]);
 
   return (
     <TrackingContext.Provider value={{
@@ -994,20 +458,20 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
       startTrackingMode,
       stopTrackingMode,
       reportSafety,
-      createTrackingMode, // Expose the new function
+      createTrackingMode,
       updateTrackingMode,
-      deleteTrackingMode, // Expose the delete function
-      isTracking,
-      trackingModeId,
-      timeline,
-      currentStrike,
-      isReportDue,
-      reportDeadline,
-      nextCheckInTime,
-      isInfoSent,
-      setIsInfoSent,
-      justReportedSafety,
-      setJustReportedSafety,
+      deleteTrackingMode,
+      isTracking: state.isTracking,
+      trackingModeId: state.trackingModeId,
+      timeline: state.timeline,
+      currentStrike: state.currentStrike,
+      isReportDue: state.isReportDue,
+      reportDeadline: state.reportDeadline,
+      nextCheckInTime: state.nextCheckInTime,
+      isInfoSent: state.isInfoSent,
+      setIsInfoSent: (val: React.SetStateAction<boolean>) => dispatch({ type: 'SET_INFO_SENT', payload: typeof val === 'function' ? (val as Function)(state.isInfoSent) : val }),
+      justReportedSafety: state.justReportedSafety,
+      setJustReportedSafety: (val: React.SetStateAction<boolean>) => dispatch({ type: 'SET_JUST_REPORTED', payload: typeof val === 'function' ? (val as Function)(state.justReportedSafety) : val }),
     }}>
       {children}
     </TrackingContext.Provider>
