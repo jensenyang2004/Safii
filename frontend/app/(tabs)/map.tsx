@@ -58,6 +58,7 @@ const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 export default function Map() {
   const [location, setLocation] = useState<Location.LocationObject | null>(null);
+  const [isFollowingUser, setIsFollowingUser] = useState(true);
 
   const { trackingModes, isTracking, trackingModeId, isReportDue, isInfoSent, stopTrackingMode } = useTracking();
   const activeMode = trackingModes.find(mode => mode.id === trackingModeId);
@@ -120,6 +121,10 @@ export default function Map() {
   const [mapCarouselHeight, setMapCarouselHeight] = useState(0);
   const routeSheetAnimation = useRef(new Animated.Value(0)).current;
   const [isSearchActive, setIsSearchActive] = useState(false);
+
+  // ***
+  const [debugMsg, setDebugMsg] = useState("等待操作...");
+
 
   // Hook: Map Navigation Feature
   const {
@@ -253,15 +258,23 @@ export default function Map() {
   };
 
   useEffect(() => {
-    if (isNavigating && navUserLocation && mapRef.current) {
-      mapRef.current.animateCamera({
-        center: navUserLocation.coords,
-        heading: navUserLocation.coords.heading ?? 0,
-        pitch: 45,
-        zoom: getDynamicZoom(navUserLocation.coords.speed),
-      }, { duration: 1000 });
+
+    const shouldAnimate = isNavigating || isFollowingUser;
+    if (!shouldAnimate) return;
+
+    console.log("Camera useEffect triggered. isNavigating:", isNavigating, "isFollowingUser:", isFollowingUser, "location:", location?.coords.latitude, location?.coords.longitude);
+    const locationToAnimate = isNavigating ? navUserLocation : location;
+    // 如果正在導航，或者使用者開啟了跟隨模式
+    if (locationToAnimate && (isNavigating || isFollowingUser)) {
+      mapRef.current?.animateCamera({
+        center: locationToAnimate.coords,
+        // 如果是導航模式，可能還要調整 pitch 和 heading
+        heading: isNavigating ? locationToAnimate.coords.heading ?? 0 : 0,
+        pitch: isNavigating ? 45 : 0,
+        zoom: isNavigating ? getDynamicZoom(locationToAnimate.coords.speed) : 15,
+      }, { duration: 500 });
     }
-  }, [navUserLocation, isNavigating]);
+  }, [location, navUserLocation, isNavigating, isFollowingUser]);
 
   useEffect(() => {
     if (selectedEmergency && mapRef.current) {
@@ -323,7 +336,7 @@ export default function Map() {
           coords: newCoords,
           timestamp: Date.now(),
         };
-        
+
         setLocation(newLocation);
 
       }, 2000); // Update every 2 seconds
@@ -331,7 +344,7 @@ export default function Map() {
   };
   // --- End Simulation Logic ---
 
-  
+
   // ***
   useEffect(() => {
     console.log("⚽️⚽️ 結束導航狀態變更:", isNavigating, showLocationCard, showFindSafeSpotCard, routes.length);
@@ -460,7 +473,7 @@ export default function Map() {
     carouselData.push(...modeCards);
   }
 
-  
+
 
   const topCarouselData: any[] = [
     /*
@@ -476,8 +489,12 @@ export default function Map() {
     {
       id: 'recenter-button',
       component: (
-        <Pressable style={styles.recenterBubble} onPress={recenterMap}>
-          <MaterialIcons name="my-location" size={24} color="black" />
+        <Pressable style={styles.recenterBubble} onPress={() => {
+          recenterMap();
+          setIsFollowingUser(true);
+        }}
+        >
+          <MaterialIcons name="my-location" size={24} color={isFollowingUser ? "#007AFF" : "black"} />
         </Pressable>
       ),
     },
@@ -490,7 +507,7 @@ export default function Map() {
           setSelectedPoiType(null);
           setCalloutVisible(null);
           clearPlaces();
-        } 
+        }
         }>
           <MaterialIcons name="warning" size={22} color="black" />
         </Pressable>
@@ -546,8 +563,29 @@ export default function Map() {
           setCalloutVisible(null);
           setIsSearchActive(false);
         }}
+        onTouchStart={() => {
+          setDebugMsg("🔥 onTouchStart 觸發！");
+          if (isFollowingUser) {
+            setIsFollowingUser(false);
+            console.log("👆 使用者觸碰螢幕 -> 停止跟隨");
+          }
+        }}
+        onPanDrag={() => {
+          setDebugMsg("✋ onPanDrag 拖曳中...");
+          if (isFollowingUser) {
+            setIsFollowingUser(false);
+            console.log("使用者手動拖曳，停止自動跟隨 - isFollowingUser: false");
+          }
+        }}
+        onRegionChangeComplete={(region, details) => {
+          setDebugMsg("🌎 onRegionChangeComplete (手勢)");
+          if (details.isGesture && isFollowingUser) {
+            setIsFollowingUser(false);
+            console.log("使用者手勢操作地圖，停止自動跟隨 - isFollowingUser: false");
+          }
+        }}
       >
-        
+
         {/* {(location || navUserLocation) && (
           <Marker
             coordinate={isSimulating ? location!.coords : (navUserLocation || location)!.coords}
@@ -556,13 +594,7 @@ export default function Map() {
             tracksViewChanges={isSimulating}
           />
         )} */}
-        {navUserLocation && (
-          <Marker
-            coordinate={navUserLocation.coords}
-            title="My Location"
-            pinColor="blue"
-          />
-        )}
+
 
         {nearestSafeSpotData && showNearestSafeSpotCard && (
           <Marker
@@ -677,7 +709,7 @@ export default function Map() {
                 style={{ width: 23, height: 33 }} 
                 />
             </View> */}
-            
+
           </Marker>
         ))}
 
@@ -896,7 +928,7 @@ export default function Map() {
 
           {isNavigating && (
             <Pressable style={styles.endNavigationButton} onPress={() => {
-              if(isFindingSafeSpot) {
+              if (isFindingSafeSpot) {
                 handleCancelRouteSelection()
                 setIsFindingSafeSpot(false)
               }
@@ -957,7 +989,7 @@ export default function Map() {
 
                   // --- FIX START ---
                   // Explicitly call getRoutes to fetch route data
-                  getRoutes(location.coords, destinationString);
+                  getRoutes(location.coords, destinationString, null);
                   // --- FIX END ---
 
                   setDestinationInfo({
