@@ -57,8 +57,25 @@ const GOOGLE_MAPS_API_KEY = Constants.expoConfig?.extra?.GOOGLE_MAPS_API_KEY;
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 export default function Map() {
-  const [location, setLocation] = useState<Location.LocationObject | null>(null);
+  const [location, setLocation] = useState<Location.LocationObject | null>({
+    coords: {
+      latitude: 25.0330,
+      longitude: 121.5654,
+      accuracy: 5,
+      altitude: 0,
+      heading: 0,
+      speed: 0,
+      altitudeAccuracy: 0,
+    },
+    timestamp: Date.now(),
+  });
   const [isFollowingUser, setIsFollowingUser] = useState(true);
+  const [initialMapRegion, setInitialMapRegion] = useState({
+    latitude: 25.0330,
+    longitude: 121.5654,
+    latitudeDelta: 0.05,
+    longitudeDelta: 0.05,
+  });
 
   const { trackingModes, isTracking, trackingModeId, isReportDue, isInfoSent, stopTrackingMode } = useTracking();
   const activeMode = trackingModes.find(mode => mode.id === trackingModeId);
@@ -217,39 +234,6 @@ export default function Map() {
   // const styles = createStyles(bottomComponentHeight, tabBarHeight);
   const styles = createStyles(tabBarHeight, location !== null);
 
-  useEffect(() => {
-    let subscription: Location.LocationSubscription | null = null;
-
-    const startWatching = async () => {
-      let { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission to access location was denied');
-        return;
-      }
-
-      // Start watching for location changes
-      subscription = await Location.watchPositionAsync(
-        {
-          accuracy: Location.Accuracy.High,
-          timeInterval: 2000, // Update every 2 seconds
-          distanceInterval: 5, // Or every 5 meters
-        },
-        (newLocation) => {
-          setLocation(newLocation); // Continuously update the base location
-        }
-      );
-    };
-
-    startWatching();
-
-    // Cleanup function to remove the subscription when the component unmounts
-    return () => {
-      if (subscription) {
-        subscription.remove();
-      }
-    };
-  }, []);
-
   const getDynamicZoom = (speed: number | null) => {
     if (speed === null || speed < 0) return 18; // Default zoom if speed is unavailable
     if (speed < 5) return 18; // Walking speed, zoomed in
@@ -257,24 +241,89 @@ export default function Map() {
     return 14; // Highway speed, zoomed out
   };
 
+  // useEffect(() => {
+
+  //   const shouldAnimate = isNavigating || isFollowingUser;
+  //   if (!shouldAnimate) return;
+
+  //   console.log("Camera useEffect triggered. isNavigating:", isNavigating, "isFollowingUser:", isFollowingUser, "location:", location?.coords.latitude, location?.coords.longitude);
+  //   const locationToAnimate = isNavigating ? navUserLocation : location;
+  //   // 如果正在導航，或者使用者開啟了跟隨模式
+  //   if (locationToAnimate && (isNavigating || isFollowingUser)) {
+  //     mapRef.current?.animateCamera({
+  //       center: locationToAnimate.coords,
+  //       // 如果是導航模式，可能還要調整 pitch 和 heading
+  //       heading: isNavigating ? locationToAnimate.coords.heading ?? 0 : 0,
+  //       pitch: isNavigating ? 45 : 0,
+  //       zoom: isNavigating ? getDynamicZoom(locationToAnimate.coords.speed) : 15,
+  //     }, { duration: 500 });
+  //   }
+  // }, [location, navUserLocation, isNavigating, isFollowingUser]);
+
+  // Simulate moving location when navigating
+  
   useEffect(() => {
+    let simulationInterval: NodeJS.Timeout | null = null;
 
-    const shouldAnimate = isNavigating || isFollowingUser;
-    if (!shouldAnimate) return;
+    if (isNavigating) {
+      // Initialize location to Taipei when navigation starts
+      setLocation({
+        coords: {
+          latitude: 25.0330,
+          longitude: 121.5654,
+          accuracy: 5,
+          altitude: 0,
+          heading: 0,
+          speed: 5, // Simulate some speed
+          altitudeAccuracy: 0,
+        },
+        timestamp: Date.now(),
+      });
 
-    console.log("Camera useEffect triggered. isNavigating:", isNavigating, "isFollowingUser:", isFollowingUser, "location:", location?.coords.latitude, location?.coords.longitude);
-    const locationToAnimate = isNavigating ? navUserLocation : location;
-    // 如果正在導航，或者使用者開啟了跟隨模式
-    if (locationToAnimate && (isNavigating || isFollowingUser)) {
-      mapRef.current?.animateCamera({
-        center: locationToAnimate.coords,
-        // 如果是導航模式，可能還要調整 pitch 和 heading
-        heading: isNavigating ? locationToAnimate.coords.heading ?? 0 : 0,
-        pitch: isNavigating ? 45 : 0,
-        zoom: isNavigating ? getDynamicZoom(locationToAnimate.coords.speed) : 15,
-      }, { duration: 500 });
+      simulationInterval = setInterval(() => {
+        setLocation(prevLocation => {
+          if (!prevLocation) return null;
+
+          // Simulate movement (e.g., move slightly north-east)
+          const newCoords = {
+            ...prevLocation.coords,
+            latitude: prevLocation.coords.latitude + 0.00005, // Small step
+            longitude: prevLocation.coords.longitude + 0.00005, // Small step
+            heading: (prevLocation.coords.heading + 5) % 360, // Simulate turning
+          };
+
+          return {
+            ...prevLocation,
+            coords: newCoords,
+            timestamp: Date.now(),
+          };
+        });
+      }, 1000); // Update every 1 second
+    } else {
+      // Clear interval and reset location to fixed Taipei when not navigating
+      if (simulationInterval) {
+        clearInterval(simulationInterval);
+      }
+      setLocation({ // Reset to fixed Taipei
+        coords: {
+          latitude: 25.0330,
+          longitude: 121.5654,
+          accuracy: 5,
+          altitude: 0,
+          heading: 0,
+          speed: 0,
+          altitudeAccuracy: 0,
+        },
+        timestamp: Date.now(),
+      });
     }
-  }, [location, navUserLocation, isNavigating, isFollowingUser]);
+
+    return () => {
+      if (simulationInterval) {
+        clearInterval(simulationInterval);
+      }
+    };
+  }, [isNavigating]);
 
   useEffect(() => {
     if (selectedEmergency && mapRef.current) {
@@ -410,15 +459,6 @@ export default function Map() {
     handleMarkerPress_sec(loc);
   };
 
-  if (!location) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#0000ff" />
-        <Text>正在獲取您的位置...</Text>
-      </View>
-    );
-  }
-
   const recenterMap = () => {
     const locationToCenter = navUserLocation || location;
 
@@ -507,6 +547,9 @@ export default function Map() {
           setSelectedPoiType(null);
           setCalloutVisible(null);
           clearPlaces();
+          handleCancelRouteSelection();
+          setDestinationString(null);
+
         }
         }>
           <MaterialIcons name="warning" size={22} color="black" />
@@ -547,14 +590,9 @@ export default function Map() {
       <MapView
         ref={mapRef}
         style={styles.map}
-        initialRegion={{
-          latitude: location.coords.latitude,
-          longitude: location.coords.longitude,
-          latitudeDelta: 0.01,
-          longitudeDelta: 0.01,
-        }}
+        initialRegion={initialMapRegion}
         // showsUserLocation={false} 
-        showsUserLocation={true}
+        showsUserLocation={false}
         mapType="standard"
         showsCompass={true}
         compassOffset={{ x: -8, y: 50 }}
@@ -585,15 +623,14 @@ export default function Map() {
           }
         }}
       >
-
-        {/* {(location || navUserLocation) && (
+        {/* Custom User Location Marker */}
+        {(location || navUserLocation) && (
           <Marker
-            coordinate={isSimulating ? location!.coords : (navUserLocation || location)!.coords}
-            title="My Location"
-            pinColor="blue"
-            tracksViewChanges={isSimulating}
+            coordinate={(isNavigating && navUserLocation) ? navUserLocation.coords : location!.coords}
+            title="Test Location (Taipei)"
+            pinColor="purple"
           />
-        )} */}
+        )}
 
 
         {nearestSafeSpotData && showNearestSafeSpotCard && (
