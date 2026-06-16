@@ -85,6 +85,13 @@ service cloud.firestore {
       );
     }
 
+    // Unique username registry — any auth user can read (for search), only the owning uid can claim/modify
+    match /usernames/{username} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.uid == request.auth.uid;
+      allow update, delete: if isAuthenticated() && resource.data.uid == request.auth.uid;
+    }
+
     // Location sharing sessions
     // TODO: Restrict to session participants once the data model is confirmed
     match /active_sharing_sessions/{docId} {

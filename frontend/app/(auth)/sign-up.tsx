@@ -6,7 +6,7 @@ import {
   User as FirebaseUser,
 } from 'firebase/auth';
 import { auth, db } from '@/libs/firebase'
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp, runTransaction, getDoc } from 'firebase/firestore';
 import { router, Stack } from 'expo-router';
 import { AntDesign } from '@expo/vector-icons'
 import { FirebaseError } from 'firebase/app';
@@ -17,6 +17,19 @@ export default function SignUp() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [username, setUsername] = useState('');
+  const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
+  const [usernameChecking, setUsernameChecking] = useState(false);
+
+  const checkUsername = async (name: string) => {
+    if (!name || !/^[a-zA-Z0-9_]{3,20}$/.test(name)) {
+      setUsernameAvailable(null);
+      return;
+    }
+    setUsernameChecking(true);
+    const snap = await getDoc(doc(db, 'usernames', name.toLowerCase()));
+    setUsernameAvailable(!snap.exists());
+    setUsernameChecking(false);
+  };
 
   const handleSignUp = async () => {
     if (!email || !password || !username || !confirmPassword) {
@@ -27,17 +40,42 @@ export default function SignUp() {
       Alert.alert('錯誤', '密碼與確認密碼不符');
       return;
     }
+    if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
+      Alert.alert('使用者名稱格式錯誤', '名稱須為 3–20 個字元，只能包含英文、數字與底線。');
+      return;
+    }
+    if (usernameAvailable === false) {
+      Alert.alert('註冊失敗', '此使用者名稱已被使用，請選擇其他名稱。');
+      return;
+    }
 
     setLoading(true)
+    let cred;
     try {
       // 1) 建帳號
-      const cred = await createUserWithEmailAndPassword(auth, email, password);
+      cred = await createUserWithEmailAndPassword(auth, email, password);
       const user: FirebaseUser = cred.user;
 
-      // 2) 在 Auth Profile 加上 displayName
+      // 2) 原子性地佔用使用者名稱（防止同時註冊相同名稱的競爭條件）
+      const usernameKey = username.toLowerCase();
+      try {
+        await runTransaction(db, async (transaction) => {
+          const usernameRef = doc(db, 'usernames', usernameKey);
+          const snap = await transaction.get(usernameRef);
+          if (snap.exists()) throw new Error('USERNAME_TAKEN');
+          transaction.set(usernameRef, { uid: user.uid });
+        });
+      } catch (e: any) {
+        await user.delete();
+        Alert.alert('註冊失敗', '此使用者名稱已被使用，請選擇其他名稱。');
+        setLoading(false);
+        return;
+      }
+
+      // 3) 在 Auth Profile 加上 displayName
       await updateProfile(user, { displayName: username });
 
-      // 3) 組出你的完整 User Schema
+      // 4) 組出你的完整 User Schema
       const userDoc = {
         uid: user.uid,
         phone: '',                // 如果有電話，可傳入
@@ -135,11 +173,21 @@ export default function SignUp() {
                 style={styles.input}
                 placeholder="使用者名稱"
                 value={username}
-                onChangeText={setUsername}
+                onChangeText={(text) => { setUsername(text); setUsernameAvailable(null); }}
+                onBlur={() => checkUsername(username)}
                 autoCapitalize="none"
                 placeholderTextColor="#A9A9A9"
               />
             </View>
+            {usernameChecking && (
+              <Text style={styles.usernameHint}>檢查中…</Text>
+            )}
+            {!usernameChecking && usernameAvailable === true && (
+              <Text style={[styles.usernameHint, { color: '#4CAF50' }]}>✓ 此名稱可以使用</Text>
+            )}
+            {!usernameChecking && usernameAvailable === false && (
+              <Text style={[styles.usernameHint, { color: '#EF4444' }]}>✗ 此名稱已被使用</Text>
+            )}
 
             <View style={styles.inputWrapper}>
               <TextInput
@@ -235,8 +283,15 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 4 },
         elevation: 5,
     },
-    buttonDisabled: { 
-        opacity: 0.6 
+    buttonDisabled: {
+        opacity: 0.6
+    },
+    usernameHint: {
+        fontSize: 12,
+        color: '#A9A9A9',
+        marginTop: -14,
+        marginBottom: 12,
+        paddingHorizontal: 8,
     },
     buttonText: {
         color: '#fff',
