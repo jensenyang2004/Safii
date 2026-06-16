@@ -8,3 +8,11 @@ typings/
 # Node.js dependency directory
 node_modules/
 *.local
+
+# Service account keys — never commit these
+*service-account*.json
+*serviceAccount*.json
+*firebase-adminsdk*.json
+
+# One-time scripts with embedded credentials
+backfillUsernames.js
