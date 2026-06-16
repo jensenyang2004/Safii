@@ -5,8 +5,8 @@ import { ActivityIndicator, View, Text, Pressable, Alert, StyleSheet, FlatList, 
 import { useState } from 'react';
 import { router } from 'expo-router';
 import { useAuth } from '@/context/AuthProvider';
-import { updateProfile } from 'firebase/auth';
-import { doc, updateDoc } from 'firebase/firestore';
+import { updateProfile, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
+import { doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { auth, db } from '@/libs/firebase';
 import { FontAwesome5 } from '@expo/vector-icons';
 import '@/global.css';
@@ -70,12 +70,61 @@ function ContactAvatarStack({ contactIds, friends }: {
 const DAY_SHORT = ['日', '一', '二', '三', '四', '五', '六'];
 
 export default function HomeScreen() {
-  const { user, fetchUserInfo } = useAuth();
+  const { user, fetchUserInfo, signOut } = useAuth();
   const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<'tracking' | 'sharing'>('tracking');
   const [editingName, setEditingName] = useState(false);
   const [newDisplayName, setNewDisplayName] = useState('');
   const [savingName, setSavingName] = useState(false);
+
+  const [deleting, setDeleting] = useState(false);
+
+  const doDelete = async () => {
+    setDeleting(true);
+    try {
+      const uid = user!.uid;
+      if (user?.username) await deleteDoc(doc(db, 'usernames', user.username.toLowerCase()));
+      await deleteDoc(doc(db, 'users', uid));
+      await auth.currentUser!.delete();
+      signOut();
+    } catch (err: any) {
+      setDeleting(false);
+      if (err.code === 'auth/requires-recent-login') {
+        Alert.prompt(
+          '請重新驗證',
+          '為了安全，請輸入您的密碼以確認刪除帳號。',
+          async (password) => {
+            if (!password) return;
+            try {
+              const credential = EmailAuthProvider.credential(user!.email!, password);
+              await reauthenticateWithCredential(auth.currentUser!, credential);
+              const uid = user!.uid;
+              if (user?.username) await deleteDoc(doc(db, 'usernames', user.username.toLowerCase()));
+              await deleteDoc(doc(db, 'users', uid));
+              await auth.currentUser!.delete();
+              signOut();
+            } catch {
+              Alert.alert('刪除失敗', '密碼錯誤，請稍後再試。');
+            }
+          },
+          'secure-text'
+        );
+      } else {
+        Alert.alert('刪除失敗', '請稍後再試。');
+      }
+    }
+  };
+
+  const confirmDeleteAccount = () => {
+    Alert.alert(
+      '刪除帳號',
+      '此動作無法復原。您的帳號與所有資料將被永久刪除。',
+      [
+        { text: '取消', style: 'cancel' },
+        { text: '確認刪除', style: 'destructive', onPress: doDelete },
+      ]
+    );
+  };
 
   const saveDisplayName = async () => {
     const trimmed = newDisplayName.trim();
@@ -364,11 +413,16 @@ export default function HomeScreen() {
         }}
       />)}
 
-      {/* {loading ? (
-        <ActivityIndicator size="large" color={Theme.colors.actionOrange} />
-      ) : (
-        
-      )} */}
+      <TouchableOpacity
+        style={[homeStyles.deleteAccountButton, deleting && { opacity: 0.5 }]}
+        onPress={confirmDeleteAccount}
+        disabled={deleting}
+      >
+        {deleting
+          ? <ActivityIndicator color="#EF4444" />
+          : <Text style={homeStyles.deleteAccountText}>刪除帳號</Text>
+        }
+      </TouchableOpacity>
     </SafeAreaView>
 
   );
@@ -749,6 +803,21 @@ const homeStyles = StyleSheet.create({
     fontSize: 12,
   },
 
+  deleteAccountButton: {
+    marginHorizontal: 32,
+    marginBottom: 100,
+    marginTop: 8,
+    paddingVertical: 14,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: '#EF4444',
+    alignItems: 'center',
+  },
+  deleteAccountText: {
+    color: '#EF4444',
+    fontSize: 15,
+    fontWeight: '600',
+  },
   activeBanner: {
     flexDirection: 'row',
     alignItems: 'center',
