@@ -359,11 +359,9 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
           }
         }
 
-        // Check if info sent (dead man switch triggered)
-        const finalEvent = timeline[timeline.length - 1];
         const isInfoSent = finalEvent ? now > finalEvent.time : false;
 
-        dispatch({ 
+        dispatch({
           type: 'RECONCILE_STATE', 
           payload: {
             isTracking: true,
@@ -388,7 +386,7 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
     } finally {
       isReconciling.current = false;
     }
-  }, []); // Dependencies should be empty or minimal
+  };
 
   // Initial load
   useEffect(() => {

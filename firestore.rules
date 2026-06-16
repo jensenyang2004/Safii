@@ -3,17 +3,92 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // This rule allows anyone with your Firestore database reference to view, edit,
-    // and delete all data in your Firestore database. It is useful for getting
-    // started, but it is configured to expire after 30 days because it
-    // leaves your app open to attackers. At that time, all client
-    // requests to your Firestore database will be denied.
-    //
-    // Make sure to write security rules for your app before that time, or else
-    // all client requests to your Firestore database will be denied until you Update
-    // your rules
-    match /{document=**} {
-      allow read, write: if request.time < timestamp.date(2026, 11, 22);
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+
+    function isFriendOf(userId) {
+      return exists(/databases/$(database)/documents/users/$(userId)/friends/$(request.auth.uid));
+    }
+
+    // User profiles: any signed-in user can read (needed for friend search/display), owner writes
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isOwner(userId);
+
+      // Friends list: owner only
+      match /friends/{friendId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // Real-time location: owner writes, friends can read
+      match /real_time_location/{doc} {
+        allow write: if isOwner(userId);
+        allow read: if isOwner(userId) || isFriendOf(userId);
+      }
+
+      // Location history: owner writes, friends can read
+      match /location_history/{doc} {
+        allow write: if isOwner(userId);
+        allow read: if isOwner(userId) || isFriendOf(userId);
+      }
+    }
+
+    // ID tokens — owner only
+    // Note: storing Firebase ID tokens in Firestore is a security risk; consider removing this collection
+    match /tokens/{userId} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // Friend requests: sender or receiver can read/update, only sender creates
+    match /friendRequests/{requestId} {
+      allow read, update, delete: if isAuthenticated() && (
+        resource.data.from == request.auth.uid ||
+        resource.data.to == request.auth.uid
+      );
+      allow create: if isAuthenticated() && request.resource.data.from == request.auth.uid;
+    }
+
+    // Tracking modes
+    match /scheduled_tracking/{docId} {
+      allow read, update, delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+    }
+
+    // Tracking modes (legacy collection name — consolidate when possible)
+    match /TrackingMode/{docId} {
+      allow read, update, delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+    }
+
+    // Manual tracking sessions: owner writes, owner or emergency contacts read
+    match /manual_tracking/{docId} {
+      allow create: if isAuthenticated() && request.resource.data.trackedUserId == request.auth.uid;
+      allow update: if isAuthenticated() && resource.data.trackedUserId == request.auth.uid;
+      allow read: if isAuthenticated() && (
+        resource.data.trackedUserId == request.auth.uid ||
+        request.auth.uid in resource.data.emergencyContactIds
+      );
+    }
+
+    // Scheduled tracking sessions: owner writes, owner or emergency contacts read
+    match /active_tracking/{docId} {
+      allow create: if isAuthenticated() && request.resource.data.trackedUserId == request.auth.uid;
+      allow update: if isAuthenticated() && resource.data.trackedUserId == request.auth.uid;
+      allow read: if isAuthenticated() && (
+        resource.data.trackedUserId == request.auth.uid ||
+        request.auth.uid in resource.data.emergencyContactIds
+      );
+    }
+
+    // Location sharing sessions
+    // TODO: Restrict to session participants once the data model is confirmed
+    match /active_sharing_sessions/{docId} {
+      allow read, create, update: if isAuthenticated();
     }
   }
 }
