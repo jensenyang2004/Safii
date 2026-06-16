@@ -2,7 +2,7 @@
 
 import { auth, db } from '@/libs/firebase';
 import { router } from 'expo-router';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { doc, setDoc, Timestamp } from 'firebase/firestore';
 import React, { useState } from 'react';
 import { View, Text, TextInput, StyleSheet, Alert, TouchableOpacity, TouchableWithoutFeedback, Keyboard } from 'react-native';
@@ -11,6 +11,25 @@ import { FirebaseError } from 'firebase/app';
 const SignInScreen = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+
+  const handleForgotPassword = async () => {
+    if (!email) {
+      Alert.alert('請輸入電子郵件', '請先填入您的電子郵件，再點擊忘記密碼。');
+      return;
+    }
+    try {
+      await sendPasswordResetEmail(auth, email);
+      Alert.alert('已寄出重設連結', `重設密碼的連結已寄送至 ${email}，請檢查您的收件匣。`);
+    } catch (err) {
+      if (err instanceof FirebaseError) {
+        if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-email') {
+          Alert.alert('找不到帳號', '查無此電子郵件對應的帳號。');
+        } else {
+          Alert.alert('發送失敗', '請稍後再試。');
+        }
+      }
+    }
+  };
 
   const submit = async () => {
     if (!email || !password) {
@@ -80,6 +99,10 @@ const SignInScreen = () => {
           />
         </View>
 
+        <TouchableOpacity style={styles.forgotButton} onPress={handleForgotPassword}>
+          <Text style={styles.forgotButtonText}>忘記密碼？</Text>
+        </TouchableOpacity>
+
         <TouchableOpacity style={styles.button} onPress={submit}>
           <Text style={styles.buttonText}>登入</Text>
         </TouchableOpacity>
@@ -138,6 +161,16 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 18,
+  },
+  forgotButton: {
+    alignSelf: 'flex-end',
+    marginTop: -8,
+    marginBottom: 16,
+    paddingVertical: 4,
+  },
+  forgotButtonText: {
+    color: '#A9A9A9',
+    fontSize: 14,
   },
   secondaryButton: {
     marginTop: 24,
