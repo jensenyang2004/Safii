@@ -3,8 +3,9 @@ import { View, Pressable, Text, Image, StyleSheet, ActivityIndicator, Alert, Mod
 import * as Theme from '@/constants/Theme';
 import * as ImagePicker from 'expo-image-picker';
 import { storage, db, auth } from '@/libs/firebase';
-import { ref, uploadBytesResumable, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { doc, updateDoc } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
 import { useAuth } from '@/context/AuthProvider';
 import { FontAwesome } from '@expo/vector-icons';
 import { uiParameters } from '@/constants/Theme';
@@ -13,6 +14,55 @@ export default function ProfilePhotoUploader() {
     const { user, fetchUserInfo, signOut } = useAuth();
     const [uploading, setUploading] = useState(false);
     const [showOptions, setShowOptions] = useState(false);
+    const [deleting, setDeleting] = useState(false);
+
+    const doDeleteAccount = async () => {
+        setDeleting(true);
+        try {
+            if (user?.username) await deleteDoc(doc(db, 'usernames', user.username.toLowerCase()));
+            await deleteDoc(doc(db, 'users', user!.uid));
+            await auth.currentUser!.delete();
+            signOut();
+        } catch (err: any) {
+            setDeleting(false);
+            if (err.code === 'auth/requires-recent-login') {
+                Alert.prompt(
+                    '請重新驗證',
+                    '為了安全，請輸入您的密碼以確認刪除帳號。',
+                    async (password) => {
+                        if (!password) return;
+                        try {
+                            const credential = EmailAuthProvider.credential(user!.email!, password);
+                            await reauthenticateWithCredential(auth.currentUser!, credential);
+                            if (user?.username) await deleteDoc(doc(db, 'usernames', user.username.toLowerCase()));
+                            await deleteDoc(doc(db, 'users', user!.uid));
+                            await auth.currentUser!.delete();
+                            signOut();
+                        } catch {
+                            Alert.alert('刪除失敗', '密碼錯誤，請稍後再試。');
+                        }
+                    },
+                    'secure-text'
+                );
+            } else {
+                Alert.alert('刪除失敗', '請稍後再試。');
+            }
+        }
+    };
+
+    const confirmDeleteAccount = () => {
+        setShowOptions(false);
+        setTimeout(() => {
+            Alert.alert(
+                '刪除帳號',
+                '此動作無法復原。您的帳號與所有資料將被永久刪除。',
+                [
+                    { text: '取消', style: 'cancel' },
+                    { text: '確認刪除', style: 'destructive', onPress: doDeleteAccount },
+                ]
+            );
+        }, 300);
+    };
 
     const pickImage = async () => {
         try {
@@ -145,6 +195,10 @@ export default function ProfilePhotoUploader() {
                                 <TouchableOpacity style={[styles.modalButton, styles.modalCancel]} onPress={async () => { setShowOptions(false); await signOut(); }}>
                                     <FontAwesome name="sign-out" size={20} color="#EF4444" />
                                     <Text style={[styles.modalButtonText, { color: '#EF4444' }]}>登出</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity style={[styles.modalButton, styles.modalCancel]} onPress={confirmDeleteAccount} disabled={deleting}>
+                                    <FontAwesome name="trash" size={20} color="#EF4444" />
+                                    <Text style={[styles.modalButtonText, { color: '#EF4444' }]}>刪除帳號</Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity style={[styles.modalButton, styles.modalCancel]} onPress={() => setShowOptions(false)}>
                                     <Text style={[styles.modalButtonText, { color: '#374151' }]}>取消</Text>
