@@ -3,18 +3,15 @@ import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import ReactNativeAsyncStorage from '@react-native-async-storage/async-storage';
 import { initializeAuth, getReactNativePersistence } from "firebase/auth"
-import Constants from "expo-constants";
-
-
 // TODO: Add SDKs for Firebase products that you want to use
 // https://firebase.google.com/docs/web/setup#available-libraries
 
 const firebaseConfig = {
-  apiKey: Constants.expoConfig?.extra?.FIREBASE_API_KEY as string,
+  apiKey: "AIzaSyCt4q2bLfRKWpav_IYnVeUlMbhnLWJJY8Q",
   authDomain: "safii-90f1d.firebaseapp.com",
   projectId: "safii-90f1d",
   // storageBucket: "safii-90f1d.firebasestorage.app",
-  storageBucket: "safii-90f1d.appspot.com",
+  storageBucket: "safii-90f1d.firebasestorage.app",
   messagingSenderId: "500399645906",
   appId: "1:500399645906:web:f74fa7b73f7e4f1b7db90b",
   measurementId: "G-DEC81ZMGL7"

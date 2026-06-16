@@ -213,6 +213,71 @@ defineTask(BACKGROUND_LOCATION_TASK,
     }
   });
 
+// --- Module-level Storage Helpers ---
+const TrackingStorage = {
+  saveReportDeadline: (deadline: number) =>
+    AsyncStorage.setItem(STORAGE_KEYS.REPORT_DEADLINE, deadline.toString()),
+  setTrackingActive: (active: boolean) =>
+    AsyncStorage.setItem(STORAGE_KEYS.IS_ACTIVE, active.toString()),
+  saveCurrentStrike: (strike: number) =>
+    AsyncStorage.setItem(STORAGE_KEYS.CURRENT_STRIKE, strike.toString()),
+  clearReportDeadline: () =>
+    AsyncStorage.removeItem(STORAGE_KEYS.REPORT_DEADLINE),
+  getNotificationIds: async (): Promise<string[]> => {
+    const str = await AsyncStorage.getItem(STORAGE_KEYS.NOTIFICATION_IDS);
+    return str ? JSON.parse(str) : [];
+  },
+};
+
+// --- Module-level Notification Helpers ---
+const TrackingNotifications = {
+  configureNotifications: async () => {
+    if (Platform.OS === 'android') {
+      await Notifications.setNotificationChannelAsync('tracking', {
+        name: 'Safety Tracking',
+        importance: Notifications.AndroidImportance.HIGH,
+        sound: 'default',
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#FF231F7C',
+      });
+    }
+  },
+  cancelAllNotifications: async (ids: string[]) => {
+    for (const id of ids) {
+      await Notifications.cancelScheduledNotificationAsync(id).catch(() => {});
+    }
+  },
+};
+
+// --- Module-level Location Helpers ---
+const TrackingLocation = {
+  startBackgroundLocationUpdates: async () => {
+    await Location.startLocationUpdatesAsync(BACKGROUND_LOCATION_TASK, {
+      accuracy: Location.Accuracy.High,
+      timeInterval: 30000,
+      distanceInterval: 50,
+      showsBackgroundLocationIndicator: true,
+      foregroundService: {
+        notificationTitle: 'Safii 安全追蹤',
+        notificationBody: '正在追蹤您的位置',
+      },
+    });
+  },
+  startForegroundLocationWatcher: (
+    userId: string
+  ): Promise<Location.LocationSubscription> => {
+    return Location.watchPositionAsync(
+      { accuracy: Location.Accuracy.Balanced, timeInterval: 30000, distanceInterval: 50 },
+      (loc) => updateLocationInFirestore(loc, userId)
+    );
+  },
+  stopBackgroundLocationUpdates: async () => {
+    if (await Location.hasStartedLocationUpdatesAsync(BACKGROUND_LOCATION_TASK)) {
+      await Location.stopLocationUpdatesAsync(BACKGROUND_LOCATION_TASK).catch(() => {});
+    }
+  },
+};
+
 type TrackingMode = {
   id: string;
   name: string;
@@ -251,6 +316,7 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
   const [justReportedSafety, setJustReportedSafety] = useState<boolean>(false);
   const [sessionType, setSessionType] = useState<'manual' | 'schedule' | null>(null);
   const [foregroundWatcher, setForegroundWatcher] = useState<Location.LocationSubscription | null>(null); // ADDED
+  const isReconciling = useRef(false);
 
   useEffect(() => {
     const init = async () => {
@@ -359,26 +425,19 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
           }
         }
 
-        const isInfoSent = finalEvent ? now > finalEvent.time : false;
+        const nextCI = timeline.find(e => e.type === 'session_end' && e.time > now)?.time || null;
+        setNextCheckInTime(nextCI);
 
-        dispatch({
-          type: 'RECONCILE_STATE', 
-          payload: {
-            isTracking: true,
-            timeline,
-            trackingModeId: modeId,
-            currentStrike: currentStrikeCount,
-            isReportDue,
-            reportDeadline,
-            isInfoSent,
-            nextCheckInTime: timeline.find(e => e.type === 'session_end' && e.time > now)?.time || null
-          }
-        });
-        
         console.log('✅ State Reconciled. Strike:', currentStrikeCount);
       } else {
-        // Not active
-        dispatch({ type: 'STOP_SESSION' });
+        // Not active — reset to clean state
+        setIsTracking(false);
+        setTrackingModeId(null);
+        setTimeline([]);
+        setCurrentStrike(0);
+        setIsReportDue(false);
+        setReportDeadline(null);
+        setNextCheckInTime(null);
       }
     } catch (error) {
       console.error('❌ Error reconciling state:', error);
@@ -428,7 +487,6 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
   // --- Foreground Timer for UI Updates ---
   useEffect(() => {
     let interval: NodeJS.Timeout;
-    const { isTracking, isReportDue, nextCheckInTime, reportDeadline, timeline } = state;
 
     if (isTracking && !isReportDue && nextCheckInTime) {
       interval = setInterval(() => {
@@ -660,11 +718,6 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
           [{ text: '了解' }]
         );
       }
-
-      dispatch({ 
-        type: 'START_SESSION', 
-        payload: { modeId, timeline, startTime } 
-      });
 
     } catch (error) {
       console.error('❌ Error starting tracking:', error);
