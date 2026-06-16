@@ -18,7 +18,7 @@ import {
 
 // 直接使用 Image 组件，不需要导入 SVG
 import Constants from "expo-constants";
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, use } from 'react';
 import MapView, { Marker, Polyline, Callout } from 'react-native-maps';
 import * as Location from 'expo-location';
 import TrackModeCard from '@/components/Tracking/track_base';
@@ -26,10 +26,12 @@ import Card_ongoing from '@/components/Tracking/track_ongoning';
 import ReportSafetyCard from '@/components/Tracking/ReportSafetyCard';
 import MapCarousel from '@/components/Map/carousel';
 import { useTracking } from '@/context/TrackProvider';
+import { useScheduledTracking } from '@/context/ScheduledTrackingContext';
+import { useFriends } from '@/context/FriendProvider';
 
 // Hooks and APIs
 import { useEmergencyListener } from '@/hooks/useEmergencyListener';
-import { useFriendSharing } from '@/hooks/useFriendSharing';
+import { useLocationSharing } from '@/hooks/useLocationSharing';
 import { useRoutePlanner } from '@/apis/useRoutePlanner';
 import { useNearbyPlaces, PlaceInfo } from '@/apis/useNearbyPlaces';
 import { usePoiFilter } from '@/hooks/usePoiFilter';
@@ -53,23 +55,29 @@ import LocationCard from '@/components/Map/LocationCard';
 import NavigationInstructionsCard from '@/components/Map/NavigationInstructionsCard';
 import Theme from '@/constants/Theme';
 
+import * as Notifications from 'expo-notifications';
+import { useLocalSearchParams } from 'expo-router';
+
 const GOOGLE_MAPS_API_KEY = Constants.expoConfig?.extra?.GOOGLE_MAPS_API_KEY;
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 export default function Map() {
-  const [location, setLocation] = useState<Location.LocationObject | null>({
-    coords: {
-      latitude: 25.0330,
-      longitude: 121.5654,
-      accuracy: 5,
-      altitude: 0,
-      heading: 0,
-      speed: 0,
-      altitudeAccuracy: 0,
-    },
-    timestamp: Date.now(),
-  });
+  const [location, setLocation] = useState<Location.LocationObject | null>(null);
+  // test location: Taipei 101
+  // const [location, setLocation] = useState<Location.LocationObject | null>({
+  //   coords: {
+  //     latitude: 25.0330,
+  //     longitude: 121.5654,
+  //     accuracy: 5,
+  //     altitude: 0,
+  //     heading: 0,
+  //     speed: 0,
+  //     altitudeAccuracy: 0,
+  //   },
+  //   timestamp: Date.now(),
+  // });
   const [isFollowingUser, setIsFollowingUser] = useState(true);
+  const [followingContactSessionId, setFollowingContactSessionId] = useState<string | null>(null);
   const [initialMapRegion, setInitialMapRegion] = useState({
     latitude: 25.0330,
     longitude: 121.5654,
@@ -77,21 +85,32 @@ export default function Map() {
     longitudeDelta: 0.05,
   });
 
-  const { trackingModes, isTracking, trackingModeId, isReportDue, isInfoSent, stopTrackingMode } = useTracking();
+  const { trackingModes, isTracking, trackingModeId, isReportDue, isInfoSent, reportSafety, stopTrackingMode } = useTracking();
   const activeMode = trackingModes.find(mode => mode.id === trackingModeId);
+  const { schedules } = useScheduledTracking();
+  const { friends } = useFriends();
   const { emergencyData: emergencies } = useEmergencyListener();
-  const { sharedByFriends } = useFriendSharing();
+  const { sharedByFriends } = useLocationSharing();
   // const [showToolCard, setShowToolCard] = useState(false);
+
   const [selectedEmergency, setSelectedEmergency] = useState<EmergencyData | null>(null);
+
   // const [bottomComponentHeight, setBottomComponentHeight] = useState(0);
   const [showLocationSentCard, setShowLocationSentCard] = useState(false);
+
+  useEffect(() => {
+    if (isInfoSent) {
+      setShowLocationSentCard(true);
+    }
+    console.log("🙈🙈🙈 isInfoSent changed:", isInfoSent);
+  }, [isInfoSent]);
 
   const tabBarHeight = screenHeight * 0.09;
 
   const mapRef = useRef<MapView>(null);
 
   const [selectedPoiType, setSelectedPoiType] = useState<'police' | 'store' | null>(null);
-  const [selectedPoi, setSelectedPoi] = useState<POI | null>(null);
+  // const [selectedPoi, setSelectedPoi] = useState<POI | null>(null);
   const [calloutVisible, setCalloutVisible] = useState<string | null>(null);
 
   const [selectedLocation, setSelectedLocation] = useState<{
@@ -136,6 +155,7 @@ export default function Map() {
   const scaleAnimation = useRef(new Animated.Value(1)).current;
 
   const [mapCarouselHeight, setMapCarouselHeight] = useState(0);
+  const [visibleCardId, setVisibleCardId] = useState<string>('sharing-sessions');
   const routeSheetAnimation = useRef(new Animated.Value(0)).current;
   const [isSearchActive, setIsSearchActive] = useState(false);
 
@@ -189,15 +209,12 @@ export default function Map() {
 
   let currentContentHeight = 0;
 
-  if (showLocationCard && selectedLocationInfo) {
-    currentContentHeight = LOCATION_CARD_HEIGHT;
-  } else if (showFindSafeSpotCard || showNearestSafeSpotCard) {
+  // showLocationCard excluded: LocationCard is commented out, so its height should not lift the carousel
+  if (showFindSafeSpotCard || showNearestSafeSpotCard) {
     currentContentHeight = LOCATION_CARD_HEIGHT;
   } else if ((destinationInfo && showDestinationCard)) {
     currentContentHeight = LOCATION_CARD_HEIGHT;
   } else if (routes.length > 0 && !isNavigating) {
-    console.log("Displaying Route Carousel:", routes.length, "routes available");
-    console.log("Current selectedRoute:", isNavigating);
     currentContentHeight = ROUTE_CAROUSEL_HEIGHT;
   } else if (isNavigating) {
     currentContentHeight = END_NAVIGATION_BUTTON_HEIGHT;
@@ -241,89 +258,143 @@ export default function Map() {
     return 14; // Highway speed, zoomed out
   };
 
-  // useEffect(() => {
-
-  //   const shouldAnimate = isNavigating || isFollowingUser;
-  //   if (!shouldAnimate) return;
-
-  //   console.log("Camera useEffect triggered. isNavigating:", isNavigating, "isFollowingUser:", isFollowingUser, "location:", location?.coords.latitude, location?.coords.longitude);
-  //   const locationToAnimate = isNavigating ? navUserLocation : location;
-  //   // 如果正在導航，或者使用者開啟了跟隨模式
-  //   if (locationToAnimate && (isNavigating || isFollowingUser)) {
-  //     mapRef.current?.animateCamera({
-  //       center: locationToAnimate.coords,
-  //       // 如果是導航模式，可能還要調整 pitch 和 heading
-  //       heading: isNavigating ? locationToAnimate.coords.heading ?? 0 : 0,
-  //       pitch: isNavigating ? 45 : 0,
-  //       zoom: isNavigating ? getDynamicZoom(locationToAnimate.coords.speed) : 15,
-  //     }, { duration: 500 });
-  //   }
-  // }, [location, navUserLocation, isNavigating, isFollowingUser]);
-
-  // Simulate moving location when navigating
-  
   useEffect(() => {
-    let simulationInterval: NodeJS.Timeout | null = null;
+    let subscription: Location.LocationSubscription | null = null;
 
-    if (isNavigating) {
-      // Initialize location to Taipei when navigation starts
-      setLocation({
-        coords: {
-          latitude: 25.0330,
-          longitude: 121.5654,
-          accuracy: 5,
-          altitude: 0,
-          heading: 0,
-          speed: 5, // Simulate some speed
-          altitudeAccuracy: 0,
-        },
-        timestamp: Date.now(),
-      });
-
-      simulationInterval = setInterval(() => {
-        setLocation(prevLocation => {
-          if (!prevLocation) return null;
-
-          // Simulate movement (e.g., move slightly north-east)
-          const newCoords = {
-            ...prevLocation.coords,
-            latitude: prevLocation.coords.latitude + 0.00005, // Small step
-            longitude: prevLocation.coords.longitude + 0.00005, // Small step
-            heading: (prevLocation.coords.heading + 5) % 360, // Simulate turning
-          };
-
-          return {
-            ...prevLocation,
-            coords: newCoords,
-            timestamp: Date.now(),
-          };
-        });
-      }, 1000); // Update every 1 second
-    } else {
-      // Clear interval and reset location to fixed Taipei when not navigating
-      if (simulationInterval) {
-        clearInterval(simulationInterval);
+    (async () => {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('權限不足', '請開啟定位權限以使用地圖功能');
+        return;
       }
-      setLocation({ // Reset to fixed Taipei
-        coords: {
-          latitude: 25.0330,
-          longitude: 121.5654,
-          accuracy: 5,
-          altitude: 0,
-          heading: 0,
-          speed: 0,
-          altitudeAccuracy: 0,
+
+      let initialLocation = await Location.getCurrentPositionAsync({});
+      setLocation(initialLocation);
+
+      subscription = await Location.watchPositionAsync(
+        {
+          accuracy: Location.Accuracy.High,
+          timeInterval: 5000,
+          distanceInterval: 10,
         },
-        timestamp: Date.now(),
-      });
-    }
+        (newLocation) => {
+          setLocation(newLocation);
+        }
+      );
+    })();
 
     return () => {
-      if (simulationInterval) {
-        clearInterval(simulationInterval);
-      }
+      subscription?.remove();
     };
-  }, [isNavigating]);
+  }, []);
+
+  useEffect(() => {
+    const shouldAnimate = isNavigating || isFollowingUser;
+    if (!shouldAnimate) return;
+
+    const locationToAnimate = isNavigating ? navUserLocation : location;
+    if (!locationToAnimate) return;
+
+    if (isNavigating) {
+      const rawHeading = locationToAnimate.coords.heading;   
+      const appliedHeading = (rawHeading != null && rawHeading >= 0) ? rawHeading : 0     
+      console.log(`📷 📷 📷 [Camera] raw heading: ${rawHeading}, applied heading: ${appliedHeading}, speed: ${locationToAnimate.coords.speed}`);
+      mapRef.current?.animateCamera({
+        center: locationToAnimate.coords,
+        // heading: locationToAnimate.coords.heading ?? 0,
+        heading: (locationToAnimate.coords.heading != null && locationToAnimate.coords.heading >= 0)
+          ? locationToAnimate.coords.heading
+          : 0,
+        pitch: 30,
+        zoom: 18,
+        // zoom: getDynamicZoom(locationToAnimate.coords.speed),
+      }, { duration: 500 });
+    } else {
+      mapRef.current?.animateCamera({
+        center: {
+          latitude: locationToAnimate.coords.latitude,
+          longitude: locationToAnimate.coords.longitude,
+        },
+      }, { duration: 500 });
+    }
+  }, [location, navUserLocation, isNavigating, isFollowingUser]);
+
+  // Follow a contact's moving location on the map
+  useEffect(() => {
+    if (!followingContactSessionId || isFollowingUser || isNavigating) return;
+    const contact = sharedByFriends.find(f => f.sessionId === followingContactSessionId);
+    if (!contact) return;
+    mapRef.current?.animateToRegion({
+      latitude: contact.lat,
+      longitude: contact.long,
+      latitudeDelta: 0.01,
+      longitudeDelta: 0.01,
+    }, 500);
+  }, [sharedByFriends, followingContactSessionId]);
+
+  // Simulate moving location when navigating
+  // useEffect(() => {
+  //   let simulationInterval: NodeJS.Timeout | null = null;
+
+  //   if (isNavigating) {
+  //     // Initialize location to Taipei when navigation starts
+  //     setLocation({
+  //       coords: {
+  //         latitude: 25.0330,
+  //         longitude: 121.5654,
+  //         accuracy: 5,
+  //         altitude: 0,
+  //         heading: 0,
+  //         speed: 5, // Simulate some speed
+  //         altitudeAccuracy: 0,
+  //       },
+  //       timestamp: Date.now(),
+  //     });
+
+  //     simulationInterval = setInterval(() => {
+  //       setLocation(prevLocation => {
+  //         if (!prevLocation) return null;
+
+  //         // Simulate movement (e.g., move slightly north-east)
+  //         const newCoords = {
+  //           ...prevLocation.coords,
+  //           latitude: prevLocation.coords.latitude + 0.00005, // Small step
+  //           longitude: prevLocation.coords.longitude + 0.00005, // Small step
+  //           heading: (prevLocation.coords.heading + 5) % 360, // Simulate turning
+  //         };
+
+  //         return {
+  //           ...prevLocation,
+  //           coords: newCoords,
+  //           timestamp: Date.now(),
+  //         };
+  //       });
+  //     }, 1000); // Update every 1 second
+  //   } else {
+  //     // Clear interval and reset location to fixed Taipei when not navigating
+  //     if (simulationInterval) {
+  //       clearInterval(simulationInterval);
+  //     }
+  //     setLocation({ // Reset to fixed Taipei
+  //       coords: {
+  //         latitude: 25.0330,
+  //         longitude: 121.5654,
+  //         accuracy: 5,
+  //         altitude: 0,
+  //         heading: 0,
+  //         speed: 0,
+  //         altitudeAccuracy: 0,
+  //       },
+  //       timestamp: Date.now(),
+  //     });
+  //   }
+
+  //   return () => {
+  //     if (simulationInterval) {
+  //       clearInterval(simulationInterval);
+  //     }
+  //   };
+  // }, [isNavigating]);
 
   useEffect(() => {
     if (selectedEmergency && mapRef.current) {
@@ -337,20 +408,31 @@ export default function Map() {
     }
   }, [selectedEmergency]);
 
+
+  const shouldFlyToEmergencyRef = useRef(false);
+  const lastNotificationResponse = Notifications.useLastNotificationResponse();
+
   useEffect(() => {
-    if (emergencies && emergencies.length > 0 && !selectedEmergency && mapRef.current) {
-      const firstEmergency = emergencies[0];
-      const newRegion = {
-        latitude: firstEmergency.lat,
-        longitude: firstEmergency.long,
+    if (!lastNotificationResponse) return;
+    const data = lastNotificationResponse.notification.request.content.data as any;
+    if (data?.type === 'emergency_alert') {
+      shouldFlyToEmergencyRef.current = true;
+    }
+  }, [lastNotificationResponse]);
+
+  useEffect(() => {
+    if (!shouldFlyToEmergencyRef.current || emergencies.length === 0 || !mapRef.current) return;
+    const first = emergencies[0];
+    if (first.lat !== 0 || first.long !== 0) {
+      shouldFlyToEmergencyRef.current = false;
+      mapRef.current.animateToRegion({
+        latitude: first.lat,
+        longitude: first.long,
         latitudeDelta: 0.01,
         longitudeDelta: 0.01,
-      };
-      mapRef.current.animateToRegion(newRegion, 1000);
+      }, 1000);
     }
-  }, [emergencies, selectedEmergency]);
-
-
+  }, [emergencies]);
 
   // --- Simulation State & Logic ---
   const [isSimulating, setIsSimulating] = useState(false);
@@ -485,7 +567,19 @@ export default function Map() {
 
   carouselData.push({
     id: 'sharing-sessions',
-    component: <SharingSessionCard />,
+    component: <SharingSessionCard
+      forceCollapse={visibleCardId !== 'sharing-sessions'}
+      onFlyToLocation={(lat, long, sessionId) => {
+        setIsFollowingUser(false);
+        setFollowingContactSessionId(sessionId);
+        mapRef.current?.animateToRegion({
+          latitude: lat,
+          longitude: long,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01
+        }, 800);
+      }}
+    />,
   });
 
   if (isTracking && trackingModeId) {
@@ -498,19 +592,27 @@ export default function Map() {
       }
     }
   } else {
-    const modeCards = (trackingModes ?? []).map((mode: any) => ({
-      id: mode.id,
-      component: (
-        <TrackModeCard
-          id={mode.id}
-          name={mode.name}
-          contacts={mode.contacts.map((c: any) => ({ id: c.id, name: c.username, url: 'none' }))}
-          checkIntervalMinutes={mode.checkIntervalMinutes}
-          intervalReductionMinutes={mode.intervalReductionMinutes}
-        />
-      ),
-    }));
-    carouselData.push(...modeCards);
+    const manualSchedules = (schedules ?? []).filter(sc =>
+      sc.isManualOnly === true || (sc.isManualOnly === undefined && (sc.daysOfWeek?.length ?? 0) === 0)
+    );
+    const scheduleCards = manualSchedules.map((sc) => {
+      const contacts = (sc.emergencyContactIds ?? []).map(id => {
+        const f = friends.find(fr => fr.id === id);
+        return { id, name: f?.displayName || f?.username || id, url: f?.avatarUrl || null };
+      });
+      return {
+        id: sc.id,
+        component: (
+          <TrackModeCard
+            id={sc.id}
+            name={sc.name}
+            contacts={contacts}
+            checkIntervalMinutes={sc.checkIntervalMinutes}
+          />
+        ),
+      };
+    });
+    carouselData.push(...scheduleCards);
   }
 
 
@@ -532,30 +634,31 @@ export default function Map() {
         <Pressable style={styles.recenterBubble} onPress={() => {
           recenterMap();
           setIsFollowingUser(true);
+          setFollowingContactSessionId(null);
         }}
         >
-          <MaterialIcons name="my-location" size={24} color={isFollowingUser ? "#007AFF" : "black"} />
+          <MaterialIcons name="my-location" size={24} color={isFollowingUser ? Theme.colors.blueAction : "black"} />
         </Pressable>
       ),
     },
-    {
-      id: 'find-safe-spot',
-      component: (
-        <Pressable style={styles.findSafeBubble} onPress={() => {
-          setShowFindSafeSpotCard(true)
-          setIsFindingSafeSpot(true)
-          setSelectedPoiType(null);
-          setCalloutVisible(null);
-          clearPlaces();
-          handleCancelRouteSelection();
-          setDestinationString(null);
+    // {
+    //   id: 'find-safe-spot',
+    //   component: (
+    //     <Pressable style={styles.findSafeBubble} onPress={() => {
+    //       setShowFindSafeSpotCard(true)
+    //       setIsFindingSafeSpot(true)
+    //       setSelectedPoiType(null);
+    //       setCalloutVisible(null);
+    //       clearPlaces();
+    //       handleCancelRouteSelection();
+    //       setDestinationString(null);
 
-        }
-        }>
-          <MaterialIcons name="warning" size={22} color="black" />
-        </Pressable>
-      ),
-    },
+    //     }
+    //     }>
+    //       <MaterialIcons name="warning" size={22} color="black" />
+    //     </Pressable>
+    //   ),
+    // },
     ...(emergencies ?? []).map((emergency: any) => ({
       id: emergency.emergencyDocId,
       component: (
@@ -567,9 +670,15 @@ export default function Map() {
     })),
   ];
 
-  const handleDismissLocationSentCard = () => {
-    stopTrackingMode({ isEmergency: true });
-    setShowLocationSentCard(false);
+  const handleDismissLocationSentCard = async () => {
+
+    try {
+      await reportSafety(); // 乖乖等 Firebase 寫入完成
+      setShowLocationSentCard(false); // 確定成功了，才把卡片關掉
+    } catch (error) {
+      // 如果失敗了，卡片不要關，跳出警告讓使用者再按一次
+      Alert.alert("錯誤", "回報安全失敗，請檢查網路後重試");
+    }
   };
 
   const getRouteColor = (mode: string, isSelected: boolean) => {
@@ -578,9 +687,22 @@ export default function Map() {
   };
 
 
+  const { flyToLat, flyToLong, flyAt } = useLocalSearchParams<{
+    flyToLat: string;
+    flyToLong: string;
+    flyAt: string;
+  }>();
 
-
-
+  useEffect(() => {
+    if (!flyToLat || !flyToLong || !mapRef.current) return;
+    mapRef.current.animateToRegion({
+      latitude: parseFloat(flyToLat),
+      longitude: parseFloat(flyToLong),
+      latitudeDelta: 0.01,
+      longitudeDelta: 0.01,
+    }, 1000);
+    setIsFollowingUser(false);
+  }, [flyAt]);
 
   console.log("Map component rendering...");
   return (
@@ -590,13 +712,17 @@ export default function Map() {
       <MapView
         ref={mapRef}
         style={styles.map}
+
+        // provider="google"
         initialRegion={initialMapRegion}
-        // showsUserLocation={false} 
-        showsUserLocation={false}
+        onMapReady={() => console.log('✅ Google Map Ready')}
+        // onError={(e) => console.log('❌ Map Error:', e.nativeEvent)}
+        showsUserLocation={true}
         mapType="standard"
+
         showsCompass={true}
         compassOffset={{ x: -8, y: 50 }}
-        onPress={() => {
+        onPress={async (e) => {
           Keyboard.dismiss();
           setCalloutVisible(null);
           setIsSearchActive(false);
@@ -607,6 +733,9 @@ export default function Map() {
             setIsFollowingUser(false);
             console.log("👆 使用者觸碰螢幕 -> 停止跟隨");
           }
+          if (followingContactSessionId) {
+            setFollowingContactSessionId(null);
+          }
         }}
         onPanDrag={() => {
           setDebugMsg("✋ onPanDrag 拖曳中...");
@@ -614,24 +743,31 @@ export default function Map() {
             setIsFollowingUser(false);
             console.log("使用者手動拖曳，停止自動跟隨 - isFollowingUser: false");
           }
+          if (followingContactSessionId) {
+            setFollowingContactSessionId(null);
+          }
         }}
         onRegionChangeComplete={(region, details) => {
           setDebugMsg("🌎 onRegionChangeComplete (手勢)");
-          if (details.isGesture && isFollowingUser) {
-            setIsFollowingUser(false);
-            console.log("使用者手勢操作地圖，停止自動跟隨 - isFollowingUser: false");
+          if (details.isGesture) {
+            if (isFollowingUser) {
+              setIsFollowingUser(false);
+              console.log("使用者手勢操作地圖，停止自動跟隨 - isFollowingUser: false");
+            }
+            if (followingContactSessionId) {
+              setFollowingContactSessionId(null);
+            }
           }
         }}
       >
         {/* Custom User Location Marker */}
-        {(location || navUserLocation) && (
+        {/* {(location || navUserLocation) && (
           <Marker
             coordinate={(isNavigating && navUserLocation) ? navUserLocation.coords : location!.coords}
             title="Test Location (Taipei)"
             pinColor="purple"
           />
-        )}
-
+        )} */}
 
         {nearestSafeSpotData && showNearestSafeSpotCard && (
           <Marker
@@ -670,6 +806,16 @@ export default function Map() {
             coordinate={{
               latitude: friend.lat,
               longitude: friend.long,
+            }}
+            onPress={() => {
+              setIsFollowingUser(false);
+              setFollowingContactSessionId(friend.sessionId);
+              mapRef.current?.animateToRegion({
+                latitude: friend.lat,
+                longitude: friend.long,
+                latitudeDelta: 0.01,
+                longitudeDelta: 0.01,
+              }, 500);
             }}
           >
             <AvatarMarker
@@ -728,6 +874,7 @@ export default function Map() {
           <Marker
             key={place.place_id}
             coordinate={{ latitude: place.geometry.location.lat, longitude: place.geometry.location.lng }}
+            pinColor='yellow'
             onPress={() => {
               handleMarkerPress_sec({
                 id: place.place_id, name: place.name, address: place.vicinity, latitude: place.geometry.location.lat, longitude: place.geometry.location.lng, type: 'store'
@@ -811,10 +958,13 @@ export default function Map() {
         <EmergencyInfoModal emergency={selectedEmergency} onClose={() => setSelectedEmergency(null)} />
       )}
 
+
+
+      {/* COMMENTED OUT: filter buttons (警察局 / 便利商店)
       {!isNavigating && !showLocationCard && !showFindSafeSpotCard && routes.length <= 0 && (
         <View style={styles.filterContainer}>
 
-          {/* button for police offices */}
+          button for police offices
           <Pressable
             style={[styles.filterButton, selectedPoiType === 'police' && styles.selectedFilterButton]}
             onPress={() => {
@@ -822,11 +972,9 @@ export default function Map() {
               isTogglingRef.current = true;
 
               if (selectedPoiType === 'police') {
-                // Defer state update to next event loop cycle to avoid potential race condition with native map component
                 setSelectedPoiType(null);
                 setCalloutVisible(null);
               } else {
-
                 handleCancelRouteSelection();
                 setSelectedPoiType('police');
               }
@@ -834,15 +982,12 @@ export default function Map() {
               setTimeout(() => {
                 isTogglingRef.current = false;
               }, 500);
-              // setSelectedPoiType(selectedPoiType === 'police' ? null : 'police');
-              // setCalloutVisible(null);
             }}
           >
             <Text style={[styles.filterButtonText, selectedPoiType === 'police' && styles.selectedFilterButtonText]}>警察局</Text>
           </Pressable>
 
-
-          {/* button for convenience store */}
+          button for convenience store
           <Pressable
             style={[styles.filterButton, selectedPoiType === 'store' && styles.selectedFilterButton]}
             onPress={() => {
@@ -850,7 +995,6 @@ export default function Map() {
               isTogglingRef.current = true;
 
               if (selectedPoiType === 'store') {
-                // Defer state update to next event loop cycle
                 setSelectedPoiType(null);
                 clearPlaces();
               } else {
@@ -869,23 +1013,24 @@ export default function Map() {
           </Pressable>
         </View>
       )}
+      */}
 
-      {isNavigating &&
+      {/* {isNavigating &&
         <NavigationInstructionsCard
           currentStep={currentStep}
           remainingDistance={remainingDistance}
           eta={eta}
         />
-      }
+      } */}
 
-      {isFetchingRoutes && (
+      {/* {isFetchingRoutes && (
         <View style={styles.reroutingContainer}>
           <ActivityIndicator size="large" color="#fff" />
           <Text style={styles.reroutingText}>Rerouting...</Text>
         </View>
-      )}
+      )} */}
 
-      {!isNavigating && (
+      {/* {!isNavigating && (
         <MapSearchBar
           onSearch={handleSearch}
           onNearbySearch={handleNearbySearch}
@@ -894,7 +1039,7 @@ export default function Map() {
           isSearchActive={isSearchActive}
           onSearchActiveChange={setIsSearchActive}
         />
-      )}
+      )} */}
 
       {showLocationSentCard && activeMode && (
         <LocationSentCard
@@ -902,6 +1047,7 @@ export default function Map() {
           activityLocation={activeMode.activityLocation}
           activity={activeMode.activity}
           notes={activeMode.notes}
+          contacts={activeMode.contacts}
         />
       )}
 
@@ -922,13 +1068,13 @@ export default function Map() {
             }
           }}
         >
-          <MapCarousel data={carouselData} />
+          <MapCarousel data={carouselData} onVisibleItemChange={setVisibleCardId} />
         </View>
 
         <Animated.View
           style={[styles.routeSheetContainer, { height: routeSheetHeightAnim, opacity: routeSheetAnimation }]}
         >
-          {showLocationCard && selectedLocationInfo && (
+          {/* {showLocationCard && selectedLocationInfo && (
             <LocationCard
               name={selectedLocationInfo.name}
               address={selectedLocationInfo.address}
@@ -942,10 +1088,10 @@ export default function Map() {
               onNavigate={handlePlanRoute}
               locationType={selectedLocationInfo.type || 'general'}
             />
-          )}
+          )} */}
 
 
-          {routes.length > 0 && !isNavigating && destinationString && (
+          {/* {routes.length > 0 && !isNavigating && destinationString && (
             <>
               <RouteCarousel
                 routes={routes}
@@ -961,9 +1107,9 @@ export default function Map() {
                 <Text style={styles.cancelRouteButtonText}>取消路線</Text>
               </Pressable>
             </>
-          )}
+          )} */}
 
-          {isNavigating && (
+          {/* {isNavigating && (
             <Pressable style={styles.endNavigationButton} onPress={() => {
               if (isFindingSafeSpot) {
                 handleCancelRouteSelection()
@@ -973,7 +1119,7 @@ export default function Map() {
             }}>
               <Text style={styles.endNavigationButtonText}>結束導航</Text>
             </Pressable>
-          )}
+          )} */}
 
           {showFindSafeSpotCard && (
             <LocationCard
@@ -1343,5 +1489,26 @@ function createStyles(
       bottom: tabBarHeight + 80,
       zIndex: 999,
     },
+    friendsSharingBubble: {
+      flexDirection: 'row',
+      backgroundColor: '#34C759',
+      borderRadius: 30,
+      paddingVertical: 10,
+      paddingHorizontal: 14,
+      alignItems: 'center',
+      marginHorizontal: 5,
+      gap: 5,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.2,
+      shadowRadius: 2,
+      elevation: 3,
+    },
+    friendsSharingBubbleText: {
+      color: 'white',
+      fontWeight: 'bold',
+      fontSize: 14,
+    },
+
   });
 }

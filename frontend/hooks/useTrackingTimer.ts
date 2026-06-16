@@ -110,8 +110,8 @@ export const useTrackingTimer = () => {
 
     const notificationId = await Notifications.scheduleNotificationAsync({
       content: {
-        title: 'Check-in Time!',
-        body: `Time to check in for your tracking session.`,
+        title: '⏰ 回報時間到！',
+        body: '請回報您的安全狀態。',
         sound: 'default',
       },
       trigger: {

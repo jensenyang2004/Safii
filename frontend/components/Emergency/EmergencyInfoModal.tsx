@@ -19,18 +19,17 @@ const EmergencyInfoModal = ({ emergency, onClose }: EmergencyInfoModalProps) => 
   }
 
   const handleAcknowledge = async () => {
-    if (!emergency.emergencyDocId || !user.uid) {
+    if (!emergency.emergencyDocId || !emergency.collectionName || !user.uid) {
       console.error("Missing data for acknowledgement");
       return;
     }
     try {
-      const trackingDocRef = doc(db, 'active_tracking', emergency.emergencyDocId);
-      const fieldPath = `contactStatus.${user.uid}.status`;
+      const trackingDocRef = doc(db, emergency.collectionName, emergency.emergencyDocId);
       await updateDoc(trackingDocRef, {
-        [fieldPath]: 'acknowledged'
+        [`contactStatus.${user.uid}.status`]: 'acknowledged'
       });
       console.log('Emergency acknowledged successfully.');
-      onClose(); // Close the modal after acknowledging
+      onClose();
     } catch (error) {
       console.error('Failed to acknowledge emergency:', error);
     }
@@ -78,15 +77,15 @@ const EmergencyInfoModal = ({ emergency, onClose }: EmergencyInfoModalProps) => 
             Last update: {emergency.updateTime ? emergency.updateTime.toDate().toLocaleString() : 'N/A'}
           </Text>
           
-          {emergency.contactStatus?.[user.uid]?.status === 'active' && (
+          {emergency.contactStatus?.[user.uid]?.status !== 'acknowledged' ? (
              <TouchableOpacity style={styles.button} onPress={handleAcknowledge}>
-                <Text style={styles.buttonText}>確認</Text>
+                <Text style={styles.buttonText}>我知道了</Text>
              </TouchableOpacity>
+          ) : (
+            <TouchableOpacity style={[styles.button, styles.closeButton]} onPress={onClose}>
+                <Text style={styles.buttonText}>關閉</Text>
+            </TouchableOpacity>
           )}
-
-          <TouchableOpacity style={[styles.button, styles.closeButton]} onPress={onClose}>
-              <Text style={styles.buttonText}>關閉</Text>
-          </TouchableOpacity>
         </View>
       </View>
     </Modal>

@@ -159,6 +159,7 @@ const MapSearchBar: React.FC<MapSearchBarProps> = ({
       const response = await fetch(
         `https://maps.googleapis.com/maps/api/place/details/json?place_id=${prediction.place_id}&fields=geometry&key=${GOOGLE_PLACES_API_KEY}&sessiontoken=${sessionTokenRef.current}`
       );
+      
       const data = await response.json();
 
       if (data.result && data.result.geometry) {

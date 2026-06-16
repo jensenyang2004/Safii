@@ -18,8 +18,8 @@
       }
     },
     "testflight": {
-      "releaseChannel": "testflight",
-      "distribution": "internal",
+      "channel": "testflight",
+      "distribution": "store",
       "ios": {
         "resourceClass": "m-medium"
       }
@@ -28,7 +28,16 @@
   "submit": {
     "production": {
       "ios": {
-        "appleId": "safiihsu@gmail.com"
+        "appleId": "safiihsu@gmail.com",
+        "ascAppId": "6752362801",
+        "appleTeamId": "A2LYSD37N8"
+      }
+    },
+    "testflight": {
+      "ios": {
+        "appleId": "safiihsu@gmail.com",
+        "ascAppId": "6752362801",
+        "appleTeamId": "A2LYSD37N8"
       }
     }
   }

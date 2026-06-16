@@ -30,4 +30,3 @@ export const auth = initializeAuth(app, {
 
 export const storage = getStorage(app, 'gs://safii-90f1d.firebasestorage.app');
 export const db = getFirestore(app)
-

@@ -1,8 +1,9 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTracking } from '@/context/TrackProvider';
-import { useFriendSharing } from '@/hooks/useFriendSharing';
+import { useLocationSharing } from '@/hooks/useLocationSharing';
+import { useBiometrics } from '@/hooks/useBiometrics';
 import { BlurView } from 'expo-blur';
 import { uiParameters } from '../../constants/Theme';
 
@@ -10,15 +11,21 @@ interface TrackingMode {
   id: string;
   name: string;
   checkIntervalMinutes: number;
-  contacts: any[];
+  emergencyContactIds: string[];
   unresponsiveThreshold: number;
 }
 
 const Card_ongoing = ({ trackingMode }: { trackingMode: TrackingMode }) => {
   const { stopTrackingMode, currentStrike, nextCheckInTime } = useTracking();
-  const { createSharingSession } = useFriendSharing();
-
   const [remainingTime, setRemainingTime] = React.useState(0);
+  const { createSharingSession, stopAllSharing, unifiedList } = useLocationSharing();
+  const { authenticate } = useBiometrics();
+
+  const handleStop = async () => {
+    const ok = await authenticate();
+    if (!ok) return;
+    stopTrackingMode();
+  };
 
   React.useEffect(() => {
     if (nextCheckInTime) {
@@ -36,12 +43,22 @@ const Card_ongoing = ({ trackingMode }: { trackingMode: TrackingMode }) => {
     }
   }, [nextCheckInTime]);
 
+  const isAlreadySharing = (trackingMode.emergencyContactIds ?? []).some(id =>
+    unifiedList.some(u => u.userId === id)
+  );
+
   const handleShareImmediate = () => {
-    const emergencyContactIds = trackingMode.contacts.map(contact => contact.id);
-    if (emergencyContactIds.length > 0) {
-      createSharingSession(emergencyContactIds);
+    const emergencyContactIds = trackingMode.emergencyContactIds ?? [];
+
+    if (emergencyContactIds.length === 0) {
+      Alert.alert("無聯絡人", "模式尚未設定緊急聯絡人，無法分享位置");
+      return;
+    }
+
+    if (isAlreadySharing) {
+      stopAllSharing();
     } else {
-      Alert.alert("No Contacts", "This tracking mode has no emergency contacts to share with.");
+      createSharingSession(emergencyContactIds);
     }
   };
 
@@ -97,15 +114,25 @@ const Card_ongoing = ({ trackingMode }: { trackingMode: TrackingMode }) => {
           <View style={styles.rightContent}>
             {/* Location Button */}
             <TouchableOpacity
-              style={[styles.iconButton, { backgroundColor: uiParameters.buttons.locationShare.default.background }]}
+              style={[styles.iconButton, {
+                backgroundColor: isAlreadySharing
+                  ? uiParameters.buttons.locationShare.active.background
+                  : uiParameters.buttons.locationShare.default.background
+              }]}
               onPress={handleShareImmediate}
             >
-              <Ionicons name="location-sharp" size={24} color={uiParameters.buttons.locationShare.default.icon} />
+              <Ionicons
+                name={isAlreadySharing ? "location" : "location-sharp"}
+                size={24}
+                color={isAlreadySharing
+                  ? uiParameters.buttons.locationShare.active.icon
+                  : uiParameters.buttons.locationShare.default.icon}
+              />
             </TouchableOpacity>
 
             {/* Pause Button */}
             <TouchableOpacity
-              onPress={stopTrackingMode}
+              onPress={handleStop}
               style={[styles.iconButton, { backgroundColor: uiParameters.buttons.action.background }]}
             >
               <Ionicons name="pause" size={24} color={uiParameters.buttons.action.text} />

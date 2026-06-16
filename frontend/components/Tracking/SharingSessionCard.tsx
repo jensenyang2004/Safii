@@ -1,24 +1,26 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Image, FlatList, Pressable, StyleSheet, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, Image, Pressable, StyleSheet, Alert } from 'react-native';
+import { ScrollView } from 'react-native-gesture-handler';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
 import * as Theme from '@/constants/Theme';
 import { FontAwesome, Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { uiParameters } from '@/constants/Theme';
-import { useAllSharing, UnifiedSharingContact } from '@/hooks/useAllSharing';
-import { useFriendSharing } from '@/hooks/useFriendSharing'; // For starting a session
-import { useFriends } from '@/context/FriendProvider'; // For getting friends to start a session
+import { useLocationSharing, GroupedSharingContact, FriendShareData } from '@/hooks/useLocationSharing';
+import { useFriends } from '@/context/FriendProvider';
 
-const LocationSharingButton = ({ onPress }: { onPress: () => void }) => (
-  <TouchableOpacity
-    style={[styles.locationButton, { backgroundColor: uiParameters.buttons.locationShare.default.background }]}
-    onPress={onPress}
-  >
-    <Ionicons name="location-sharp" size={24} color={uiParameters.buttons.locationShare.default.icon} />
-  </TouchableOpacity>
-);
+interface Friend {
+  id: string;
+  username: string;
+  avatarUrl?: string;
+}
 
-const AvatarList = ({ contacts }: { contacts: UnifiedSharingContact[] }) => {
+interface SharingSessionCardProps {
+  onFlyToLocation: (lat: number, long: number, sessionId: string) => void;
+  forceCollapse?: boolean;
+}
+
+const AvatarList = ({ contacts }: { contacts: GroupedSharingContact[] }) => {
   const visibleContacts = contacts.slice(0, 3);
   const moreCount = contacts.length - visibleContacts.length;
 
@@ -51,7 +53,16 @@ const AvatarList = ({ contacts }: { contacts: UnifiedSharingContact[] }) => {
   );
 };
 
-const FoldedView = ({ isSharing, contacts, onStartShare }: { isSharing: boolean, contacts: UnifiedSharingContact[], onStartShare: () => void }) => (
+const LocationSharingButton = ({ onPress }: { onPress: () => void }) => (
+  <TouchableOpacity
+    style={[styles.locationButton, { backgroundColor: uiParameters.buttons.locationShare.default.background }]}
+    onPress={onPress}
+  >
+    <Ionicons name="location-sharp" size={24} color={uiParameters.buttons.locationShare.default.icon} />
+  </TouchableOpacity>
+);
+
+const FoldedView = ({ isSharing, contacts, onOpenExpanded }: { isSharing: boolean, contacts: GroupedSharingContact[], onOpenExpanded: () => void }) => (
   <View style={styles.foldedViewContainer}>
     <View style={styles.foldedViewLeft}>
       <FontAwesome name="circle" size={12} color={isSharing ? 'green' : 'grey'} />
@@ -59,89 +70,145 @@ const FoldedView = ({ isSharing, contacts, onStartShare }: { isSharing: boolean,
         {isSharing ? `您的位置正在與 ${contacts.length} 人分享` : '您的位置並未分享給任何人'}
       </Text>
     </View>
-    {isSharing ? <AvatarList contacts={contacts} /> : <LocationSharingButton onPress={onStartShare} />}
+    {isSharing
+      ? <AvatarList contacts={contacts} />
+      : <LocationSharingButton onPress={onOpenExpanded} />
+    }
   </View>
 );
 
-const ExpandedView = ({ contacts, onStopSharing }: { contacts: UnifiedSharingContact[], onStopSharing: (contact: UnifiedSharingContact) => void }) => (
-  <View style={styles.expandedViewContainer}>
-    <View style={styles.chevronContainer}>
-      <Ionicons name="chevron-down" size={24} color="grey" />
+interface ExpandedViewProps {
+  friends: Friend[];
+  sharingContactIds: Set<string>;
+  unifiedList: GroupedSharingContact[];
+  onShare: (friendId: string) => void;
+  onStop: (contact: GroupedSharingContact) => void;
+  onShareAll: () => void;
+  onStopAll: () => void;
+  onFlyToLocation: (lat: number, long: number, sessionId: string) => void;
+  incomingShareMap: Map<string, FriendShareData>;
+  onCollapse: () => void;
+}
+
+const ExpandedView = ({
+  friends,
+  sharingContactIds,
+  unifiedList,
+  onShare,
+  onStop,
+  onShareAll,
+  onStopAll,
+  onFlyToLocation,
+  incomingShareMap,
+  onCollapse }: ExpandedViewProps) => {
+  const allSharing = friends.length > 0 && friends.every(f => sharingContactIds.has(f.id));
+
+  return (
+    <View style={styles.expandedViewContainer}>
+      {/* <View style={styles.chevronContainer}>
+        <Ionicons name="chevron-down" size={24} color="grey" />
+      </View> */}
+      <Pressable style={styles.chevronContainer} onPress={onCollapse}>
+        <Ionicons name="chevron-down" size={24} color="grey" />
+      </Pressable>
+      <View style={styles.expandedHeaderRow}>
+        <Text style={styles.expandedHeader}>聯絡人</Text>
+      </View>
+      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={true} nestedScrollEnabled={true}>
+        {friends.map(item => {
+          const isCurrentlySharing = sharingContactIds.has(item.id);
+          const contact = unifiedList.find(c => c.userId === item.id);
+          const incomingFriend = incomingShareMap.get(item.id);
+          return (
+            <View key={item.id} style={styles.expandedListItem}>
+              {item.avatarUrl ? (
+                <Image source={{ uri: item.avatarUrl }} style={styles.expandedAvatar} />
+              ) : (
+                <View style={[styles.expandedAvatar, styles.avatarPlaceholder, { backgroundColor: Theme.colors.gray75 }]}>
+                  <Text style={[styles.avatarText, { fontSize: 20 }]}>
+                    {(item.username || 'U')[0].toUpperCase()}
+                  </Text>
+                </View>
+              )}
+              <View style={styles.expandedItemCenter}>
+                <Text style={styles.expandedUsername}>{item.username || 'Unknown'}</Text>
+                {incomingFriend && (
+                  <View style={styles.sharingStatus}>
+                    <FontAwesome name="circle" size={10} color={Theme.colors.blueTint} />
+                    <Text style={styles.sharingStatusText}>正在向您分享位置</Text>
+                  </View>
+                )}
+                <View style={styles.sharingStatus}>
+                  <FontAwesome name="circle" size={10} color={isCurrentlySharing ? 'green' : Theme.colors.gray150} />
+                  <Text style={styles.sharingStatusText}>
+                    {isCurrentlySharing ? '正在分享位置' : '位置分享關閉'}
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.buttonColumn}>
+                {incomingFriend && (
+                  <TouchableOpacity style={styles.flyButton} onPress={() => onFlyToLocation(incomingFriend.lat, incomingFriend.long, incomingFriend.sessionId)}>
+                    <Text style={styles.flyButtonText}>前往位置</Text>
+                  </TouchableOpacity>
+                )}
+                {isCurrentlySharing && contact ? (
+                  <TouchableOpacity style={styles.stopButton} onPress={() => onStop(contact)}>
+                    <Text style={styles.stopButtonText}>停止分享</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity style={styles.shareButton} onPress={() => onShare(item.id)}>
+                    <Text style={styles.shareButtonText}>開始分享</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+          );
+        })}
+      </ScrollView>
     </View>
-    <FlatList
-      data={contacts}
-      renderItem={({ item }) => (
-        <View style={styles.expandedListItem}>
-          {item.avatarUrl ? (
-            <Image source={{ uri: item.avatarUrl }} style={styles.expandedAvatar} />
-          ) : (
-            <View
-              style={[styles.expandedAvatar, styles.avatarPlaceholder, { backgroundColor: Theme.colors.gray75 }]}
-            >
-              <Text style={[styles.avatarText, { fontSize: 20 }]}>
-                {(item.username || 'U')[0].toUpperCase()}
-              </Text>
-            </View>
-          )}
-          <View style={styles.expandedItemCenter}>
-            <Text style={styles.expandedUsername}>{item.username || 'Unknown User'}</Text>
-            <View style={styles.sharingStatus}>
-              <FontAwesome name="circle" size={10} color={item.type === 'emergency' ? Theme.colors.danger : 'green'} />
-              {/* <Text style={styles.sharingStatusText}>
-                {item.type === 'emergency' ? 'Sharing (Emergency)' : 'Sharing'}
-              </Text> */}
-            </View>
-          </View>
-          <TouchableOpacity
-            style={styles.stopButton}
-            onPress={(e) => {
-              e.stopPropagation(); // Prevent container press
-              onStopSharing(item);
-            }}
-          >
-            <Text style={styles.stopButtonText}>Stop Sharing</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-      keyExtractor={item => item.userId}
-      ListHeaderComponent={() => <Text style={styles.expandedHeader}>位置正在被分享</Text>}
-    />
-  </View>
-);
+  );
+};
 
-export default function SharingSessionCard() {
-  const { unifiedList, isLoading, error, stopSharingWithContact } = useAllSharing();
-  const { createSharingSession } = useFriendSharing();
+export default function SharingSessionCard({ onFlyToLocation, forceCollapse }: SharingSessionCardProps) {
+  const {
+    unifiedList,
+    sharedByFriends,
+    isLoading,
+    error,
+    startSharingWithContact,
+    createSharingSession,
+    stopSharingWithContact,
+    stopAllSharing } = useLocationSharing();
+
   const { friends } = useFriends();
+  const incomingShareMap = new Map(sharedByFriends.map(f => [f.sharingUserId, f]));
   const [isExpanded, setIsExpanded] = useState(false);
 
   const height = useSharedValue(80);
   const borderRadius = useSharedValue(Theme.radii.xl);
 
-  const animatedContainerStyle = useAnimatedStyle(() => {
-    return {
-      height: height.value,
-      borderRadius: borderRadius.value,
-    };
-  });
+  const animatedContainerStyle = useAnimatedStyle(() => ({
+    height: height.value,
+    borderRadius: borderRadius.value,
+  }));
 
   const isSharing = unifiedList.length > 0;
 
-  useEffect(() => {
-    // Do not allow expanding if not sharing
-    if (!isSharing) {
-      setIsExpanded(false);
-    }
-  }, [isSharing]);
+  // Derive set of currently shared contact IDs for O(1) lookup
+  const sharingContactIds = new Set(unifiedList.map(c => c.userId));
 
   useEffect(() => {
-    height.value = withTiming(isExpanded ? 230 : 80, { duration: 300 });
+    if (forceCollapse) setIsExpanded(false);
+  }, [forceCollapse]);
+
+  useEffect(() => {
+    height.value = withTiming(isExpanded ? 380 : 80, { duration: 300 });
     borderRadius.value = withTiming(isExpanded ? Theme.radii.xl : Theme.radii.xxl, { duration: 300 });
-  }, [isExpanded]);
+  }, [isExpanded, friends.length]);
 
-  const handleStartSharing = () => {
+  const handleShareAll = () => {
     if (friends.length === 0) {
-      Alert.alert("No Friends", "You need to add friends before you can share your location.");
+      Alert.alert('No Friends', 'You need to add friends before you can share your location.');
       return;
     }
     const friendIds = friends.map(f => f.id);
@@ -159,18 +226,31 @@ export default function SharingSessionCard() {
   return (
     <View style={styles.shadowContainer}>
       <Animated.View style={[styles.animatedContainer, animatedContainerStyle]}>
-        <BlurView
-          intensity={90}
-          tint="light"
-          style={styles.blurView}
-        >
-          <Pressable onPress={() => { if (isSharing) setIsExpanded(!isExpanded); }} style={[styles.pressable, { backgroundColor: uiParameters.mainComponent.background }]}>
-            {isExpanded ? (
-              <ExpandedView contacts={unifiedList} onStopSharing={stopSharingWithContact} />
-            ) : (
-              <FoldedView isSharing={isSharing} contacts={unifiedList} onStartShare={handleStartSharing} />
-            )}
-          </Pressable>
+        <BlurView intensity={90} tint="light" style={styles.blurView}>
+
+          {isExpanded ? (
+            <ExpandedView
+              friends={friends}
+              sharingContactIds={sharingContactIds}
+              unifiedList={unifiedList}
+              onShare={startSharingWithContact}
+              onStop={stopSharingWithContact}
+              onShareAll={handleShareAll}
+              onStopAll={stopAllSharing}
+              onFlyToLocation={onFlyToLocation}
+              incomingShareMap={incomingShareMap}
+              onCollapse={() => setIsExpanded(false)}
+            />
+
+          ) : (
+            <Pressable
+              onPress={() => setIsExpanded(true)}
+              style={[styles.pressable, { backgroundColor: uiParameters.mainComponent.background }]}
+            >
+              <FoldedView isSharing={isSharing} contacts={unifiedList} onOpenExpanded={() => setIsExpanded(true)} />
+            </Pressable>
+          )}
+
         </BlurView>
       </Animated.View>
     </View>
@@ -192,12 +272,10 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   blurView: {
-    width: '100%',
-    height: '100%',
+    flex: 1,
   },
   pressable: {
-    width: '100%',
-    height: '100%',
+    flex: 1,
   },
   locationButton: {
     width: 48,
@@ -220,7 +298,7 @@ const styles = StyleSheet.create({
     height: 32,
     borderRadius: Theme.radii.xl,
     borderWidth: 2,
-    borderColor: Theme.colors.primary,
+    borderColor: 'white',
     backgroundColor: Theme.colors.gray75,
   },
   avatarPlaceholder: {
@@ -248,7 +326,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 0,
     paddingHorizontal: 32,
   },
   foldedViewLeft: {
@@ -260,53 +337,106 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   expandedViewContainer: {
-    width: '100%',
-    height: '100%',
-    padding: 16,
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingTop: 8,
   },
   chevronContainer: {
     alignItems: 'center',
+    marginBottom: 4,
+  },
+  expandedHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+    marginBottom: 4,
+  },
+  expandedHeader: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  shareAllButton: {
+    backgroundColor: Theme.colors.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: Theme.radii.md,
+  },
+  stopAllButton: {
+    backgroundColor: Theme.colors.brandPink,
+  },
+  shareAllButtonText: {
+    color: Theme.colors.white,
+    fontWeight: 'bold',
+    fontSize: 13,
   },
   expandedListItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 8,
+    paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    borderBottomColor: '#f3f4f6',
   },
   expandedAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    marginRight: 16,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    marginRight: 12,
   },
   expandedItemCenter: {
     flex: 1,
   },
   expandedUsername: {
     fontWeight: 'bold',
+    fontSize: 14,
   },
   sharingStatus: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 5,
+    marginTop: 2,
   },
   sharingStatusText: {
+    fontSize: 12,
     color: '#6b7280',
   },
   stopButton: {
-    backgroundColor: Theme.colors.primary,
+    backgroundColor: Theme.colors.brandPink,
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingVertical: 7,
     borderRadius: Theme.radii.md,
   },
   stopButtonText: {
     color: Theme.colors.white,
     fontWeight: 'bold',
+    fontSize: 12,
   },
-  expandedHeader: {
-    fontSize: 18,
+  shareButton: {
+    backgroundColor: Theme.colors.communityMain,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: Theme.radii.md,
+  },
+  shareButtonText: {
+    color: Theme.colors.textDark,
     fontWeight: 'bold',
-    padding: 8,
+    fontSize: 12,
+  },
+  buttonColumn: {
+    alignItems: 'flex-end',
+    gap: 6,
+  },
+  flyButton: {
+    backgroundColor: Theme.colors.incomingStatus,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: Theme.radii.md,
+  },
+  flyButtonText: {
+    color: Theme.colors.white,
+    fontWeight: 'bold',
+    fontSize: 12,
   },
 });

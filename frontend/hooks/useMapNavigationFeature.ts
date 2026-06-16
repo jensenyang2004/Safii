@@ -65,7 +65,8 @@ export const useMapNavigationFeature = ({
     currentStep,
     remainingDistance,
     eta,
-  } = useLiveNavigation({ onReroute: handleReroute, simulatedLocation: location });
+  } = useLiveNavigation({ onReroute: handleReroute });
+  // } = useLiveNavigation({ onReroute: handleReroute, simulatedLocation: location });
 
   const handleStartNavigation = (route: RouteInfo) => {
     if (location) {
@@ -96,11 +97,13 @@ export const useMapNavigationFeature = ({
     const destinationString = `${destinationInfo.latitude},${destinationInfo.longitude}`;
     setDestination(destinationString);
     getRoutes(location.coords, destinationString);
-    setDestinationMarker({
-      latitude: selectedLoc.latitude,
-      longitude: selectedLoc.longitude,
-      name: selectedLoc.name,
-    });
+    if (selectedLoc) {
+      setDestinationMarker({
+        latitude: selectedLoc.latitude,
+        longitude: selectedLoc.longitude,
+        name: selectedLoc.name,
+      });
+    }
     setSelectedLocation(null);
   };
 
@@ -144,47 +147,24 @@ export const useMapNavigationFeature = ({
     }
   };
 
-  const handleSuggestionSelected = (description: string, latitude: number, longitude: number, mapRef: React.RefObject<any>) => {
-    const locationData = {
-      name: description.split(',')[0],
-      address: description,
-      latitude: latitude,
-      longitude: longitude
-    };
-    console.log('handleSuggestionSelected called with:', { description, latitude, longitude });
-    setSelectedLocation(locationData);
-    setDestinationMarker(locationData);
-    setDestinationInfo(locationData);
-    setShowDestinationCard(true);
-
-    if (mapRef.current) {
-      mapRef.current.animateToRegion({
-        latitude: latitude,
-        longitude: longitude,
-        latitudeDelta: 0.01,
-        longitudeDelta: 0.01,
-      }, 1000);
-    }
-  };
-
   // Auto-selection and auto-start logic
   useEffect(() => {
     if (routes.length > 0) {
       const newSelectedRoute = routes.find(r => r.mode === 'safest') || routes[0];
       setSelectedRoute(newSelectedRoute);
 
-      console.log("Auto-selected route:", newSelectedRoute.mode);
+      // console.log("Auto-selected route:", newSelectedRoute.mode);
       if (isNavigating) {
         updateRoute(newSelectedRoute);
       }
 
       if (pendingAutoNavigateTo && !isNavigating && location) {
-        console.log('Auto-starting navigation to pending destination');
+        // console.log('Auto-starting navigation to pending destination');
         handleStartNavigation(newSelectedRoute);
         setPendingAutoNavigateTo(null);
       }
     }
-  }, [routes, pendingAutoNavigateTo, isNavigating, location]);
+  }, [routes, pendingAutoNavigateTo, isNavigating]);
 
   // Periodic recalculation
   // useEffect(() => {
@@ -222,6 +202,5 @@ export const useMapNavigationFeature = ({
     handleNavigateToLocation,
     handleSearch,
     handleNearbySearch,
-    handleSuggestionSelected,
   };
 };

@@ -4,14 +4,17 @@ import { Stack, router, useSegments } from 'expo-router';
 import { hideAsync, preventAutoHideAsync } from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useState } from 'react';
+import 'react-native-gesture-handler';
 import 'react-native-reanimated';
 import { FriendProvider } from '../context/FriendProvider';
 
 import { Text, ActivityIndicator, View } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useColorScheme } from '../hooks/useColorScheme';
 import { AuthProvider, useAuth } from '@/context/AuthProvider';
 import { TrackingProvider } from '@/context/TrackProvider';
 import { NotificationProvider } from '../context/NotificationProvider';
+import { ScheduledTrackingProvider } from '@/context/ScheduledTrackingContext';
 import * as SecureStore from 'expo-secure-store';
 import { usePermissions } from '../hooks/usePermissions';
 
@@ -37,18 +40,22 @@ export default function RootLayout() {
   }
 
   return (
-    <AuthProvider>
-      <FriendProvider>
-        <TrackingProvider>
-          <NotificationProvider>
-            <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-              <RootLayoutNav />
-              <StatusBar style="auto" />
-            </ThemeProvider>
-          </NotificationProvider>
-        </TrackingProvider>
-      </FriendProvider>
-    </AuthProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <AuthProvider>
+        <FriendProvider>
+          <TrackingProvider>
+            <ScheduledTrackingProvider>
+            <NotificationProvider>
+              <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+                <RootLayoutNav />
+                <StatusBar style="auto" />
+              </ThemeProvider>
+            </NotificationProvider>
+            </ScheduledTrackingProvider>
+          </TrackingProvider>
+        </FriendProvider>
+      </AuthProvider>
+    </GestureHandlerRootView>
   );
 }
 

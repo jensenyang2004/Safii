@@ -9,8 +9,9 @@ export interface EmergencyData {
   updateTime: Timestamp;
   trackedUserId: string;
   trackedUserName: string;
-  trackedUserAvatarUrl?: string; // Added avatarUrl
+  trackedUserAvatarUrl?: string;
   emergencyDocId: string;
+  collectionName: 'active_tracking' | 'manual_tracking';
   contactStatus: Record<string, { status: string; notificationCount: number }>;
   activity?: string;
   activityLocation?: string;
@@ -22,136 +23,124 @@ export const useEmergencyListener = () => {
   const [emergencies, setEmergencies] = useState<Record<string, EmergencyData>>({});
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-
   const locationListenersRef = useRef<Record<string, () => void>>({});
 
-  useEffect(() => {
-    if (!user?.uid) {
-      setIsLoading(false);
-      return;
-    }
+  const processSnapshot = async (
+    querySnapshot: any,
+    collectionName: 'active_tracking' | 'manual_tracking',
+    activeIds: Set<string>
+  ) => {
+    const now = Timestamp.now();
+    const oneDayAgo = Timestamp.fromMillis(now.toMillis() - 24 * 60 * 60 * 1000);
 
-    const q = query(
-      collection(db, 'active_tracking'),
+    const activeDocs = querySnapshot.docs.filter((d: any) => {
+      const session = d.data();
+      const recent = session.emergencyActivationTime &&
+        session.emergencyActivationTime < now &&
+        session.emergencyActivationTime > oneDayAgo;
+      if (recent) activeIds.add(d.id);
+      return recent;
+    });
+
+    for (const docSnap of activeDocs) {
+      const emergencyDocId = docSnap.id;
+      const session = docSnap.data();
+      const { trackedUserId, contactStatus, activity, activityLocation, notes } = session;
+
+      if (!locationListenersRef.current[emergencyDocId]) {
+        let trackedUserName = 'Unknown User';
+        let trackedUserAvatarUrl: string | undefined;
+        try {
+          const userDoc = await getDoc(doc(db, 'users', trackedUserId));
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+            trackedUserName = userData.username || 'Unknown User';
+            trackedUserAvatarUrl = userData.avatarUrl;
+          }
+        } catch (e) {
+          console.error('Error fetching user name/avatar:', e);
+        }
+
+        setEmergencies(prev => ({
+          ...prev,
+          [emergencyDocId]: {
+            lat: 0, long: 0, updateTime: Timestamp.now(),
+            trackedUserId, trackedUserName, trackedUserAvatarUrl,
+            emergencyDocId, collectionName,
+            contactStatus, activity, activityLocation, notes,
+          },
+        }));
+
+        const locationDocRef = doc(db, 'users', trackedUserId, 'real_time_location', 'current');
+        const unsubLocation = onSnapshot(locationDocRef, (locationSnap) => {
+          if (locationSnap.exists()) {
+            const { lat, long, updateTime } = locationSnap.data();
+            setEmergencies(prev => ({
+              ...prev,
+              [emergencyDocId]: { ...prev[emergencyDocId], lat, long, updateTime },
+            }));
+          } else {
+            setEmergencies(prev => { const s = { ...prev }; delete s[emergencyDocId]; return s; });
+            locationListenersRef.current[emergencyDocId]?.();
+            delete locationListenersRef.current[emergencyDocId];
+          }
+        });
+        locationListenersRef.current[emergencyDocId] = unsubLocation;
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (!user?.uid) { setIsLoading(false); return; }
+
+    const makeQuery = (col: string) => query(
+      collection(db, col),
       where('emergencyContactIds', 'array-contains', user.uid),
       where('isActive', '==', true)
     );
 
-    const unsubscribe = onSnapshot(q, async (querySnapshot) => {
-      setIsLoading(true);
-      const now = Timestamp.now();
-      const oneDayAgo = Timestamp.fromMillis(now.toMillis() - (24 * 60 * 60 * 1000));
+    // Track active IDs across both collections so we can prune stale ones
+    let activeIdsFromScheduled = new Set<string>();
+    let activeIdsFromManual = new Set<string>();
 
-      // Get IDs of active emergencies from the current snapshot
-      const currentSnapshotEmergencyIds = new Set<string>();
-      const activeEmergencyDocs = querySnapshot.docs.filter(doc => {
-        const session = doc.data();
-        const isActiveAndRecent = session.emergencyActivationTime && 
-                                 session.emergencyActivationTime < now && 
-                                 session.emergencyActivationTime > oneDayAgo;
-        if (isActiveAndRecent) {
-          currentSnapshotEmergencyIds.add(doc.id);
-        }
-        return isActiveAndRecent;
-      });
-
-      // Clean up listeners and state for emergencies that are no longer active
-      setEmergencies(prevEmergencies => {
-        const updatedEmergencies = { ...prevEmergencies };
-        for (const docId in updatedEmergencies) {
-          if (!currentSnapshotEmergencyIds.has(docId)) {
-            locationListenersRef.current[docId]?.(); // Unsubscribe location listener
-            delete locationListenersRef.current[docId]; // Remove from ref
-            delete updatedEmergencies[docId]; // Remove from state
+    const pruneStale = () => {
+      const allActive = new Set([...activeIdsFromScheduled, ...activeIdsFromManual]);
+      setEmergencies(prev => {
+        const next = { ...prev };
+        for (const id in next) {
+          if (!allActive.has(id)) {
+            locationListenersRef.current[id]?.();
+            delete locationListenersRef.current[id];
+            delete next[id];
           }
         }
-        return updatedEmergencies;
+        return next;
       });
-
-
-      // Process current active emergencies
-      for (const docSnap of activeEmergencyDocs) {
-        const emergencyDocId = docSnap.id;
-        const session = docSnap.data();
-        const { trackedUserId, contactStatus, activity, activityLocation, notes } = session;
-
-        // If we are not already listening for this emergency's location, set up a new listener
-        if (!locationListenersRef.current[emergencyDocId]) {
-          let trackedUserName = 'Unknown User';
-          let trackedUserAvatarUrl: string | undefined;
-          try {
-            const userDoc = await getDoc(doc(db, 'users', trackedUserId));
-            if (userDoc.exists()) {
-              const userData = userDoc.data();
-              trackedUserName = userData.username || 'Unknown User';
-              trackedUserAvatarUrl = userData.avatarUrl;
-            }
-          } catch (e) {
-            console.error("Error fetching user name/avatar:", e);
-          }
-
-          // Initialize the emergency data in the state with static info
-          setEmergencies(prev => ({
-              ...prev,
-              [emergencyDocId]: {
-                  lat: 0, // Placeholder, will be updated by location listener
-                  long: 0, // Placeholder
-                  updateTime: Timestamp.now(), // Placeholder
-                  trackedUserId,
-                  trackedUserName,
-                  trackedUserAvatarUrl, // Added here
-                  emergencyDocId,
-                  contactStatus,
-                  activity,
-                  activityLocation,
-                  notes,
-              }
-          }));
-
-          const locationDocRef = doc(db, 'users', trackedUserId, 'real_time_location', 'current');
-          const unsubLocation = onSnapshot(locationDocRef, (locationSnap) => {
-            if (locationSnap.exists()) {
-              const { lat, long, updateTime } = locationSnap.data();
-              setEmergencies(prev => ({
-                ...prev,
-                [emergencyDocId]: {
-                  ...prev[emergencyDocId], // Spread existing data (including static fields)
-                  lat,
-                  long,
-                  updateTime,
-                }
-              }));
-            } else {
-                // If location doc disappears, remove this emergency from state
-                setEmergencies(prev => {
-                    const newState = { ...prev };
-                    delete newState[emergencyDocId];
-                    return newState;
-                });
-                locationListenersRef.current[emergencyDocId]?.(); // Unsubscribe
-                delete locationListenersRef.current[emergencyDocId]; // Clean up ref
-            }
-          });
-          locationListenersRef.current[emergencyDocId] = unsubLocation;
-        }
-      }
-
-      setIsLoading(false);
-    }, (err) => {
-      console.error('Error listening to active tracking sessions:', err);
-      setError('Could not listen for tracking sessions.');
-      setIsLoading(false);
-    });
-    console.log(emergencies); // This console.log will show the state from the closure, not necessarily the latest.
-
-    return () => {
-      console.log('Main emergency listener cleaned up.');
-      unsubscribe();
-      Object.values(locationListenersRef.current).forEach(unsub => unsub());
-      locationListenersRef.current = {}; // Clear the ref
-      setEmergencies({}); // Clear state on unmount
     };
 
+    const unsubScheduled = onSnapshot(makeQuery('active_tracking'), async (snap) => {
+      setIsLoading(true);
+      activeIdsFromScheduled = new Set<string>();
+      await processSnapshot(snap, 'active_tracking', activeIdsFromScheduled);
+      pruneStale();
+      setIsLoading(false);
+    }, (err) => { console.error('active_tracking listener error:', err); setError('Could not listen for sessions.'); setIsLoading(false); });
+
+    const unsubManual = onSnapshot(makeQuery('manual_tracking'), async (snap) => {
+      setIsLoading(true);
+      activeIdsFromManual = new Set<string>();
+      await processSnapshot(snap, 'manual_tracking', activeIdsFromManual);
+      pruneStale();
+      setIsLoading(false);
+    }, (err) => { console.error('manual_tracking listener error:', err); setError('Could not listen for sessions.'); setIsLoading(false); });
+
+    return () => {
+      unsubScheduled();
+      unsubManual();
+      Object.values(locationListenersRef.current).forEach(u => u());
+      locationListenersRef.current = {};
+      setEmergencies({});
+    };
   }, [user]);
 
   return { emergencyData: Object.values(emergencies), isLoading, error };

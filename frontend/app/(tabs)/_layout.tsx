@@ -27,15 +27,18 @@ export default function TabLayout() {
             borderTopColor: "transparent",
             // width: "94%",
             height: "10%",
-            // right: "3%",
+            
+            
+
             // bottom: "3%",
             left: "3%", // adds distance from the left edge
+            right: "3%",
             // margin: "3%",
             // height: 100,
             // alignSelf: "center",
 
-            // elevation: 0,           // <— Android shadow
-            // shadowOpacity: 0,       // <— iOS shadow
+            elevation: 0,           // <— Android shadow
+            shadowOpacity: 0,       // <— iOS shadow
           },
 
           // Each tab item: fill vertical space and center content
@@ -43,6 +46,7 @@ export default function TabLayout() {
             flex: 1,
             alignItems: "center",
             justifyContent: "center", // Add this for good measure
+            
           },
         }}
       >

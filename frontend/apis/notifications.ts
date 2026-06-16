@@ -188,7 +188,7 @@ export async function sendAlertNotification(): Promise<void> {
   if (status !== 'granted') {
     const { status: newStatus } = await Notifications.requestPermissionsAsync();
     if (newStatus !== 'granted') {
-      alert('You need to enable notifications in settings for alerts to work.');
+      alert('請在設定中開啟通知權限，以接收警報。');
       return;
     }
   }
@@ -204,8 +204,8 @@ export async function sendAlertNotification(): Promise<void> {
 
   await Notifications.scheduleNotificationAsync({
     content: {
-      title: "🚨 SAFII Alert",
-      body: "Potential danger detected nearby. Stay alert.",
+      title: "🚨 Safii 緊急警報",
+      body: "附近偵測到潛在危險，請保持警覺。",
       sound: 'safii_alert.wav', // For iOS
       channelId: 'safii_alert_channel', // For Android
     },

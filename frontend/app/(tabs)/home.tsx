@@ -1,298 +1,322 @@
 // app/(tabs)/home.tsx
 
-import { ActivityIndicator, View, Text, Pressable, Alert, StyleSheet, FlatList, TouchableOpacity, RefreshControl, ScrollView, Dimensions } from 'react-native';
+import { ActivityIndicator, View, Text, Pressable, Alert, StyleSheet, FlatList, TouchableOpacity, ScrollView, Image } from 'react-native';
 
-import { useEffect, useCallback, useMemo, useState } from 'react';
+import { useState } from 'react';
 import { router } from 'expo-router';
 import { useAuth } from '@/context/AuthProvider';
 import '@/global.css';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { collection, query, where, orderBy, onSnapshot, getDocs } from 'firebase/firestore';
-import { db } from '@/libs/firebase';
 import ProfilePhotoUploader from '@/components/ProfilePhotoUploader';
 import * as Theme from '../../constants/Theme';
+import { useScheduledTracking } from '@/context/ScheduledTrackingContext';
 import { useTracking } from '@/context/TrackProvider';
-// 1. Import your fake-call hook
+import { ScheduledTracking } from '@/types/scheduledTracking';
 
-type TrackingMode = {
-  id: string;
-  name: string;
-  userId: string;
-  On?: boolean;
-  autoStart?: boolean;
-  checkIntervalMinutes: number;
-  unresponsiveThreshold: number;
-  intervalReductionMinutes: number;
-  startTime: {
-    dayOfWeek: string[];
-    time: string;
-  };
-  emergencyContactIds: string[];
-};
+import { useLocationSharing } from '@/hooks/useLocationSharing';
+import { useFriends } from '@/context/FriendProvider';
 
-interface TrackingContext {
-  deleteTrackingMode: (modeId: string) => Promise<void>;
-}
+import { BlurView } from 'expo-blur';
 
 
-export default function HomeScreen() {
-  const { user, loading, signOut } = useAuth();
+function ContactAvatarStack({ contactIds, friends }: {
+  contactIds: string[];
+  friends: { id: string; username: string; avatarUrl?: string }[];
+}) {
+  const contacts = contactIds
+    .map(id => friends.find(f => f.id === id))
+    .filter(Boolean) as { id: string; username: string; avatarUrl?: string }[];
 
-  const handleSignOut = async () => {
-    try {
-      await signOut();
-      Alert.alert("Signed out successfully!");
-    } catch (error) {
-      console.error("Error signing out: ", error);
-    }
-  };
+  const visible = contacts.slice(0, 3);
+  const moreCount = contacts.length - visible.length;
 
-  // State and functions from SettingsScreen
-  const [modes, setModes] = useState<TrackingMode[]>([]);
-  const [settingsLoading, setSettingsLoading] = useState(true); // Renamed to avoid conflict
-  const [refreshing, setRefreshing] = useState(false);
-  const insets = useSafeAreaInsets();
-  const trackingContext = useTracking() as TrackingContext | null;
-
-  if (!trackingContext) {
-    console.error('Tracking context is null');
-    // You might want to render an error state or handle this differently
+  if (contacts.length === 0) {
+    return <Text style={homeStyles.settingsValue}>—</Text>;
   }
 
-  const { deleteTrackingMode } = trackingContext || {}; // Handle null trackingContext
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+      {visible.map((contact, index) =>
+        contact.avatarUrl ? (
+          <Image
+            key={contact.id}
+            source={{ uri: contact.avatarUrl }}
+            style={[homeStyles.contactAvatar, { marginLeft: index > 0 ? -9 : 0, zIndex: visible.length - index + 1 }]}
+          />
+        ) : (
+          <View
+            key={contact.id}
+            style={[homeStyles.contactAvatar, homeStyles.contactAvatarPlaceholder, { marginLeft: index > 0 ? -9 : 0, zIndex: visible.length - index + 1 }]}
+          >
+            <Text style={homeStyles.contactAvatarText}>
+              {(contact.username || 'U')[0].toUpperCase()}
+            </Text>
+          </View>
+        )
+      )}
+      {moreCount > 0 && (
+        <View style={[homeStyles.contactAvatar, homeStyles.contactAvatarMore, { marginLeft: -8, zIndex: 1, backgroundColor: 'white' }]}>
+          <Text style={homeStyles.contactAvatarMoreText}>{`+${moreCount}`}</Text>
+        </View>
+      )}
+    </View>
+  );
+}
 
-  const confirmDelete = (modeId: string, modeName: string) => {
-    Alert.alert(
-      '刪除確認',
-      `確定要刪除「${modeName || '未命名模式'}」嗎？此動作無法復原。`,
-      [
-        { text: '取消', style: 'cancel' },
-        {
-          text: '刪除',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              if (deleteTrackingMode) { // Ensure deleteTrackingMode is not undefined
-                await deleteTrackingMode(modeId);
-              }
-            } catch (e) {
-              console.error(e);
-              Alert.alert('刪除失敗', '請稍後再試');
-            }
-          },
-        },
-      ],
-    );
+const DAY_SHORT = ['日', '一', '二', '三', '四', '五', '六'];
+
+export default function HomeScreen() {
+  const { user } = useAuth();
+  const insets = useSafeAreaInsets();
+  const [activeTab, setActiveTab] = useState<'tracking' | 'sharing'>('tracking');
+
+  const { schedules, activeSession, loading: scheduleLoading, deleteSchedule } = useScheduledTracking();
+  const { isTracking, trackingModeId } = useTracking();
+  const { unifiedList, sharedByFriends, startSharingWithContact, stopSharingWithContact } = useLocationSharing();
+  const { friends } = useFriends();
+
+  const sharingContactIds = new Set(unifiedList.map(c => c.userId));
+  const incomingShareMap = new Map(sharedByFriends.map(f => [f.sharingUserId, f]));
+
+  const confirmDelete = (item: ScheduledTracking) => {
+    Alert.alert('刪除確認', `確定要刪除「${item.name || '未命名模式'}」嗎？此動作無法復原。`, [
+      { text: '取消', style: 'cancel' },
+      {
+        text: '刪除', style: 'destructive',
+        onPress: () => deleteSchedule(item.id).catch(() => Alert.alert('刪除失敗', '請稍後再試')),
+      },
+    ]);
   };
 
-  const listQuery = useMemo(() => {
-    if (!user?.uid) return null;
-    return query(
-      collection(db, 'TrackingMode'),
-      where('userId', '==', user.uid),
-      orderBy('name', 'asc')
-    );
-  }, [user?.uid]);
-
-  useEffect(() => {
-    if (!listQuery) {
-      setModes([]);
-      setSettingsLoading(false);
-      return;
-    }
-    const unsub = onSnapshot(
-      listQuery,
-      (snap) => {
-        const rows: TrackingMode[] = snap.docs.map((d) => ({
-          id: d.id,
-          ...(d.data() as Omit<TrackingMode, 'id'>),
-        }));
-        setModes(rows);
-        setSettingsLoading(false);
-      },
-      (err) => {
-        console.error(err);
-        Alert.alert('讀取失敗', '無法載入 Tracking 模式');
-        setSettingsLoading(false);
-      }
-    );
-    return () => unsub();
-  }, [listQuery]);
-
-  const onRefresh = useCallback(async () => {
-    if (!listQuery) return;
-    setRefreshing(true);
-    try {
-      const snap = await getDocs(listQuery);
-      const rows: TrackingMode[] = snap.docs.map((d) => ({
-        id: d.id,
-        ...(d.data() as Omit<TrackingMode, 'id'>),
-      }));
-      setModes(rows);
-    } catch (e) {
-      console.error(e);
-      Alert.alert('重新整理失敗', '請稍後再試');
-    } finally {
-      setRefreshing(false);
-    }
-  }, [listQuery]);
-
-  const renderItem = ({ item }: { item: TrackingMode }) => {
-    const days = item.startTime?.dayOfWeek?.join('、') ?? '—';
-    const time = item.startTime?.time ?? '—';
-    const contactsCount = item.emergencyContactIds?.length ?? 0;
+  const renderItem = ({ item }: { item: ScheduledTracking }) => {
+    const hasSchedule = (item.daysOfWeek?.length ?? 0) > 0;
+    const dayLabel = hasSchedule
+      ? item.daysOfWeek.map(d => DAY_SHORT[d]).join('、')
+      : null;
+    const isActive =
+      (isTracking && trackingModeId === item.id) ||
+      (activeSession?.scheduleId === item.id);
 
     return (
       <View style={homeStyles.settingsCard}>
-        <View style={homeStyles.settingsCardHeader}>
-          <Text style={homeStyles.settingsCardTitle} numberOfLines={1}>
-            {item.name || '(未命名)'}
-          </Text>
-          <View style={[homeStyles.settingsBadge, item.On ? homeStyles.settingsBadgeOn : homeStyles.settingsBadgeOff]}>
-            <Text style={homeStyles.settingsBadgeText}>{item.On ? '啟用中' : '關閉'}</Text>
+        <BlurView intensity={90} tint="light" style={homeStyles.settingsBlurView}>
+          <View style={homeStyles.settingsInnerContainer}>
+            <View style={homeStyles.settingsCardHeader}>
+              <Text style={homeStyles.settingsCardTitle} numberOfLines={1}>{item.name || '(未命名)'}</Text>
+              {isActive && (
+                <View style={homeStyles.activePill}>
+                  <Text style={homeStyles.activePillText}>進行中</Text>
+                </View>
+              )}
+            </View>
+
+            <View style={homeStyles.settingsRow}>
+              <Text style={homeStyles.settingsLabel}>
+                {dayLabel
+                  ? `${dayLabel}　${item.startTime} – ${item.endTime}`
+                  : `每 ${item.checkIntervalMinutes ?? 15} 分鐘回報`}
+              </Text>
+              <ContactAvatarStack contactIds={item.emergencyContactIds ?? []} friends={friends} />
+            </View>
+
+            <View style={homeStyles.settingsBtns}>
+              <TouchableOpacity
+                style={[homeStyles.settingsSmallBtn, { backgroundColor: isActive ? Theme.colors.gray300 : Theme.tracking_colors.coralRed }]}
+                onPress={() => {
+                  if (isActive) {
+                    Alert.alert('無法編輯', '報平安模式進行中，請結束後再編輯。');
+                    return;
+                  }
+                  router.push({ pathname: '/tracking-mode/edit', params: { modeId: item.id } });
+                }}
+              >
+                <Text style={homeStyles.settingsEditBtnText}>編輯模式</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[homeStyles.settingsDeleteBtn, isActive && { opacity: 0.4 }]}
+                onPress={() => {
+                  if (isActive) {
+                    Alert.alert('無法刪除', '報平安模式進行中，請結束後再刪除。');
+                    return;
+                  }
+                  confirmDelete(item);
+                }}
+              >
+                <Text style={homeStyles.settingsDeleteBtnText}>刪除</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-
-          <TouchableOpacity
-            style={homeStyles.settingsDeleteBtn}
-            onPress={() => confirmDelete(item.id, item.name)}
-            activeOpacity={0.7}
-          >
-            <Text style={homeStyles.settingsDeleteBtnText}>刪除</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* <View style={homeStyles.settingsRow}>
-          <Text style={homeStyles.settingsLabel}>排程</Text>
-          <Text style={homeStyles.settingsValue}>{days} · {time}</Text>
-        </View> */}
-
-        <View style={homeStyles.settingsRow}>
-          <Text style={homeStyles.settingsLabel}>檢查間隔</Text>
-          <Text style={homeStyles.settingsValue}>{item.checkIntervalMinutes ?? '—'} 分鐘</Text>
-        </View>
-
-        <View style={homeStyles.settingsRow}>
-          <Text style={homeStyles.settingsLabel}>無回應閾值 / 回報倒數間隔</Text>
-          <Text style={homeStyles.settingsValue}>
-            {item.unresponsiveThreshold ?? '—'} 次 / {item.intervalReductionMinutes ?? '—'} 分
-          </Text>
-        </View>
-
-        <View style={homeStyles.settingsRow}>
-          <Text style={homeStyles.settingsLabel}>聯絡人</Text>
-          <Text style={homeStyles.settingsValue}>{contactsCount} 位</Text>
-        </View>
-
-        <View style={{ flexDirection: 'row', marginTop: 10 }}>
-          <TouchableOpacity
-            style={[homeStyles.settingsSmallBtn, { backgroundColor: Theme.tracking_colors.coralRed }]}
-            onPress={() => router.push({ pathname: '/tracking-mode/edit', params: { modeId: item.id } })}
-          >
-            <Text style={homeStyles.settingsSmallBtnText}>編輯模式</Text>
-          </TouchableOpacity>
-        </View>
+        </BlurView>
       </View>
     );
   };
 
-  // useEffect(() => {
-  //   if (user) {
-  //     console.log('User ID:', user.uid);
-  //     console.log('Username:', user.username);
-  //     console.log('Email:', user.email);
-  //     console.log('Avatar URL:', user.avatarUrl);
-  //     console.log('All properties:', Object.keys(user));
-  //   } else {
-  //     console.log('User is null or undefined');
-  //   }
-  // }, [user]);
-
   return (
     <SafeAreaView style={homeStyles.container}>
-      <ScrollView
-        contentContainerStyle={{
-          flexGrow: 1,
-          paddingBottom: insets.bottom + 80, // Add extra padding for tab bar
-          paddingHorizontal: 20,
-          alignItems: 'center'
-        }}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* <View style={homeStyles.container}> */}
 
-        <View style={homeStyles.headerContainer}>
-          <ProfilePhotoUploader />
+      <View style={homeStyles.headerContainer}>
+        <ProfilePhotoUploader />
+        <Text style={homeStyles.username}>
+          {user?.displayName || user?.username || user?.nickname || user?.email || 'Unknown User'}
+        </Text>
+      </View>
 
-          <Text style={homeStyles.username}>
-            {user?.displayName || user?.username || user?.nickname || user?.email || 'Unknown User'}
+      <View style={homeStyles.tabBar}>
+
+        <Pressable
+          style={[homeStyles.tabButton, activeTab === 'sharing' && homeStyles.tabButtonActive]}
+          onPress={() => setActiveTab('sharing')}
+        >
+          <Text style={[homeStyles.tabButtonText, activeTab === 'sharing' &&
+            homeStyles.tabButtonTextActive]}>
+            好友分享
           </Text>
-        </View>
+        </Pressable>
 
-        {/* Settings content starts here */}
-        <View style={homeStyles.settingsSection}>
-          <View style={homeStyles.settingsHeader}>
+        <Pressable
+          style={[homeStyles.tabButton, activeTab === 'tracking' && homeStyles.tabButtonActive]}
+          onPress={() => setActiveTab('tracking')}
+        >
+          <Text style={[homeStyles.tabButtonText, activeTab === 'tracking' &&
+            homeStyles.tabButtonTextActive]}>
+            報平安模式
+          </Text>
+        </Pressable>
+      </View>
+      {activeTab === 'tracking' ? (
+        <ScrollView
+          contentContainerStyle={{ flexGrow: 1, paddingBottom: insets.bottom + 80, paddingHorizontal: 20 }}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Active session banner */}
+          {activeSession && (
+            <TouchableOpacity
+              style={homeStyles.activeBanner}
+              onPress={() => router.push('/(modals)/scheduled-tracking/current')}
+            >
+              <View style={homeStyles.activeDot} />
+              <Text style={homeStyles.activeBannerText}>排程報平安模式進行中 — 點此查看</Text>
+              <Text style={{ color: '#fff', fontSize: 16 }}>›</Text>
+            </TouchableOpacity>
+          )}
 
-            <Text style={homeStyles.settingsTitle}>設定</Text>
-            <Text style={homeStyles.settingsSub}>目前的追蹤模式</Text>
+          <View style={homeStyles.settingsSection}>
+            {scheduleLoading ? (
+              <View style={homeStyles.settingsCenter}>
+                <ActivityIndicator size="large" color={Theme.colors.actionPink} />
+                <Text style={homeStyles.settingsDim}>載入中…</Text>
+              </View>
+            ) : (
+              <>
+                {schedules.length === 0 ? (
+                  <View style={homeStyles.settingsEmpty}>
+                    <Text style={homeStyles.settingsEmptyTitle}>尚未建立任何報平安模式</Text>
+                    <Text style={homeStyles.settingsDim}>點擊下方按鈕新增一個吧！</Text>
+                  </View>
+                ) : (
+                  <FlatList
+                    scrollEnabled={false}
+                    data={schedules}
+                    keyExtractor={(item) => item.id}
+                    renderItem={renderItem}
+                    contentContainerStyle={homeStyles.settingsListContent}
+                  />
+                )}
+
+                <TouchableOpacity
+                  style={homeStyles.settingsPrimaryBtn}
+                  onPress={() => router.push('/tracking-mode/new')}
+                  activeOpacity={0.8}
+                >
+                  <Text style={homeStyles.settingsPrimaryText}>建立報平安模式</Text>
+                </TouchableOpacity>
+              </>
+            )}
           </View>
+        </ScrollView>
+      ) : (<FlatList
+        data={friends}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: insets.bottom + 80 }}
+        ListEmptyComponent={
+          <View style={homeStyles.settingsEmpty}>
+            <Text style={homeStyles.settingsEmptyTitle}>尚未加入任何好友</Text>
+            <Text style={homeStyles.settingsDim}>加入好友後即可分享位置</Text>
+          </View>
+        }
+        renderItem={({ item }) => {
+          const isSharing = sharingContactIds.has(item.id);
+          const contact = unifiedList.find(c => c.userId === item.id);
+          const incoming = incomingShareMap.get(item.id);
 
-          {settingsLoading ? (
-            <View style={homeStyles.settingsCenter}>
-              <ActivityIndicator size="large" color={Theme.colors.actionPink} />
-              <Text style={homeStyles.settingsDim}>載入中…</Text>
-            </View>
-          ) : (
-            <>
-              {modes.length === 0 ? (
-                <View style={homeStyles.settingsEmpty}>
-                  <Text style={homeStyles.settingsEmptyTitle}>尚未建立任何追蹤模式</Text>
-                  <Text style={homeStyles.settingsDim}>點擊下方按鈕新增一個吧！</Text>
-                </View>
+          return (
+            <View style={homeStyles.friendCard}>
+              {item.avatarUrl ? (
+                <Image source={{ uri: item.avatarUrl }} style={homeStyles.friendAvatar} />
               ) : (
-                <FlatList
-                  scrollEnabled={false}
-                  data={modes}
-                  keyExtractor={(item) => item.id}
-                  renderItem={renderItem}
-                  contentContainerStyle={[
-                    homeStyles.settingsListContent,
-                    { paddingBottom: insets.bottom + 90 },
-                  ]}
-                  refreshControl={
-                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-                  }
-                />
+                <View style={[homeStyles.friendAvatar, homeStyles.friendAvatarPlaceholder]}>
+                  <Text style={homeStyles.friendAvatarText}>
+                    {(item.username || 'U')[0].toUpperCase()}
+                  </Text>
+                </View>
               )}
 
-              <TouchableOpacity
-                style={[
-                  homeStyles.settingsPrimaryBtn,
-                  { bottom: insets.bottom + 12 },
-                ]}
-                onPress={() => router.push('/tracking-mode/new')}
-                activeOpacity={0.8}
-              >
-                <Text style={homeStyles.settingsPrimaryText}>+ 建立追蹤模式</Text>
-              </TouchableOpacity>
-            </>
-          )}
-        </View>
-        {/* Settings content ends here */}
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <Text style={homeStyles.friendName}>{item.username}</Text>
+                {incoming && (
+                  <Text style={homeStyles.friendStatusIncoming}>● 正在向您分享位置</Text>
+                )}
 
-        {loading ? (
-          <ActivityIndicator size="large" color={Theme.colors.actionOrange} />
-        ) : (
-          <Pressable
-            onPress={signOut}
-            style={[homeStyles.signOutButton, loading && homeStyles.disabledButton]}
-            disabled={loading}
-          >
-            <Text style={homeStyles.signOutText}>
-              Sign Out
-            </Text>
-          </Pressable>
-        )}
-      </ScrollView>
+                <Text style={isSharing ? homeStyles.friendStatusOn :
+                  homeStyles.friendStatusOff}>
+                  {isSharing ? '● 正在分享位置給對方' : '● 位置分享關閉'}
+                </Text>
+              </View>
+
+              <View style={{ alignItems: 'flex-end', gap: 8 }}>
+                {incoming && (
+                  <TouchableOpacity
+                    style={homeStyles.flyButton}
+                    onPress={() => {
+                      router.navigate({
+                        pathname: '/(tabs)/map',
+                        params: {
+                          flyToLat: incoming.lat.toString(),
+                          flyToLong: incoming.long.toString(),
+                          flyAt: Date.now().toString(), // forces re-trigger if same contact tapped again     
+                        }
+                      });
+                    }}
+                  >
+                    <Text style={homeStyles.flyButtonText}>前往位置</Text>
+                  </TouchableOpacity>
+                )}
+                {isSharing && contact ? (
+                  <TouchableOpacity
+                    style={homeStyles.stopButton}
+                    onPress={() => stopSharingWithContact(contact)}
+                  >
+                    <Text style={homeStyles.stopButtonText}>停止分享</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity
+                    style={homeStyles.shareButton}
+                    onPress={() => startSharingWithContact(item.id)}
+                  >
+                    <Text style={homeStyles.shareButtonText}>開始分享</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+          );
+        }}
+      />)}
+
+      {/* {loading ? (
+        <ActivityIndicator size="large" color={Theme.colors.actionOrange} />
+      ) : (
+        
+      )} */}
     </SafeAreaView>
 
   );
@@ -345,7 +369,7 @@ const homeStyles = StyleSheet.create({
   username: {
     fontSize: 24,
     fontWeight: 'bold',
-    marginBottom: 24,
+    marginBottom: 12,
   },
   signOutButton: {
     backgroundColor: Theme.colors.gray200,
@@ -353,7 +377,6 @@ const homeStyles = StyleSheet.create({
     paddingVertical: 16,
     borderRadius: Theme.radii.xl,
     marginBottom: 24,
-
 
     shadowColor: '#000',
     shadowOpacity: 0.3,
@@ -406,44 +429,37 @@ const homeStyles = StyleSheet.create({
     flex: 1,
     width: '100%',
     backgroundColor: 'white',
-    paddingTop: 20, // Adjust as needed
-  },
-  settingsDeleteBtn: {
-    marginLeft: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-    backgroundColor: '#fee2e2', // 淺紅
-  },
-  settingsDeleteBtnText: {
-    color: '#b91c1c', // 深紅
-    fontWeight: '700',
-    fontSize: 12,
-  },
-  settingsHeader: {
-    paddingLeft: 48,
-    paddingRight: 16,
-    paddingTop: 8,
-    paddingBottom: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', position: 'relative'
-  },
-  settingsTitle: {
-    flex: 1,
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#111827'
-  },
-  settingsSub: {
-    flex: 1,
-    marginTop: 4,
-    color: '#6b7280'
+    paddingTop: 6, // Adjust as needed
   },
 
-  settingsListContent: { paddingHorizontal: 16 },
+
+  settingsListContent: { paddingHorizontal: 12 },
 
   settingsCard: {
-    backgroundColor: '#fff', borderRadius: 14, padding: 14, marginBottom: 12,
-    borderWidth: 1, borderColor: '#e5e7eb',
+    width: '100%',
+    alignSelf: 'center',
+    // marginVertical: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
+    elevation: 5,
+    marginBottom: 16,
+
   },
+
+  settingsBlurView: {
+    width: '100%',
+    borderRadius: Theme.radii.xl,
+    overflow: 'hidden',
+  },
+
+  settingsInnerContainer: {
+    backgroundColor: '#ECECECB3',
+    paddingVertical: 16,
+    paddingHorizontal: 28,
+  },
+
   settingsCardHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
   settingsCardTitle: { flex: 1, fontSize: 16, fontWeight: '700', color: '#111827' },
   settingsBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999 },
@@ -451,20 +467,54 @@ const homeStyles = StyleSheet.create({
   settingsBadgeOff: { backgroundColor: '#f3f4f6' },
   settingsBadgeText: { color: '#111827', fontWeight: '600', fontSize: 12 },
 
-  settingsRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6 },
+  settingsRow: { flexDirection: 'column', justifyContent: 'space-between', paddingVertical: 6, gap: 8 },
   settingsLabel: { color: '#6b7280' },
   settingsValue: { color: '#111827', fontWeight: '600' },
 
-  settingsSmallBtn: {
-    backgroundColor: Theme.tracking_colors.coralRed, paddingVertical: 10, paddingHorizontal: 12,
-    borderRadius: Theme.radii.xl, marginRight: 8,
-  },
-  settingsSmallBtnText: { color: '#fff', fontWeight: '700' },
+  settingsBtns: {
+    marginTop: 12,
+    flexDirection: 'row',
+    flex: 1,
+    justifyContent: 'space-evenly',
+    gap: 8
 
+  },
+
+  settingsSmallBtn: {
+    flex: 1,
+
+    backgroundColor: Theme.tracking_colors.coralRed,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: Theme.radii.xl, marginRight: 8,
+    borderWidth: 0.2,
+    borderColor: 'rgba(0, 0, 0, 0.2)',
+    alignItems: 'center',
+  },
+  settingsDeleteBtn: {
+    flex: 1,
+    backgroundColor: Theme.tracking_colors.white,
+    borderRadius: Theme.radii.xl,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    borderWidth: 0.2,
+    borderColor: 'rgba(0, 0, 0, 0.2)',
+  },
+  settingsEditBtnText: { color: '#fff', fontWeight: '700' },
+  settingsDeleteBtnText: { color: Theme.colors.textDark, fontWeight: '700' },
+  activePill: {
+    backgroundColor: Theme.tracking_colors.successGreen,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 2,
+  },
+  activePillText: { color: '#fff', fontSize: 11, fontWeight: '700' },
   settingsPrimaryBtn: {
-    position: 'absolute', left: 16, right: 16,
+    marginTop: 8,
     backgroundColor: Theme.tracking_colors.coralRed, borderRadius: Theme.radii.xl,
-    paddingVertical: 14, alignItems: 'center',
+    paddingVertical: 16,
+    alignItems: 'center',
     shadowColor: 'grey', shadowOpacity: 0.3, shadowRadius: 6,
     shadowOffset: { width: 0, height: 4 }, elevation: 3,
   },
@@ -474,4 +524,165 @@ const homeStyles = StyleSheet.create({
   settingsEmpty: { alignItems: 'center', marginTop: 24, paddingHorizontal: 16 },
   settingsEmptyTitle: { fontSize: 16, fontWeight: '700', color: '#111827', marginBottom: 6 },
   settingsDim: { color: '#6b7280' },
+
+  contactAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: 'white',
+    backgroundColor: Theme.colors.gray75,
+  },
+  contactAvatarPlaceholder: {
+    justifyContent: 'center',
+  },
+  contactAvatarText: {
+    color: Theme.colors.textPrimary,
+    fontWeight: 'bold',
+    fontSize: 11,
+  },
+  contactAvatarMore: {
+    backgroundColor: Theme.colors.gray150,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  contactAvatarMoreText: {
+    color: Theme.colors.textPrimary,
+    fontWeight: 'bold',
+    fontSize: 10,
+  },
+
+
+  tabBar: {
+
+    flexDirection: 'row',
+    width: '85%',
+    alignSelf: 'center',
+    marginHorizontal: 20,
+    marginBottom: 8,
+    borderRadius: Theme.radii.xl,
+    backgroundColor: Theme.colors.gray75,
+    padding: 4,
+  },
+  tabButton: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderRadius: Theme.radii.lg,
+  },
+
+  tabButtonActive: {
+    backgroundColor: Theme.colors.brandPink,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  tabButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Theme.colors.gray500,
+  },
+  tabButtonTextActive: {
+    color: Theme.colors.white,
+  },
+
+  friendCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: Theme.colors.gray100,
+  },
+  friendAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+  },
+  friendAvatarPlaceholder: {
+    backgroundColor: Theme.colors.gray75,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  friendAvatarText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: Theme.colors.textPrimary,
+  },
+  friendName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: Theme.colors.textDark,
+    marginBottom: 2,
+  },
+  friendStatusIncoming: {
+    fontSize: 12,
+    color: Theme.colors.incomingStatus,
+    marginBottom: 2,
+  },
+  friendStatusOn: {
+    fontSize: 12,
+    color: Theme.colors.greenSuccess,
+  },
+  friendStatusOff: {
+    fontSize: 12,
+    color: Theme.colors.gray400,
+  },
+  shareButton: {
+    backgroundColor: Theme.colors.communityMain,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: Theme.radii.md,
+  },
+  shareButtonText: {
+    color: Theme.colors.textDark,
+    fontWeight: 'bold',
+    fontSize: 12,
+  },
+  stopButton: {
+    backgroundColor: Theme.colors.brandPink,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: Theme.radii.md,
+  },
+  stopButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 12,
+  },
+  flyButton: {
+    backgroundColor: Theme.colors.blueTint,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: Theme.radii.md,
+  },
+  flyButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 12,
+  },
+
+  activeBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: Theme.colors.greenSuccess,
+    borderRadius: Theme.radii.xl,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginBottom: 12,
+    marginTop: 4,
+  },
+  activeDot: {
+    width: 8, height: 8, borderRadius: 4,
+    backgroundColor: '#fff',
+  },
+  activeBannerText: {
+    flex: 1,
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+
 });

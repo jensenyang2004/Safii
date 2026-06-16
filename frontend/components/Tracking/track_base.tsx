@@ -3,7 +3,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
 import { useTracking } from '@/context/TrackProvider';
 import { BlurView } from 'expo-blur';
-import * as Theme from '../../constants/Theme'; // Keep Theme for colors and radii
+import * as Theme from '../../constants/Theme';
 import { uiParameters } from '../../constants/Theme';
 
 type TrackModeCardProps = {
@@ -11,19 +11,16 @@ type TrackModeCardProps = {
   name: string;
   contacts: { id: string; url: any; name: string }[];
   checkIntervalMinutes: number;
-  intervalReductionMinutes: number;
 };
 
-export default function TrackModeCard({ id, name, contacts, checkIntervalMinutes, intervalReductionMinutes }: TrackModeCardProps) {
+export default function TrackModeCard({ id, name, contacts, checkIntervalMinutes }: TrackModeCardProps) {
   const { startTrackingMode } = useTracking();
 
   const visibleContacts = contacts.slice(0, 3);
   const moreCount = contacts.length - visibleContacts.length;
   const hasContacts = contacts && contacts.length > 0;
 
-  // Use reduction minutes from the mode config (passed in). Fallback to 3 if missing.
-  // const defaultReductionMinutes = intervalReductionMinutes ?? 3;
-  const defaultReductionMinutes = 1;
+  const handleStart = () => startTrackingMode(id, checkIntervalMinutes);
 
   return (
     <View style={styles.shadowContainer}>
@@ -34,7 +31,7 @@ export default function TrackModeCard({ id, name, contacts, checkIntervalMinutes
       >
         <View style={[styles.innerContainer, { backgroundColor: uiParameters.mainComponent.background, justifyContent: hasContacts ? 'space-between' : 'center' }]}>
           <TouchableOpacity
-            onPress={() => startTrackingMode(id, checkIntervalMinutes, defaultReductionMinutes)}
+            onPress={handleStart}
             activeOpacity={0.8}
             style={[
               styles.button,
@@ -42,9 +39,9 @@ export default function TrackModeCard({ id, name, contacts, checkIntervalMinutes
               !hasContacts && { width: '100%' }
             ]}
           >
-              <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.buttonText, { color: Theme.tracking_colors.white, flexShrink: 1 }]}>
-                開啟{name}模式
-              </Text>
+            <Text numberOfLines={1} ellipsizeMode="tail" style={[styles.buttonText, { color: Theme.tracking_colors.white, flexShrink: 1 }]}>
+              開啟{name}模式
+            </Text>
           </TouchableOpacity>
 
           {/* Edit button removed — edit flow moved to Home */}
@@ -56,7 +53,7 @@ export default function TrackModeCard({ id, name, contacts, checkIntervalMinutes
                 contact.url ? (
                   <Image
                     key={contact.id}
-                    source={contact.url}
+                    source={{ uri: contact.url }}
                     style={[styles.avatar, { marginLeft: index > 0 ? -10 : 0, zIndex: index }]}
                   />
                 ) : (

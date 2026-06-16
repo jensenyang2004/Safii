@@ -1,5 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { View, StyleSheet, Dimensions, TouchableOpacity, Linking } from 'react-native';
+import { View, StyleSheet, Dimensions, TouchableOpacity } from 'react-native';
+import { BlurView } from 'expo-blur';
 import PagerView from 'react-native-pager-view';
 import OnboardingPage from '../../components/OnboardingPage';
 import { router } from 'expo-router';
@@ -10,6 +11,7 @@ import * as Location from 'expo-location';
 import { usePermissions } from '../../hooks/usePermissions';
 import { useBiometrics } from '../../hooks/useBiometrics';
 import { useAuth } from '@/context/AuthProvider';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width } = Dimensions.get('window');
 const ONBOARDING_COMPLETED_KEY = 'onboarding_completed';
@@ -18,12 +20,12 @@ export default function OnboardingScreen() {
   const pagerRef = useRef<PagerView>(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const { user, completeOnboarding } = useAuth();
+  const insets = useSafeAreaInsets();
 
-  const { 
-    notificationStatus, 
-    backgroundLocationStatus, 
-    allPermissionsGranted, 
-    checkPermissions 
+  const {
+    notificationStatus,
+    backgroundLocationStatus,
+    checkPermissions
   } = usePermissions();
 
   const {
@@ -34,38 +36,26 @@ export default function OnboardingScreen() {
   } = useBiometrics();
 
   useEffect(() => {
-    // When the page comes into view, re-check the biometric status
-    if (activeIndex === 4) { // Assuming Face ID page is at index 4
+    if (activeIndex === 2 && notificationStatus === 'idle') {
+      Notifications.requestPermissionsAsync().then(() => checkPermissions());
+    }
+    if (activeIndex === 3 && backgroundLocationStatus !== 'granted') {
+      (async () => {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === 'granted') await Location.requestBackgroundPermissionsAsync();
+        checkPermissions();
+      })();
+    }
+    if (activeIndex === 4 && isBiometricSupported) {
       checkBiometrics();
     }
   }, [activeIndex]);
 
-  const handlePermissionRequest = async (request: () => Promise<any>) => {
-    await request();
-    checkPermissions();
-    // Automatically advance to the next page
-    pagerRef.current?.setPage(activeIndex + 1);
-  };
-
-  const requestNotificationPermission = () => handlePermissionRequest(Notifications.requestPermissionsAsync);
-
-  const requestLocationPermission = () => handlePermissionRequest(async () => {
-    const { status: foregroundStatus } = await Location.requestForegroundPermissionsAsync();
-    if (foregroundStatus === 'granted') {
-      await Location.requestBackgroundPermissionsAsync();
-    }
-  });
-
-  const openAppSettings = () => {
-    Linking.openSettings();
-  };
-
   const handleOnboardingComplete = () => {
-    if (allPermissionsGranted && user) {
+    // Apple Guideline 4.5.4: 通知與定位在開啟階段必須是選填的，不能硬性阻擋使用者進入
+    if (user) {
       completeOnboarding();
       router.replace('/(tabs)/home');
-    } else {
-      alert('Please grant all required permissions to continue.');
     }
   };
 
@@ -83,55 +73,36 @@ export default function OnboardingScreen() {
 
   const pages = [
     {
-      title: '歡迎來到 Safii',
-      description: '您的個人安全守護者，讓您與親友保持聯繫，確保安全。',
-      backgroundColor: ['#6200EE', '#BB86FC'],
+      backgroundColor: ['#f8c5b2', '#fec298'],
+      imageSource: require('../../assets/images/onboarding_01.png'),
+      topBarHeight: 80,
     },
     {
-      title: '即時追蹤與通知',
-      description: '在緊急情況下，Safii 會自動通知您的緊急聯絡人，並分享您的即時位置。',
-      backgroundColor: ['#03DAC6', '#018786'],
+      backgroundColor: ['#fec298', '#fcdf89'],
+      imageSource: require('../../assets/images/onboarding_02.png'),
+      topBarHeight: 80,
     },
     {
-      title: '開啟通知權限',
-      description: notificationStatus === 'granted'
-        ? '通知權限已開啟！'
-        : (notificationStatus === 'denied'
-          ? '通知權限是必要的，以便我們在您需要幫助時發送安全警報。請在設定中啟用權限。'
-          : '為了發送安全警報與提醒，請允許 Safii 發送通知。'),
-      backgroundColor: ['#CF6679', '#B00020'],
-      buttonText: notificationStatus === 'granted' ? '✓ 已經開啟' : (notificationStatus === 'denied' ? '開啟設定' : '允許通知'),
-      onPress: notificationStatus === 'denied' ? openAppSettings : requestNotificationPermission,
-      disabled: notificationStatus === 'granted',
+      backgroundColor: ['#fcdf89', '#d4dfe8'],
+      imageSource: require('../../assets/images/onboarding_03.png'),
+      topBarHeight: 60,
     },
     {
-      title: '開啟位置權限',
-      description: backgroundLocationStatus === 'granted'
-        ? '位置權限已開啟！'
-        : (backgroundLocationStatus === 'denied'
-          ? '「永遠允許」位置權限是 Safii 的核心功能，確保即使 App 在背景運作也能保護您的安全。'
-          : '為了在您需要時分享您的位置，請務必選擇「永遠允許」位置權限。'),
-      backgroundColor: ['#1E40AF', '#3B82F6'],
-      buttonText: backgroundLocationStatus === 'granted' ? '✓ 已經開啟' : (backgroundLocationStatus === 'denied' ? '開啟設定' : '允許位置權限'),
-      onPress: backgroundLocationStatus === 'denied' ? openAppSettings : requestLocationPermission,
-      disabled: backgroundLocationStatus === 'granted',
+      backgroundColor: ['#d4dfe8', '#dbe1dd'],
+      imageSource: require('../../assets/images/onboarding_04.png'),
+      topBarHeight: 60,
     },
-    // New Face ID Page
     ...(isBiometricSupported ? [{
-      title: '啟用 Face ID',
-      description: '為了更快速、安全地回報您的安全狀況，建議您啟用 Face ID。',
-      backgroundColor: ['#FFC107', '#FFA000'],
-      buttonText: isEnrolled ? '✓ 已啟用' : '啟用 Face ID',
-      onPress: handleBiometricSetup,
-      disabled: isEnrolled,
+      backgroundColor: ['#dbe1dd', '#f8c5b2'],
+      imageSource: require('../../assets/images/onboarding_05.png'),
+      topBarHeight: 60,
     }] : []),
     {
-      title: '準備就緒！',
-      description: '現在您已了解 Safii 的基本功能，讓我們開始使用吧！',
-      backgroundColor: ['#3700B3', '#6200EE'],
-      buttonText: '開始使用',
+      backgroundColor: ['#f8c5b2', '#F18C8E'],
+      imageSource: require('../../assets/images/onboarding_06.png'),
+      topBarHeight: 80,
+      buttonText: '開始使用  →',
       onPress: handleOnboardingComplete,
-      disabled: !allPermissionsGranted,
     },
   ];
 
@@ -148,6 +119,7 @@ export default function OnboardingScreen() {
             <View key={index} style={styles.page}>
               <OnboardingPage
                 {...page}
+                bottomInset={insets.bottom}
               />
             </View>
           )
@@ -159,7 +131,9 @@ export default function OnboardingScreen() {
           style={[styles.arrow, styles.leftArrow]}
           onPress={() => pagerRef.current?.setPage(activeIndex - 1)}
         >
-          <FontAwesome name="arrow-left" size={24} color="white" />
+          <BlurView intensity={20} tint="dark" style={styles.arrowBlur}>
+            <FontAwesome name="arrow-left" size={20} color="white" />
+          </BlurView>
         </TouchableOpacity>
       )}
       {activeIndex < pages.length - 1 && (
@@ -167,18 +141,20 @@ export default function OnboardingScreen() {
           style={[styles.arrow, styles.rightArrow]}
           onPress={() => pagerRef.current?.setPage(activeIndex + 1)}
         >
-          <FontAwesome name="arrow-right" size={24} color="white" />
+          <BlurView intensity={20} tint="dark" style={styles.arrowBlur}>
+            <FontAwesome name="arrow-right" size={20} color="white" />
+          </BlurView>
         </TouchableOpacity>
       )}
 
-      <View style={styles.dotsContainer}>
+      <BlurView intensity={20} tint="dark" style={[styles.dotsContainer, { bottom: insets.bottom + 16 }]}>
         {pages.map((_, index) => (
           <View
             key={index}
             style={[styles.dot, activeIndex === index ? styles.activeDot : {}]}
           />
         ))}
-      </View>
+      </BlurView>
     </View>
   );
 }
@@ -187,7 +163,8 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  pagerView: {
+  pagerView: 
+  {
     flex: 1,
   },
   page: {
@@ -197,17 +174,20 @@ const styles = StyleSheet.create({
   },
   dotsContainer: {
     flexDirection: 'row',
-    justifyContent: 'center',
+    alignItems: 'center',
     position: 'absolute',
-    bottom: 40,
-    width: '100%',
+    alignSelf: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    overflow: 'hidden',
     zIndex: 1,
   },
   dot: {
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#ccc',
+    backgroundColor: 'rgba(255,255,255,0.4)',
     marginHorizontal: 5,
   },
   activeDot: {
@@ -216,8 +196,16 @@ const styles = StyleSheet.create({
   arrow: {
     position: 'absolute',
     top: '50%',
-    marginTop: -12,
+    marginTop: -22,
     zIndex: 1,
+  },
+  arrowBlur: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   leftArrow: {
     left: 20,

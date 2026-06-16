@@ -1,3 +1,4 @@
+// frontend/hooks/usePermissions.ts
 import { useState, useEffect } from 'react';
 import { AppState, Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
@@ -10,7 +11,7 @@ export function usePermissions() {
   const [foregroundLocationStatus, setForegroundLocationStatus] = useState<'granted' | 'denied' | 'idle'>('idle');
 
   const checkPermissions = async () => {
-    setIsLoading(true);
+    // setIsLoading(true);
     // Check Notification Permission
     const notifStatus = await Notifications.getPermissionsAsync();
     if (notifStatus.granted) {

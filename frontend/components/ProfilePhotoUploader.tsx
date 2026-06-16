@@ -7,9 +7,10 @@ import { ref, uploadBytesResumable, uploadBytes, getDownloadURL } from 'firebase
 import { doc, updateDoc } from 'firebase/firestore';
 import { useAuth } from '@/context/AuthProvider';
 import { FontAwesome } from '@expo/vector-icons';
+import { uiParameters } from '@/constants/Theme';
 
 export default function ProfilePhotoUploader() {
-    const { user, fetchUserInfo } = useAuth();
+    const { user, fetchUserInfo, signOut } = useAuth();
     const [uploading, setUploading] = useState(false);
     const [showOptions, setShowOptions] = useState(false);
 
@@ -68,46 +69,46 @@ export default function ProfilePhotoUploader() {
     };
 
     const uploadImage = async (uri: string, mimeType?: string) => {
-    if (!user?.uid) {
-        Alert.alert("Error", "You must be logged in to upload a profile picture");
-        return;
-    }
+        if (!user?.uid) {
+            Alert.alert("Error", "You must be logged in to upload a profile picture");
+            return;
+        }
 
-    setUploading(true);
+        setUploading(true);
 
-    try {
-        console.log("Starting upload process...");
+        try {
+            console.log("Starting upload process...");
 
-        // Convert URI → Blob
-        const response = await fetch(uri);
-        const blob = await response.blob();
+            // Convert URI → Blob
+            const response = await fetch(uri);
+            const blob = await response.blob();
 
-        // Path in Firebase
-        const path = `users/${user.uid}/avatar_${Date.now()}`;
-        const storageRef = ref(storage, path);
+            // Path in Firebase
+            const path = `users/${user.uid}/avatar_${Date.now()}`;
+            const storageRef = ref(storage, path);
 
-        // Pick correct mime type (fallback to jpeg)
-        const metadata = { contentType: mimeType || 'image/jpeg' };
+            // Pick correct mime type (fallback to jpeg)
+            const metadata = { contentType: mimeType || 'image/jpeg' };
 
-        // Upload
-        const snapshot = await uploadBytes(storageRef, blob, metadata);
-        console.log("Upload success!");
+            // Upload
+            const snapshot = await uploadBytes(storageRef, blob, metadata);
+            console.log("Upload success!");
 
-        const url = await getDownloadURL(snapshot.ref);
-        console.log("Download URL:", url);
+            const url = await getDownloadURL(snapshot.ref);
+            console.log("Download URL:", url);
 
-        // Save to Firestore
-        await updateDoc(doc(db, "users", user.uid), {
-        avatarUrl: url
-        });
-        fetchUserInfo(auth.currentUser)
-        // Alert.alert("Success!", "Photo uploaded");
-    } catch (error: any) {
-        console.error("Upload error:", JSON.stringify(error, null, 2));
-        Alert.alert("Error", `Failed to upload image: ${error.message || "Unknown error"}`);
-    } finally {
-        setUploading(false);
-    }
+            // Save to Firestore
+            await updateDoc(doc(db, "users", user.uid), {
+                avatarUrl: url
+            });
+            fetchUserInfo(auth.currentUser)
+            // Alert.alert("Success!", "Photo uploaded");
+        } catch (error: any) {
+            console.error("Upload error:", JSON.stringify(error, null, 2));
+            Alert.alert("Error", `Failed to upload image: ${error.message || "Unknown error"}`);
+        } finally {
+            setUploading(false);
+        }
     };
     return (
         <View style={styles.container}>
@@ -134,12 +135,16 @@ export default function ProfilePhotoUploader() {
                         <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={() => setShowOptions(false)}>
                             <View style={styles.modalContent}>
                                 <TouchableOpacity style={styles.modalButton} onPress={async () => { setShowOptions(false); await pickImage(); }}>
-                                    <FontAwesome name="photo" size={20} color="#1E40AF" />
+                                    <FontAwesome name="photo" size={20} />
                                     <Text style={styles.modalButtonText}>選擇照片</Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity style={styles.modalButton} onPress={async () => { setShowOptions(false); await takePhoto(); }}>
-                                    <FontAwesome name="camera" size={20} color="#1E40AF" />
+                                    <FontAwesome name="camera" size={20}/>
                                     <Text style={styles.modalButtonText}>拍照</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity style={[styles.modalButton, styles.modalCancel]} onPress={async () => { setShowOptions(false); await signOut(); }}>
+                                    <FontAwesome name="sign-out" size={20} color="#EF4444" />
+                                    <Text style={[styles.modalButtonText, { color: '#EF4444' }]}>登出</Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity style={[styles.modalButton, styles.modalCancel]} onPress={() => setShowOptions(false)}>
                                     <Text style={[styles.modalButtonText, { color: '#374151' }]}>取消</Text>
@@ -177,12 +182,13 @@ const styles = StyleSheet.create({
     avatarWrapper: {
         alignItems: 'center',
         justifyContent: 'center',
+        marginBottom: 6,
     },
     avatar: {
         width: 120,
         height: 120,
         borderRadius: 60,
-        borderWidth: 3,
+        // borderWidth: 3,
         borderColor: Theme.tracking_colors.coralRed,
         backgroundColor: '#E5E7EB',
     },
@@ -212,11 +218,12 @@ const styles = StyleSheet.create({
         paddingVertical: 12,
         paddingHorizontal: 8,
         gap: 12,
+        color: uiParameters.buttons.setting.text
     },
     modalButtonText: {
         marginLeft: 12,
         fontSize: 16,
-        color: '#1E40AF',
+        color: uiParameters.buttons.setting.text
     },
     modalCancel: {
         marginTop: 8,

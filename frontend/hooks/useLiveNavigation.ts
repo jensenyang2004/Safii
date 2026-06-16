@@ -44,6 +44,7 @@ export const useLiveNavigation = ({ onReroute, simulatedLocation }: UseLiveNavig
     // If navigating and a simulated location is provided, use it.
     if (simulatedLocation) {
       setUserLocation(simulatedLocation);
+
       // Ensure no real GPS watcher is active during simulation.
       if (locationSubscription.current) {
         locationSubscription.current.remove();
@@ -63,7 +64,7 @@ export const useLiveNavigation = ({ onReroute, simulatedLocation }: UseLiveNavig
           {
             accuracy: Location.Accuracy.BestForNavigation,
             timeInterval: 1000,
-            distanceInterval: 10,
+            distanceInterval: 100,
           },
           setUserLocation
         );
@@ -155,6 +156,7 @@ export const useLiveNavigation = ({ onReroute, simulatedLocation }: UseLiveNavig
       setEta(0);
       if (isNavigating) {
         Speech.speak('您已抵達目的地。', { language: 'zh-TW' });
+        console.log("抵達目的地 triggered, 停止 navigation")
         stopNavigation();
       }
     }

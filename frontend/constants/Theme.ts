@@ -1,10 +1,21 @@
 // constants/Theme.ts
 
+import { brand } from "expo-device";
+import { opacity } from "react-native-reanimated/lib/typescript/Colors";
+
 const palette = {
+
+  communityMain: '#F5C7BD',
+  coralRed: '#EE8A82',
+
+
+
   // --- Core Brand Colors (from track_base.tsx) ---
   brandPink: '#F18C8E',
   brandGreen: '#BFD3C1',
   brandOffWhite: '#F8F1EC',
+  brandYellow: '#FEE18B',
+  brandBlue: '#007AFF',
   actionOrange: '#F8BF80',
   actionPink: '#F3A8BB',
   // --- Action & Accent Colors (from other components) ---
@@ -14,6 +25,9 @@ const palette = {
   blueSecondary: '#007AFF',
   blueDark: '#15223F',
   blueTint: '#0a7ea4',
+  edit: '#0a7ea4',
+
+  incomingStatus: '#0a7ea4',
 
   // Reds
   redAccent: '#D63A2D',
@@ -41,6 +55,11 @@ const palette = {
   // --- Base ---
   white: '#FFFFFF',
   black: '#000000',
+
+  // Text
+  textDark: '#2A3248',
+  textInactive: '#868686',
+
 };
 
 
@@ -51,10 +70,13 @@ export const tracking_colors = {
     
     // Text & Icons
     darkBlue: '#15223F',    // Main text / Map icon
+    textWhite: '#FAFAFA',   // Text on dark backgrounds
     white: '#FFFFFF',       // Button text
     
     // Background & UI Tints
-    componentBg: '#ECECEC4D',  // Main component bg (ECECEC at 70% alpha)
+    componentBg: '#ECECECB3',  // Main component bg (ECECEC at 70% alpha)
+    btnBg: '#B3B3B3',
+    // rgba(236, 236, 236, 1)
     emergencyBg: '#D63A2DE6', // Emergency button bg (D63A2D at 90% alpha)
     progressBarBg: '#FFF6F0',// Progress bar background
     disabledGrey: '#D9D9D9', // Counting dot / Location share bg
@@ -63,6 +85,7 @@ export const tracking_colors = {
 export const uiParameters = {
   mainComponent: {
     background: tracking_colors.componentBg, // <-- Uses the 70% alpha color
+    opacity: 0.,
     blur: '60px',
     text: tracking_colors.darkBlue,
     textSize: '1rem', // Or '1rem', '1.2em', etc.
@@ -76,9 +99,19 @@ export const uiParameters = {
     active: tracking_colors.dangerRed, // Using the solid red here
   },
   buttons: {
+    setting: {
+      edit: palette.edit,
+      save: palette.brandPink,
+      text: palette.gray700,
+      textDark: palette.gray900,
+      decline: tracking_colors.btnBg,
+      accept: palette.edit,
+    },
     action: {
+      on: tracking_colors.successGreen,
+      off: tracking_colors.btnBg,
       background: tracking_colors.coralRed,
-      text: tracking_colors.white,
+      text: tracking_colors.textWhite,
       effect: 'drop-shadow',
     },
     emergency: {

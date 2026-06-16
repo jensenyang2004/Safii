@@ -1,3 +1,5 @@
+//  frontend/index.js
+
 import { registerRootComponent } from 'expo';
 import 'buffer'; // Add this line for Buffer polyfill
 

@@ -8,7 +8,6 @@ import {
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
-import Theme from '@/constants/Theme';
 
 interface LocationCardProps {
   name: string;

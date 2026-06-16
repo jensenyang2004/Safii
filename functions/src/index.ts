@@ -1,139 +1,186 @@
 import * as admin from "firebase-admin";
 import axios from 'axios';
-import { onSchedule } from "firebase-functions/v2/scheduler"; // Correct import for scheduled functions
+import { onSchedule } from "firebase-functions/v2/scheduler";
+import { onDocumentWritten } from "firebase-functions/v2/firestore"; 
 
-admin.initializeApp();
+// 如果你這支檔案已經有寫過 admin.initializeApp()，保留一次就好
+if (admin.apps.length === 0) {
+    admin.initializeApp();
+}
 
-// --- Constants for the Emergency Scanner Function ---
-const MAX_NOTIFICATIONS = 3; // Example: Max 3 reminders per contact
-const REMINDER_INTERVAL_MINUTES = 15; // How often to check for reminders
+// --- 常數設定 ---
+const MAX_NOTIFICATIONS = 3;
+const REMINDER_INTERVAL_MINUTES = 15;
 const REMINDER_INTERVAL_MS = REMINDER_INTERVAL_MINUTES * 60 * 1000;
 
-// --- Scheduled Emergency Scanner Function ---
-export const emergencyScanner = onSchedule(`every ${REMINDER_INTERVAL_MINUTES} minutes`, async (event) => {
-  console.log('Emergency Scanner Function started.');
+// 抽取共用的推播發送邏輯，避免程式碼重複
+async function sendEmergencyPush(contactId: string, sessionData: any, documentId: string) {
+    const db = admin.firestore();
+    try {
+        const contactDoc = await db.collection('users').doc(contactId).get();
+        const contactData = contactDoc.data();
+        const pushToken = contactData?.pushToken;
 
-  const db = admin.firestore();
-  const now = admin.firestore.Timestamp.now();
+        if (!pushToken) {
+            console.log(`未找到聯絡人 ${contactId} 的 push token，跳過。`);
+            return false;
+        }
 
-  // 1. Query for active emergency sessions that are due for a notification.
-  const querySnapshot = await db.collection('active_tracking')
-    .where('isActive', '==', true)
-    .where('overallStatus', '==', 'notifying')
-    .where('nextNotificationTime', '<=', now)
-    .get();
-
-  if (querySnapshot.empty) {
-    console.log('No active tracking sessions due for notification.');
-    return;
-  }
-
-  const updatesPromises: Promise<any>[] = [];
-
-  for (const docSnapshot of querySnapshot.docs) { // Changed from forEach to for...of
-    const sessionData = docSnapshot.data();
-    const updates: { [key: string]: any } = {}; // updates object for this session
-    let allContactsAcknowledged = true;
-    const documentId = docSnapshot.id; // Get the document ID here
-
-    // 2. Iterate Contacts: Loop through the keys (contactId) of the contactStatus map.
-    const contactStatus = sessionData.contactStatus || {};
-
-    for (const contactId of Object.keys(contactStatus)) { // Changed from forEach to for...of
-      const contact = contactStatus[contactId];
-
-      // 3. Check Each Contact: If contact needs a reminder
-      if (contact.status !== 'acknowledged' && contact.notificationCount < MAX_NOTIFICATIONS) {
-        allContactsAcknowledged = false; // At least one contact still needs reminders
-
-        // 4. Notify & Prepare Updates: Send a notification to this specific contactId.
-        try {
-          // Get contact's push token
-          const contactDoc = await db.collection('users').doc(contactId).get();
-          const contactData = contactDoc.data();
-          const pushToken = contactData?.pushToken;
-
-          if (!pushToken) {
-            console.log(`No push token found for contact: ${contactId}. Notification not sent.`);
-            continue; // Use continue to skip to next contact if no token
-          }
-
-          // Get tracked user's display name for notification message
-          let trackedUserName = 'Someone';
-          const trackedUserDoc = await db.collection('users').doc(sessionData.trackedUserId).get();
-          if (trackedUserDoc.exists) {
+        let trackedUserName = 'Someone';
+        const trackedUserDoc = await db.collection('users').doc(sessionData.trackedUserId).get();
+        if (trackedUserDoc.exists) {
             trackedUserName = trackedUserDoc.data()?.displayName || trackedUserDoc.data()?.username || 'Someone';
-          }
+        }
 
-          const activity = sessionData.activity || '';
-          const activityLocation = sessionData.activityLocation || '';
-          const notes = sessionData.notes || '';
-
-          let body = `${trackedUserName} 發送了緊急通知，請盡快查看訊息。`;
-          // if (activity) {
-          //   body += `\n活動資訊: ${activity}`;
-          // }
-          // if (activityLocation) {
-          //   body += `\n活動地點: ${activityLocation}`;
-          // }
-          // if (notes) {
-          //   body += `\n備註: ${notes}`;
-          // }
-
-          const message = {
+        const message = {
             to: pushToken,
             sound: 'safii_alert.wav',
-            title: `Emergency Alert from ${trackedUserName}`,
-            body: body, // Customize message
-            data: { // Data payload for deep linking
-              type: 'emergency_alert',
-              trackedUserId: sessionData.trackedUserId,
-              sessionId: documentId, // Use documentId here
-              activity: activity,
-              activityLocation: activityLocation,
-              notes: notes,
+            title: `緊急通報：來自 ${trackedUserName}`,
+            body: `${trackedUserName} 發送了緊急通知，請盡快查看！`,
+            data: {
+                type: 'emergency_alert',
+                trackedUserId: sessionData.trackedUserId,
+                sessionId: documentId,
             },
-          };
+        };
 
-          await axios.post('https://exp.host/--/api/v2/push/send', message, {
+        await axios.post('https://exp.host/--/api/v2/push/send', message, {
             headers: {
-              Accept: 'application/json',
-              'Accept-encoding': 'gzip, deflate',
-              'Content-Type': 'application/json',
+                Accept: 'application/json',
+                'Accept-encoding': 'gzip, deflate',
+                'Content-Type': 'application/json',
             },
-          });
-          console.log(`Notification sent to emergency contact: ${contactId}.`);
+        });
+        console.log(`成功發送通知給聯絡人: ${contactId}`);
+        return true;
+    } catch (error) {
+        console.error(`發送通知給 ${contactId} 時發生錯誤:`, error);
+        return false;
+    }
+}
 
-          // Add updates for this contact
-          updates[`contactStatus.${contactId}.notificationCount`] = contact.notificationCount + 1;
-          updates[`contactStatus.${contactId}.status`] = 'notified';
+async function handleEmergencyTriggered(
+    db: admin.firestore.Firestore,
+    collectionName: string,
+    sessionId: string,
+    beforeData: any,
+    afterData: any
+) {
+    const isJustTriggered =
+        afterData.overallStatus === 'notifying' &&
+        (!beforeData || beforeData.overallStatus !== 'notifying');
 
-        } catch (error) {
-          console.error(`Error sending notification to ${contactId}:`, error);
+    if (!isJustTriggered) return;
+
+    console.log(`[即時觸發] 偵測到緊急通報！Collection: ${collectionName}, Session ID: ${sessionId}`);
+
+    const updates: { [key: string]: any } = {};
+    const contactStatus = afterData.contactStatus || {};
+    const now = admin.firestore.Timestamp.now();
+
+    for (const contactId of Object.keys(contactStatus)) {
+        const success = await sendEmergencyPush(contactId, afterData, sessionId);
+        if (success) {
+            updates[`contactStatus.${contactId}.notificationCount`] = 1;
+            updates[`contactStatus.${contactId}.status`] = 'notified';
         }
-      }
-    } // End of inner for...of loop
-
-    // 5. Determine Next Step: After the inner loop finishes
-    if (allContactsAcknowledged) {
-      // Everyone has acknowledged. The process is over for this emergency.
-      updates['overallStatus'] = 'completed';
-      console.log(`Session ${documentId} completed as all contacts acknowledged.`);
-    } else {
-      // At least one person still needs reminders. Schedule the next check.
-      updates['nextNotificationTime'] = admin.firestore.Timestamp.fromMillis(now.toMillis() + REMINDER_INTERVAL_MS);
-      console.log(`Session ${documentId} scheduled for next reminder.`);
     }
 
-    console.log('Updates for session:', documentId, updates); // Added log here
+    updates['nextNotificationTime'] = admin.firestore.Timestamp.fromMillis(now.toMillis() + REMINDER_INTERVAL_MS);
 
-    // 6. Commit to Firestore: Perform a single doc.ref.update(updates) call
     if (Object.keys(updates).length > 0) {
-      updatesPromises.push(docSnapshot.ref.update(updates));
+        await db.collection(collectionName).doc(sessionId).update(updates);
+        console.log(`[即時觸發] 第一波通知發送完畢。`);
     }
-  } // End of outer for...of loop
+}
 
-  await Promise.all(updatesPromises);
-  console.log('Emergency Scanner Function finished.');
-  return;
+export const onEmergencyTriggered = onDocumentWritten("active_tracking/{sessionId}", async (event) => {
+    const db = admin.firestore();
+    const afterData = event.data?.after.data();
+    if (!afterData) return;
+    await handleEmergencyTriggered(db, 'active_tracking', event.params.sessionId, event.data?.before.data(), afterData);
+});
+
+export const onManualEmergencyTriggered = onDocumentWritten("manual_tracking/{sessionId}", async (event) => {
+    const db = admin.firestore();
+    const afterData = event.data?.after.data();
+    if (!afterData) return;
+    await handleEmergencyTriggered(db, 'manual_tracking', event.params.sessionId, event.data?.before.data(), afterData);
+});
+
+// ============================================================================
+// ♻️ 修改：未讀提醒排程函式 (處理後續提醒)
+// 每 15 分鐘檢查一次，專門處理「沒有按確認」的聯絡人
+// ============================================================================
+export { scheduleActivator } from './scheduleActivator';
+export { scheduleEndChecker } from './scheduleEndChecker';
+
+async function scanCollectionForEmergencies(
+    db: admin.firestore.Firestore,
+    collectionName: string,
+    now: admin.firestore.Timestamp
+): Promise<Promise<any>[]> {
+    const snapshot = await db.collection(collectionName)
+        .where('isActive', '==', true)
+        .where('overallStatus', '==', 'notifying')
+        .where('nextNotificationTime', '<=', now)
+        .get();
+
+    if (snapshot.empty) return [];
+
+    const promises: Promise<any>[] = [];
+
+    for (const docSnapshot of snapshot.docs) {
+        const sessionData = docSnapshot.data();
+        const documentId = docSnapshot.id;
+        const updates: { [key: string]: any } = {};
+        let allContactsAcknowledged = true;
+        const contactStatus = sessionData.contactStatus || {};
+
+        for (const contactId of Object.keys(contactStatus)) {
+            const contact = contactStatus[contactId];
+            if (contact.status !== 'acknowledged') {
+                allContactsAcknowledged = false;
+                if (contact.notificationCount < MAX_NOTIFICATIONS) {
+                    console.log(`[排程掃描:${collectionName}] 聯絡人 ${contactId} 尚未確認，發送第 ${contact.notificationCount + 1} 次提醒。`);
+                    await sendEmergencyPush(contactId, sessionData, documentId);
+                    updates[`contactStatus.${contactId}.notificationCount`] = contact.notificationCount + 1;
+                    updates[`contactStatus.${contactId}.status`] = 'notified';
+                } else {
+                    console.log(`[排程掃描:${collectionName}] 聯絡人 ${contactId} 已達提醒上限 (${MAX_NOTIFICATIONS}次)。`);
+                }
+            }
+        }
+
+        if (allContactsAcknowledged) {
+            updates['overallStatus'] = 'completed';
+            console.log(`[排程掃描:${collectionName}] Session ${documentId} 所有人皆已確認，結案。`);
+        } else {
+            updates['nextNotificationTime'] = admin.firestore.Timestamp.fromMillis(now.toMillis() + REMINDER_INTERVAL_MS);
+        }
+
+        if (Object.keys(updates).length > 0) {
+            promises.push(docSnapshot.ref.update(updates));
+        }
+    }
+
+    return promises;
+}
+
+export const emergencyScanner = onSchedule(`every ${REMINDER_INTERVAL_MINUTES} minutes`, async (event) => {
+    console.log('[排程掃描] 尋找未確認的緊急通報...');
+    const db = admin.firestore();
+    const now = admin.firestore.Timestamp.now();
+
+    const [scheduledPromises, manualPromises] = await Promise.all([
+        scanCollectionForEmergencies(db, 'active_tracking', now),
+        scanCollectionForEmergencies(db, 'manual_tracking', now),
+    ]);
+
+    const all = [...scheduledPromises, ...manualPromises];
+    if (all.length === 0) {
+        console.log('[排程掃描] 目前沒有需要發送提醒的通報。');
+        return;
+    }
+    await Promise.all(all);
 });

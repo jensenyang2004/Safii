@@ -85,6 +85,7 @@ export const useNearbyPlaces = (
       const data = await response.json();
 
       if (data.status === 'OK') {
+        console.log('💕 The data status is OK');
         setPlaces(data.results);
         // Store result in cache using the updated insertCache signature
         // Generate a simple cache_key for insertCache, as findClosestCache handles spatial lookup
