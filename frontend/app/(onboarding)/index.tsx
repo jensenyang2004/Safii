@@ -4,17 +4,14 @@ import { BlurView } from 'expo-blur';
 import PagerView from 'react-native-pager-view';
 import OnboardingPage from '../../components/OnboardingPage';
 import { router } from 'expo-router';
-import * as SecureStore from 'expo-secure-store';
 import { FontAwesome } from '@expo/vector-icons';
 import * as Notifications from 'expo-notifications';
-import * as Location from 'expo-location';
 import { usePermissions } from '../../hooks/usePermissions';
 import { useBiometrics } from '../../hooks/useBiometrics';
 import { useAuth } from '@/context/AuthProvider';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width } = Dimensions.get('window');
-const ONBOARDING_COMPLETED_KEY = 'onboarding_completed';
 
 export default function OnboardingScreen() {
   const pagerRef = useRef<PagerView>(null);
@@ -24,27 +21,17 @@ export default function OnboardingScreen() {
 
   const {
     notificationStatus,
-    backgroundLocationStatus,
     checkPermissions
   } = usePermissions();
 
   const {
     isBiometricSupported,
-    isEnrolled,
-    promptEnrollment,
     checkBiometrics,
   } = useBiometrics();
 
   useEffect(() => {
     if (activeIndex === 2 && notificationStatus === 'idle') {
       Notifications.requestPermissionsAsync().then(() => checkPermissions());
-    }
-    if (activeIndex === 3 && backgroundLocationStatus !== 'granted') {
-      (async () => {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status === 'granted') await Location.requestBackgroundPermissionsAsync();
-        checkPermissions();
-      })();
     }
     if (activeIndex === 4 && isBiometricSupported) {
       checkBiometrics();
@@ -62,14 +49,6 @@ export default function OnboardingScreen() {
   useEffect(() => {
     console.log('OnboardingScreen mounted');
   }, []);
-
-  const handleBiometricSetup = () => {
-    if (isBiometricSupported && !isEnrolled) {
-      promptEnrollment();
-    } else {
-      pagerRef.current?.setPage(activeIndex + 1);
-    }
-  };
 
   const pages = [
     {

@@ -61,18 +61,13 @@ export default function RootLayout() {
 
 function RootLayoutNav() {
   const { user, loading: authLoading, onboardingComplete } = useAuth();
-  const {
-    notificationStatus,
-    foregroundLocationStatus,
-    isLoading: permissionsLoading,
-  } = usePermissions();
+  const { isLoading: permissionsLoading } = usePermissions();
   const segments = useSegments();
 
   useEffect(() => {
     const inAuthGroup = segments[0] === '(auth)';
     const inOnboardingGroup = segments[0] === '(onboarding)';
 
-    // Wait until auth and permissions status are loaded
     if (authLoading || permissionsLoading) {
       return;
     }
@@ -80,25 +75,17 @@ function RootLayoutNav() {
     console.log(`🔄 current user: ${user}`);
     if (!user) {
       console.log('😇 User not signed in, redirecting to sign-in screen.');
-      // User is not signed in, redirect to sign-in screen.
       if (!inAuthGroup) {
         console.log('🚪 Redirecting to sign-in screen...');
         router.replace('/(auth)/sign-in');
       }
     } else {
-      // User is signed in
-      const hasRequiredPermissions =
-        notificationStatus === 'granted' && foregroundLocationStatus === 'granted';
-      // If onboarding is not complete OR permissions are missing, go to onboarding.
-
-      if (!onboardingComplete || !hasRequiredPermissions) {
+      // Only gate on onboarding completion — permissions are optional per Apple Guideline 4.5.4
+      if (!onboardingComplete) {
         if (!inOnboardingGroup) {
-     
           router.replace('/(onboarding)');
         }
       } else {
-        // User is fully authenticated, onboarded, and has permissions.
-        // If they are on a page in the auth or onboarding group, redirect to home.
         if (inAuthGroup || inOnboardingGroup) {
           router.replace('/(tabs)/home');
         }
@@ -107,8 +94,6 @@ function RootLayoutNav() {
   }, [
     user,
     onboardingComplete,
-    notificationStatus,
-    foregroundLocationStatus,
     segments,
     authLoading,
     permissionsLoading,

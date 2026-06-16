@@ -631,15 +631,36 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
 
       console.log('✅ Tracking started with full timeline pre-calculated');
 
-      // NEW CONDITIONAL LOGIC
-      if (backgroundLocationStatus === 'granted') {
+      // Two-step iOS permission request, then start location based on what was granted
+      let resolvedForeground = foregroundLocationStatus;
+      let resolvedBackground = backgroundLocationStatus;
+
+      if (resolvedForeground !== 'granted') {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        resolvedForeground = status === 'granted' ? 'granted' : 'denied';
+      }
+
+      if (resolvedForeground === 'granted' && resolvedBackground !== 'granted') {
+        const { status } = await Location.requestBackgroundPermissionsAsync();
+        resolvedBackground = status === 'granted' ? 'granted' : 'denied';
+      }
+
+      if (resolvedBackground === 'granted') {
         await TrackingLocation.startBackgroundLocationUpdates();
-      } else if (foregroundLocationStatus === 'granted') {
+      } else if (resolvedForeground === 'granted') {
         const watcher = await TrackingLocation.startForegroundLocationWatcher(user.uid);
         setForegroundWatcher(watcher);
+        Alert.alert(
+          '位置分享提醒',
+          '目前為「使用 App 期間」定位。當 App 在背景時，緊急聯絡人可能看到您數小時前的位置。\n\n建議前往設定開啟「永遠允許」以獲得最即時的保護。',
+          [{ text: '了解' }]
+        );
       } else {
-        console.warn('⚠️ No location permissions granted. Location tracking will not start.');
-        Alert.alert("需要位置權限", "報平安功能需要定位權限才能運作，請在設定中開啟。");
+        Alert.alert(
+          '位置未開啟',
+          '您的緊急聯絡人將無法看到您的位置。報平安提醒功能仍會正常運作。\n\n您可以隨時在設定中開啟定位。',
+          [{ text: '了解' }]
+        );
       }
 
       dispatch({ 

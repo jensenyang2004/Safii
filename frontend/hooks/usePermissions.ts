@@ -10,13 +10,8 @@ export function usePermissions() {
   const [backgroundLocationStatus, setBackgroundLocationStatus] = useState<'granted' | 'denied' | 'idle'>('idle');
   const [foregroundLocationStatus, setForegroundLocationStatus] = useState<'granted' | 'denied' | 'idle'>('idle');
 
-<<<<<<< HEAD
   const checkPermissions = async (silent = false) => {
     if (!silent) setIsLoading(true);
-=======
-  const checkPermissions = async () => {
-    // setIsLoading(true);
->>>>>>> 9d950172230e2fac245aa043368d8706d5daee5e
     // Check Notification Permission
     const notifStatus = await Notifications.getPermissionsAsync();
     if (notifStatus.granted) {
