@@ -170,6 +170,7 @@ export default function FriendsScreen() {
 
         <View style={styles.friendInfo}>
           <Text style={styles.friendName}>{item.displayName || item.username}</Text>
+          <Text style={styles.friendHandle}>@{item.username}</Text>
         </View>
 
         {existingRequest ? (
@@ -482,6 +483,11 @@ const styles = StyleSheet.create({
   friendName: {
     fontSize: 16,
     fontWeight: '500',
+  },
+  friendHandle: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    marginTop: 1,
   },
   requestButtons: {
     flexDirection: 'row',

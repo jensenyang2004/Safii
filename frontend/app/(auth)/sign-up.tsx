@@ -81,6 +81,7 @@ export default function SignUp() {
         phone: '',                // 如果有電話，可傳入
         email: user.email!,
         username: username,
+        displayName: username,
         avatarUrl: '',            // 可後續讓使用者上傳
         gender: 'other',
         createdAt: serverTimestamp(),

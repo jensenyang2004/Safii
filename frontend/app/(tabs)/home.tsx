@@ -1,10 +1,14 @@
 // app/(tabs)/home.tsx
 
-import { ActivityIndicator, View, Text, Pressable, Alert, StyleSheet, FlatList, TouchableOpacity, ScrollView, Image } from 'react-native';
+import { ActivityIndicator, View, Text, Pressable, Alert, StyleSheet, FlatList, TouchableOpacity, ScrollView, Image, TextInput } from 'react-native';
 
 import { useState } from 'react';
 import { router } from 'expo-router';
 import { useAuth } from '@/context/AuthProvider';
+import { updateProfile } from 'firebase/auth';
+import { doc, updateDoc } from 'firebase/firestore';
+import { auth, db } from '@/libs/firebase';
+import { FontAwesome5 } from '@expo/vector-icons';
 import '@/global.css';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import ProfilePhotoUploader from '@/components/ProfilePhotoUploader';
@@ -66,9 +70,28 @@ function ContactAvatarStack({ contactIds, friends }: {
 const DAY_SHORT = ['日', '一', '二', '三', '四', '五', '六'];
 
 export default function HomeScreen() {
-  const { user } = useAuth();
+  const { user, fetchUserInfo } = useAuth();
   const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<'tracking' | 'sharing'>('tracking');
+  const [editingName, setEditingName] = useState(false);
+  const [newDisplayName, setNewDisplayName] = useState('');
+  const [savingName, setSavingName] = useState(false);
+
+  const saveDisplayName = async () => {
+    const trimmed = newDisplayName.trim();
+    if (!trimmed) { Alert.alert('請輸入顯示名稱'); return; }
+    setSavingName(true);
+    try {
+      await updateProfile(auth.currentUser!, { displayName: trimmed });
+      await updateDoc(doc(db, 'users', user!.uid), { displayName: trimmed });
+      await fetchUserInfo(auth.currentUser);
+      setEditingName(false);
+    } catch {
+      Alert.alert('儲存失敗', '請稍後再試。');
+    } finally {
+      setSavingName(false);
+    }
+  };
 
   const { schedules, activeSession, loading: scheduleLoading, deleteSchedule } = useScheduledTracking();
   const { isTracking, trackingModeId } = useTracking();
@@ -156,9 +179,38 @@ export default function HomeScreen() {
 
       <View style={homeStyles.headerContainer}>
         <ProfilePhotoUploader />
-        <Text style={homeStyles.username}>
-          {user?.displayName || user?.username || user?.nickname || user?.email || 'Unknown User'}
-        </Text>
+        {editingName ? (
+          <View style={homeStyles.nameEditRow}>
+            <TextInput
+              style={homeStyles.nameEditInput}
+              value={newDisplayName}
+              onChangeText={setNewDisplayName}
+              autoFocus
+              placeholderTextColor="#A9A9A9"
+              placeholder="顯示名稱"
+            />
+            {savingName ? (
+              <ActivityIndicator color={Theme.colors.brandPink} style={{ marginLeft: 8 }} />
+            ) : (
+              <>
+                <TouchableOpacity onPress={saveDisplayName} style={homeStyles.nameEditConfirm}>
+                  <FontAwesome5 name="check" size={14} color="#fff" />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setEditingName(false)} style={homeStyles.nameEditCancel}>
+                  <FontAwesome5 name="times" size={14} color="#888" />
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        ) : (
+          <TouchableOpacity style={homeStyles.nameRow} onPress={() => { setNewDisplayName(user?.displayName || user?.username || ''); setEditingName(true); }} activeOpacity={0.7}>
+            <Text style={homeStyles.username}>
+              {user?.displayName || user?.username || user?.nickname || user?.email || 'Unknown User'}
+            </Text>
+            <FontAwesome5 name="pen" size={12} color="#A9A9A9" style={{ marginLeft: 6, marginTop: 2 }} />
+          </TouchableOpacity>
+        )}
+        <Text style={homeStyles.handle}>@{user?.username}</Text>
       </View>
 
       <View style={homeStyles.tabBar}>
@@ -369,7 +421,41 @@ const homeStyles = StyleSheet.create({
   username: {
     fontSize: 24,
     fontWeight: 'bold',
+  },
+  handle: {
+    fontSize: 13,
+    color: '#A9A9A9',
     marginBottom: 12,
+    marginTop: 2,
+  },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  nameEditRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    gap: 6,
+  },
+  nameEditInput: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#333',
+    borderBottomWidth: 2,
+    borderBottomColor: Theme.colors.brandPink,
+    paddingVertical: 2,
+    minWidth: 120,
+  },
+  nameEditConfirm: {
+    backgroundColor: Theme.colors.brandPink,
+    padding: 7,
+    borderRadius: 20,
+  },
+  nameEditCancel: {
+    backgroundColor: '#F3F4F6',
+    padding: 7,
+    borderRadius: 20,
   },
   signOutButton: {
     backgroundColor: Theme.colors.gray200,
