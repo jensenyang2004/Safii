@@ -63,7 +63,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       router.replace('/(auth)/sign-in');
     } catch (error) {
       console.error('Error signing out:', error);
-      Alert.alert('Error', 'Failed to sign out. Please try again.');
+      Alert.alert('錯誤', '登出失敗，請稍後再試。');
     } finally {
       setLoading(false); // Hide loading regardless of outcome
     }
@@ -76,7 +76,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setOnboardingComplete(false);
       return;
     }
-    setLoading(true);
+    // setLoading(true);
     try {
       const userOnboardingKey = `${ONBOARDING_COMPLETED_KEY}_${authUser.uid}`;
       const status = await SecureStore.getItemAsync(userOnboardingKey);

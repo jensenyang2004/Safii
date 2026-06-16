@@ -1,11 +1,13 @@
 export interface POI {
   id: string;
-  type: 'police' | 'hospital' | 'store' | 'light' | 'camera';
+  type: 'police' | 'hospital' | 'store' | 'light' | 'camera' | 'test';
   name: string;
   latitude: number;
   longitude: number;
   open_hours?: string;
   weight: number;
+  brand?: string;
+  address?: string;
 }
 
 export interface HeatmapCell {
@@ -40,7 +42,7 @@ export interface Leg {
 }
 
 export interface RouteInfo {
-  mode: 'fastest' | 'shortest' | 'safest';
+  mode: '最快' | '最短' | '最安全';
   distance: { text: string; value: number };
   duration: { text: string; value: number };
   polyline: { latitude: number; longitude: number }[];

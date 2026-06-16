@@ -7,6 +7,7 @@ import { requestForegroundPermissionsAsync, getCurrentPositionAsync } from 'expo
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/libs/firebase';
 import * as Theme from '../../constants/Theme';
+import { uiParameters } from '../../constants/Theme';
 
 interface SearchResult {
   id: string;
@@ -99,21 +100,6 @@ export default function FriendsScreen() {
         <FontAwesome5 name="user-minus" size={16} color="#EF4444" />
       </Pressable>
 
-      {/* <Pressable
-        style={styles.sendLocationButton}
-        onPress={() => {
-          const auth = getAuth();
-          const currentUserId = auth.currentUser?.uid;
-
-          if (!currentUserId) {
-            Alert.alert('錯誤', '你需要登入才能發送位置資訊');
-            return;
-          }
-          sendLocationInfo(item.userId, currentUserId);
-        }}
-      >
-        <Text style={styles.actionButtonText}>發送位置</Text>
-      </Pressable> */}
     </View>
   );
 
@@ -143,7 +129,7 @@ export default function FriendsScreen() {
           style={[styles.actionButton, styles.rejectButton]}
           onPress={() => rejectFriendRequest(item.id)}
         >
-          <Text style={styles.actionButtonText}>拒絕</Text>
+          <Text style={styles.rejectButtonText}>拒絕</Text>
         </Pressable>
       </View>
     </View>
@@ -170,7 +156,7 @@ export default function FriendsScreen() {
         style={styles.cancelButton}
         onPress={() => cancelFriendRequest(item.id)}
       >
-        <Text style={styles.actionButtonText}>取消</Text>
+        <Text style={styles.rejectButtonText}>取消</Text>
       </Pressable>
     </View>
   );
@@ -198,7 +184,7 @@ export default function FriendsScreen() {
             style={styles.addButton}
             onPress={() => handleSendRequest(item.id)}
           >
-            <FontAwesome5 name="user-plus" size={16} color={Theme.colors.actionOrange} />
+            <FontAwesome5 name="user-plus" size={16} color={Theme.colors.blueAction} />
           </Pressable>
         )}
       </View>
@@ -252,45 +238,6 @@ export default function FriendsScreen() {
     return true;
   };
 
-  const sendLocationInfo = async (friendId: string, userId: string) => {
-    try {
-      // Reference to the user's real-time location in Firestore
-      const realTimeLocationRef = doc(db, `users/${userId}/real_time_location/current`);
-      const realTimeLocationSnapshot = await getDoc(realTimeLocationRef);
-
-      if (!realTimeLocationSnapshot.exists) {
-        Alert.alert('錯誤', '找不到即時位置數據');
-        return;
-      }
-
-      const locationData = realTimeLocationSnapshot.data() as LocationData;
-
-      if (!locationData || !locationData.lat || !locationData.long || !locationData.updateTime) {
-        Alert.alert('錯誤', '無效的位置數據');
-        console.log('Invalid location data:', locationData);
-        return;
-      }
-      // Reference to the friend's location sharing document
-      const locationSharingRef = doc(db, `location_sharing/${friendId}`);
-      const locationSharingData = {
-        userId: userId,
-        location: {
-          latitude: locationData.lat,
-          longitude: locationData.long,
-          latitudeDelta: 0.01, // Adjust as needed
-          longitudeDelta: 0.01, // Adjust as needed
-        },
-        updateTime: locationData.updateTime,
-      };
-
-      await setDoc(locationSharingRef, locationSharingData);
-
-      Alert.alert('成功', '成功發起位置分享');
-    } catch (error) {
-      console.error('Error initiating location sharing:', error);
-      Alert.alert('錯誤', '發起位置分享失敗');
-    }
-  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -360,13 +307,15 @@ export default function FriendsScreen() {
                 <View>
                   {/* Add this header with refresh button */}
                   <View style={styles.header}>
-                    <Text style={styles.sectionTitle}>交友請求</Text>
+                    {/* <Text style={styles.sectionTitle}>交友請求</Text> */}
+                    <Text style={styles.sectionTitle}>你收到的請求</Text>
                     <Pressable onPress={refreshFriendData} style={styles.refreshButton}>
-                      <FontAwesome5 name="sync" size={16} color={Theme.colors.action} />
+                      <FontAwesome5 name="sync" size={16} color={Theme.colors.blueAction} />
                     </Pressable>
                   </View>
 
-                  <Text style={styles.sectionTitle}>你收到的請求</Text>
+
+
                   <FlatList
                     data={incomingRequests}
                     renderItem={renderRequest}
@@ -391,7 +340,7 @@ export default function FriendsScreen() {
               {activeTab === 'search' && (
                 <>
                   {searching ? (
-                    <ActivityIndicator size="small" color={Theme.colors.actionOrange} style={styles.loader} />
+                    <ActivityIndicator size="small" color={Theme.colors.blueAction} style={styles.loader} />
                   ) : (
                     // <></>
                     <FlatList
@@ -482,7 +431,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#D1D5DB',
     borderRadius: 8,
-    padding: 10,
+    height: 44,
+    paddingHorizontal: 12,
     marginRight: 8,
   },
   searchButton: {
@@ -543,10 +493,13 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   acceptButton: {
-    backgroundColor: Theme.tracking_colors.coralRed,
+    backgroundColor: uiParameters.buttons.setting.accept,
   },
   rejectButton: {
-    backgroundColor: '#EF4444',
+    backgroundColor: uiParameters.buttons.setting.decline,
+  },
+  rejectButtonText: {
+    color: uiParameters.buttons.setting.textDark
   },
   removeButton: {
     padding: 10,
@@ -571,7 +524,7 @@ const styles = StyleSheet.create({
     color: '#1F2937',
   },
   cancelButton: {
-    backgroundColor: '#EF4444',
+    backgroundColor: uiParameters.buttons.setting.decline,
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 6,

@@ -2,7 +2,8 @@ import { useState, useRef, useEffect, useMemo } from 'react';
 import * as Location from 'expo-location';
 import { haversineDistance } from '@/utils/geo';
 import { pois } from '@/constants/pois';
-import { POI } from '@/types';
+// import { useNearbyPlaces } from '@/apis/useNearbyPlaces';
+
 
 const POI_UPDATE_DISTANCE_THRESHOLD = 5; // meters
 
@@ -12,6 +13,8 @@ export const usePoiFilter = (
 ) => {
   const [poiSearchLocation, setPoiSearchLocation] = useState<Location.LocationObject | null>(null);
   const lastPoiSearchLocation = useRef<Location.LocationObject | null>(null);
+  // const { places, loading: isSearchingPlaces, searchNearby, clearPlaces } = useNearbyPlaces();
+  // 0111 temparirily set up for searching stores with google places API
 
   // Debounced location for POI searching
   useEffect(() => {
@@ -54,5 +57,7 @@ export const usePoiFilter = (
     });
   }, [poiSearchLocation, selectedPoiType]);
 
+  // if (selectedPoiType !== 'police') return places;
+  if (selectedPoiType !== 'police') return [];
   return filteredPois;
 };

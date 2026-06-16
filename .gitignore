@@ -9,6 +9,9 @@ dist/
 web-build/
 expo-env.d.ts
 
+ios/
+android/
+
 # Native
 *.orig.*
 *.jks
@@ -123,3 +126,7 @@ node_modules/
 # dataconnect generated files
 .dataconnect
 frontend/.env.example
+
+# Sensitive Firebase config files
+frontend/google-services.json
+frontend/GoogleService-Info.plist

@@ -1,4 +1,5 @@
 // frontend/app.config.js
+require("dotenv").config();
 const fs = require("fs");
 const path = require("path");
 
@@ -6,23 +7,20 @@ module.exports = {
   expo: {
     name: "Safii",
     slug: "Safii",
-    version: "1.2.1",
+    version: "2.1.0",
     orientation: "portrait",
     icon: "./assets/images/icon.png",
     scheme: "myapp",
     userInterfaceStyle: "automatic",
-
-    // ❌ 絕對不要在這裡寫 newArchEnabled: true
-
     runtimeVersion: "1.0.0",
 
     // --- iOS 設定 ---
     ios: {
       bundleIdentifier: "com.nightbase.firebase",
-      buildNumber: "1", 
-      supportsTablet: true,
+      buildNumber: "5",
+      supportsTablet: false,
       config: {
-        googleMapsApiKey: "AIzaSyDeiltvsroXFIU0YWpNVnphyxv0V60_wTM",
+        googleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY,
         usesNonExemptEncryption: false
       },
       googleServicesFile: "./GoogleService-Info.plist",
@@ -30,9 +28,9 @@ module.exports = {
         ITSAppUsesNonExemptEncryption: false,
         // 👇 從 app.json 搬過來的關鍵權限描述 (沒這幾行會崩潰)
         UIBackgroundModes: ["location", "fetch"],
-        NSLocationWhenInUseUsageDescription: "Safii 需要您的位置來顯示周邊安全設施與緊急追蹤。",
-        NSLocationAlwaysAndWhenInUseUsageDescription: "Safii 需要在背景存取您的位置以進行緊急狀況追蹤。",
-        NSLocationAlwaysUsageDescription: "Safii 需要在背景存取您的位置以進行緊急狀況追蹤。",
+        NSLocationWhenInUseUsageDescription: "Safii uses your location to keep your emergency contacts informed during active safety check-in sessions. For example, when you start a tracking session before walking home alone, your contacts can see your real-time location on a map, and if you miss a check-in, your last known location is automatically sent to them.",
+        NSLocationAlwaysAndWhenInUseUsageDescription: "Safii needs background location access to continue updating your real-time position to emergency contacts when the app is not actively open. For example, if your phone is in your pocket while walking home, Safii keeps your contacts informed of your location in the background, and if you fail to check in on time, your last known position is automatically shared with them.",
+        NSLocationAlwaysUsageDescription: "Safii needs background location access to continue updating your real-time position to emergency contacts when the app is not actively open. For example, if your phone is in your pocket while walking home, Safii keeps your contacts informed of your location in the background, and if you fail to check in on time, your last known position is automatically shared with them.",
         NSAppTransportSecurity: {
           NSAllowsArbitraryLoads: true
         }
@@ -48,7 +46,7 @@ module.exports = {
       },
       config: {
         googleMaps: {
-          apiKey: "AIzaSyDeiltvsroXFIU0YWpNVnphyxv0V60_wTM"
+          apiKey: process.env.GOOGLE_MAPS_API_KEY
         }
       },
       googleServicesFile: "./google-services.json",
@@ -58,8 +56,7 @@ module.exports = {
         "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.ACCESS_BACKGROUND_LOCATION",
         "android.permission.FOREGROUND_SERVICE",
-        "android.permission.FOREGROUND_SERVICE_LOCATION",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.FOREGROUND_SERVICE_LOCATION"
       ]
     },
 
@@ -72,7 +69,8 @@ module.exports = {
 
     // --- 前端變數 ---
     extra: {
-      GOOGLE_MAPS_API_KEY: "AIzaSyDeiltvsroXFIU0YWpNVnphyxv0V60_wTM",
+      GOOGLE_MAPS_API_KEY: process.env.GOOGLE_MAPS_API_KEY,
+      FIREBASE_API_KEY: process.env.FIREBASE_API_KEY,
       router: {
         origin: false
       },
@@ -89,6 +87,7 @@ module.exports = {
     plugins: [
       "expo-router", // 👈 補上
       "expo-font",   // 👈 補上
+      "expo-sqlite",
       "expo-web-browser",
       "expo-dev-client",
       "expo-secure-store",
@@ -114,9 +113,9 @@ module.exports = {
       [
         "expo-location",
         {
-          locationAlwaysAndWhenInUsePermission: "Allow $(PRODUCT_NAME) to use your location for emergency tracking.",
-          locationAlwaysPermission: "Allow $(PRODUCT_NAME) to use your location in the background for emergency tracking.",
-          locationWhenInUsePermission: "Allow $(PRODUCT_NAME) to use your location.",
+          locationAlwaysAndWhenInUsePermission: "Safii uses your background location to monitor your safety during active check-in sessions. For example, if you're walking home alone and miss a check-in, Safii checks whether you've arrived at your destination before notifying your emergency contacts.",
+          locationAlwaysPermission: "Safii uses your background location to monitor your safety during active check-in sessions. For example, if you're walking home alone and miss a check-in, Safii checks whether you've arrived at your destination before notifying your emergency contacts.",
+          locationWhenInUsePermission: "Safii uses your location to show nearby safe places such as hospitals and police stations. For example, when you tap 'Find Safe Spot', the app displays the three closest facilities within 1 km of your current position.",
           isIosBackgroundLocationEnabled: true,
           isAndroidBackgroundLocationEnabled: true
         }
@@ -135,6 +134,7 @@ module.exports = {
         {
           ios: {
 
+            // newArchEnabled: false,
             newArchEnabled: true,
             flipper: false,
             useFrameworks: "static",

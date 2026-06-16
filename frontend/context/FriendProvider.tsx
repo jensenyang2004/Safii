@@ -210,12 +210,12 @@ export const FriendProvider = ({ children }: { children: React.ReactNode }) => {
 
 
         if (!user?.uid) {
-            Alert.alert('Error', 'You must be logged in to add friends');
+            Alert.alert('錯誤', '請先登入才能新增好友。');
             return;
         }
 
         if (user.uid === recipientId) {
-            Alert.alert('Error', 'You cannot add yourself as a friend');
+            Alert.alert('錯誤', '無法將自己加為好友。');
             return;
         }
 
@@ -233,7 +233,7 @@ export const FriendProvider = ({ children }: { children: React.ReactNode }) => {
             const requestSnapshot = await getDocs(existingRequestQuery);
 
             if (!requestSnapshot.empty) {
-                Alert.alert('Friend Request', 'You have already sent a request to this user');
+                Alert.alert('交友請求已送出');
                 return;
             }
 
@@ -241,7 +241,7 @@ export const FriendProvider = ({ children }: { children: React.ReactNode }) => {
             const friendDoc = await getDoc(doc(db, 'users', user.uid, 'friends', recipientId));
 
             if (friendDoc.exists()) {
-                Alert.alert('Friend Request', 'You are already friends with this user');
+                Alert.alert('您已經加入這位好友');
                 return;
             }
 
@@ -253,11 +253,11 @@ export const FriendProvider = ({ children }: { children: React.ReactNode }) => {
                 timestamp: serverTimestamp(),
             });
 
-            Alert.alert('Friend Request', 'Friend request sent successfully');
+            Alert.alert('交友請求已送出');
             await fetchRequests();
         } catch (error) {
             console.error('Error sending friend request:', error);
-            Alert.alert('Error', 'Failed to send friend request');
+            Alert.alert('錯誤', '發送交友請求失敗，請稍後再試。');
         } finally {
             setLoading(false);
         }
@@ -279,7 +279,7 @@ export const FriendProvider = ({ children }: { children: React.ReactNode }) => {
             const requestDoc = await getDoc(doc(db, 'friendRequests', requestId));
 
             if (!requestDoc.exists()) {
-                Alert.alert('Error', 'Friend request not found');
+                Alert.alert('錯誤', '找不到此交友請求。');
                 return;
             }
 
@@ -304,12 +304,12 @@ export const FriendProvider = ({ children }: { children: React.ReactNode }) => {
                 timestamp
             });
 
-            Alert.alert('Friend Request', 'Friend request accepted');
+            Alert.alert('交友請求', '已接受交友請求。');
             fetchFriends();
             fetchRequests();
         } catch (error) {
             console.error('Error accepting friend request:', error);
-            Alert.alert('Error', 'Failed to accept friend request');
+            Alert.alert('錯誤', '接受交友請求失敗，請稍後再試。');
         } finally {
             setLoading(false);
         }
@@ -326,11 +326,11 @@ export const FriendProvider = ({ children }: { children: React.ReactNode }) => {
                 rejectedAt: serverTimestamp()
             });
 
-            Alert.alert('Friend Request', 'Friend request rejected');
+            Alert.alert('交友請求', '已拒絕交友請求。');
             fetchRequests();
         } catch (error) {
             console.error('Error rejecting friend request:', error);
-            Alert.alert('Error', 'Failed to reject friend request');
+            Alert.alert('錯誤', '拒絕交友請求失敗，請稍後再試。');
         } finally {
             setLoading(false);
         }
@@ -345,11 +345,11 @@ export const FriendProvider = ({ children }: { children: React.ReactNode }) => {
             await deleteDoc(doc(db, 'users', user?.uid, 'friends', friendId));
             await deleteDoc(doc(db, 'users', friendId, 'friends', user?.uid));
 
-            Alert.alert('Friends', 'Friend removed successfully');
+            Alert.alert('成功移除好友');
             fetchFriends();
         } catch (error) {
             console.error('Error removing friend:', error);
-            Alert.alert('Error', 'Failed to remove friend');
+            Alert.alert('錯誤', '移除好友失敗，請稍後再試。');
         } finally {
             setLoading(false);
         }
@@ -367,10 +367,10 @@ export const FriendProvider = ({ children }: { children: React.ReactNode }) => {
 
             setOutgoingRequests(prev => prev.filter(req => req.id !== requestId));
 
-            Alert.alert('Success', 'Friend request cancelled');
+            Alert.alert('成功', '交友請求已取消');
         } catch (error) {
             console.error('Error cancelling request:', error);
-            Alert.alert('Error', 'Failed to cancel friend request');
+            Alert.alert('錯誤', '取消交友請求失敗，請稍後再試。');
         } finally {
             setLoading(false);
         }
