@@ -160,6 +160,8 @@ const styles = StyleSheet.create({
     color: Theme.colors.textPrimary,
     fontWeight: 'bold',
     fontSize: 14,
+    lineHeight: 14,
+    textAlign: 'center',
   },
   moreCount: {
     backgroundColor: Theme.colors.gray150,
@@ -170,6 +172,8 @@ const styles = StyleSheet.create({
     color: Theme.colors.textPrimary,
     fontWeight: Theme.typography.fontWeights.bold,
     fontSize: Theme.typography.fontSizes.caption,
+    lineHeight: Theme.typography.fontSizes.caption,
+    textAlign: 'center',
   },
   locationWarning: {
     fontSize: 12,

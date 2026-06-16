@@ -139,7 +139,7 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   input: {
-    height: 55,
+    paddingVertical: 16,
     paddingHorizontal: 20,
     fontSize: 16,
     color: '#333',

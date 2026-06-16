@@ -932,6 +932,14 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
   };
 
   useEffect(() => {
+    if (!authLoading && user) {
+      let unsubscribe: (() => void) | null = null;
+      fetchTrackingModesWithContacts(user.uid).then(fn => { unsubscribe = fn; });
+      return () => { if (unsubscribe) unsubscribe(); };
+    }
+  }, [user?.uid, authLoading]);
+
+  useEffect(() => {
     if (!authLoading && !user) {
       const cleanUp = async () => {
         console.log('🧹 User signed out. Cleaning up...');
