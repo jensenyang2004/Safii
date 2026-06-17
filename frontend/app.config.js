@@ -134,12 +134,11 @@ module.exports = {
         {
           ios: {
 
-            // newArchEnabled: false,
-            newArchEnabled: true,
+            newArchEnabled: false,
             flipper: false,
             useFrameworks: "static",
-            modularHeaders: true,    
-            fabricEnabled: true      
+            modularHeaders: true,
+            fabricEnabled: false
 
           },
           android: {
