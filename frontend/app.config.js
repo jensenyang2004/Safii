@@ -134,16 +134,13 @@ module.exports = {
         "expo-build-properties",
         {
           ios: {
-
-            newArchEnabled: false,
+            newArchEnabled: true,
             flipper: false,
             useFrameworks: "static",
-            modularHeaders: true,
-            fabricEnabled: false
-
+            modularHeaders: true
           },
           android: {
-            newArchEnabled: false
+            newArchEnabled: true
           }
         }
       ]
