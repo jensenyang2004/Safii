@@ -10,14 +10,14 @@ module.exports = {
     version: "2.1.0",
     orientation: "portrait",
     icon: "./assets/images/icon.png",
-    scheme: "myapp",
+    scheme: "safii",
     userInterfaceStyle: "automatic",
     runtimeVersion: "1.0.0",
 
     // --- iOS 設定 ---
     ios: {
       bundleIdentifier: "com.nightbase.firebase",
-      buildNumber: "6",
+      buildNumber: "7",
       supportsTablet: false,
       config: {
         googleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY,
@@ -32,7 +32,7 @@ module.exports = {
         NSLocationAlwaysAndWhenInUseUsageDescription: "Safii needs background location access to continue updating your real-time position to emergency contacts when the app is not actively open. For example, if your phone is in your pocket while walking home, Safii keeps your contacts informed of your location in the background, and if you fail to check in on time, your last known position is automatically shared with them.",
         NSLocationAlwaysUsageDescription: "Safii needs background location access to continue updating your real-time position to emergency contacts when the app is not actively open. For example, if your phone is in your pocket while walking home, Safii keeps your contacts informed of your location in the background, and if you fail to check in on time, your last known position is automatically shared with them.",
         NSAppTransportSecurity: {
-          NSAllowsArbitraryLoads: true
+          NSAllowsArbitraryLoads: false
         }
       }
     },
@@ -123,7 +123,8 @@ module.exports = {
       [
         "expo-image-picker",
         {
-          photosPermission: "The app accesses your photos to let you share them with your friends."
+          cameraPermission: "Safii uses your camera to capture a profile photo. For example, when you tap 'Take Photo' on your profile page, the camera opens so you can take and upload a new profile picture.",
+          photosPermission: "Safii accesses your photo library to let you choose a profile photo. For example, when you tap 'Choose from Library' on your profile page, you can select an existing photo to use as your profile picture."
         }
       ],
 

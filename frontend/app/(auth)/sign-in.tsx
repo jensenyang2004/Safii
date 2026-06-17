@@ -84,6 +84,8 @@ const SignInScreen = () => {
             onChangeText={setEmail}
             keyboardType="email-address"
             autoCapitalize="none"
+            textContentType="emailAddress"
+            autoComplete="email"
             placeholderTextColor="#A9A9A9"
           />
         </View>
@@ -94,6 +96,8 @@ const SignInScreen = () => {
             value={password}
             onChangeText={setPassword}
             secureTextEntry
+            textContentType="password"
+            autoComplete="current-password"
             onSubmitEditing={submit}
             placeholderTextColor="#A9A9A9"
           />

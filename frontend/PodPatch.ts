@@ -17,7 +17,7 @@ function withFirebasePodPatch(config) {
     installer.pods_project.targets.each do |target|
       # Allow non-modular includes for RNFirebase pods to fix
       # "include of non-modular header inside framework module" errors
-      if ['RNFBApp', 'RNFBAnalytics', 'RNFBCrashlytics', 'RNFBRemoteConfig', 'RNFBAppCheck'].include?(target.name)
+      if ['RNFBApp', 'RNFBRemoteConfig', 'RNFBAppCheck'].include?(target.name)
         target.build_configurations.each do |config|
           config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
           config.build_settings['DEFINES_MODULE'] = 'NO'

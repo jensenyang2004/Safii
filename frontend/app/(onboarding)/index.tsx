@@ -29,6 +29,8 @@ export default function OnboardingScreen() {
     checkBiometrics,
   } = useBiometrics();
 
+  const [privacyAccepted, setPrivacyAccepted] = useState(false);
+
   useEffect(() => {
     if (activeIndex === 2 && notificationStatus === 'idle') {
       Notifications.requestPermissionsAsync().then(() => checkPermissions());
@@ -82,6 +84,10 @@ export default function OnboardingScreen() {
       topBarHeight: 80,
       buttonText: '開始使用  →',
       onPress: handleOnboardingComplete,
+      disabled: !privacyAccepted,
+      privacyPolicyUrl: 'https://hickory-link-0c0.notion.site/SAFII-37a31cefb273806c803bf9bab8cca13b?pvs=73',
+      privacyAccepted,
+      onPrivacyCheck: () => setPrivacyAccepted(v => !v),
     },
   ];
 

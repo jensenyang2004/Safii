@@ -5,13 +5,6 @@ export default function ModalLayout() {
     <Stack screenOptions={{ headerShown: false }}>
       {/* <Stack.Screen options={{ headerShown: false }} /> */}
       <Stack.Screen
-        name="interactive-call"
-        options={{
-          presentation: 'modal',
-          headerShown: false,
-        }}
-      />
-      <Stack.Screen
         name="tracking-mode/new"
         options={{
           presentation: 'modal',

@@ -17,8 +17,6 @@ module.exports = function withSafiiNativeTweaks(config) {
     installer.pods_project.targets.each do |target|
       targets_to_fix = [
         'RNFBApp',
-        'RNFBAnalytics',
-        'RNFBCrashlytics',
         'RNFBRemoteConfig',
         'RNFBAppCheck',
         'react-native-maps'

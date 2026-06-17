@@ -1,7 +1,8 @@
 import React from 'react';
-import { View, Text, StyleSheet, Dimensions, Image, ImageSourcePropType, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Dimensions, Image, ImageSourcePropType, Pressable, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
+import * as WebBrowser from 'expo-web-browser';
 import * as Theme from '../constants/Theme';
 
 const { width, height } = Dimensions.get('window');
@@ -20,6 +21,9 @@ interface OnboardingPageProps {
   topBarHeight?: number;
   topBarContent?: React.ReactNode;
   bottomInset?: number;
+  privacyPolicyUrl?: string;
+  privacyAccepted?: boolean;
+  onPrivacyCheck?: () => void;
 }
 
 const OnboardingPage: React.FC<OnboardingPageProps> = ({
@@ -34,6 +38,9 @@ const OnboardingPage: React.FC<OnboardingPageProps> = ({
   topBarHeight = TOP_BAR_HEIGHT,
   topBarContent,
   bottomInset = 0,
+  privacyPolicyUrl,
+  privacyAccepted,
+  onPrivacyCheck,
 }) => {
   const hasText = !!(title || description);
 
@@ -71,6 +78,18 @@ const OnboardingPage: React.FC<OnboardingPageProps> = ({
                   </Text>
                 </BlurView>
               </Pressable>
+            )}
+            {privacyPolicyUrl && (
+              <View style={styles.privacyRow}>
+                <TouchableOpacity onPress={onPrivacyCheck} activeOpacity={0.7} style={styles.checkboxHitbox}>
+                  <View style={[styles.checkbox, privacyAccepted && styles.checkboxChecked]}>
+                    {privacyAccepted && <Text style={styles.checkmark}>✓</Text>}
+                  </View>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => WebBrowser.openBrowserAsync(privacyPolicyUrl)} activeOpacity={0.7}>
+                  <Text style={styles.privacyText}>已閱讀我們的隱私政策</Text>
+                </TouchableOpacity>
+              </View>
             )}
           </View>
         )}
@@ -145,6 +164,44 @@ const styles = StyleSheet.create({
   },
   disabledButtonText: {
     color: 'rgba(255,255,255,0.4)',
+  },
+  privacyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 16,
+    backgroundColor: 'rgba(0,0,0,0.25)',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    gap: 8,
+  },
+  checkboxHitbox: {
+    padding: 2,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: '#ffffff',
+    backgroundColor: 'transparent',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxChecked: {
+    backgroundColor: '#ffffff',
+    borderColor: '#ffffff',
+  },
+  checkmark: {
+    fontSize: 13,
+    color: '#F18C8E',
+    fontWeight: '700',
+    lineHeight: 15,
+  },
+  privacyText: {
+    fontSize: 14,
+    color: '#ffffff',
+    textDecorationLine: 'underline',
   },
 });
 

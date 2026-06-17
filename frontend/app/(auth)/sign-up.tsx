@@ -197,6 +197,8 @@ export default function SignUp() {
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry
+                textContentType="newPassword"
+                autoComplete="new-password"
                 placeholderTextColor="#A9A9A9"
               />
             </View>
@@ -208,6 +210,8 @@ export default function SignUp() {
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
                 secureTextEntry
+                textContentType="newPassword"
+                autoComplete="new-password"
                 placeholderTextColor="#A9A9A9"
               />
             </View>
