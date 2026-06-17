@@ -170,6 +170,7 @@ export default function TrackingModeForm({ mode }: Props) {
                         <View style={styles.heroRow}>
                             <Text style={styles.heroEvery}>每隔</Text>
                             <TextInput
+            allowFontScaling={false}
                                 style={styles.heroNum}
                                 value={checkIntervalMinutes}
                                 onChangeText={v => setCheckIntervalMinutes(v.replace(/[^0-9]/g, ''))}
@@ -207,7 +208,7 @@ export default function TrackingModeForm({ mode }: Props) {
                     <Text style={styles.sectionLabel}>模式名稱</Text>
                     <View style={styles.nameField}>
                         {/* <Text style={styles.nameArrow}>↳</Text> */}
-                        <TextInput style={styles.nameInput} placeholder="例如：下班回家、夜跑"
+                        <TextInput allowFontScaling={false} style={styles.nameInput} placeholder="例如：下班回家、夜跑"
                             placeholderTextColor={Theme.colors.gray400} value={name} onChangeText={setName} maxLength={30} />
                     </View>
 
@@ -259,12 +260,12 @@ export default function TrackingModeForm({ mode }: Props) {
 
                     <View style={styles.fieldGroup}>
                         <Text style={styles.label}>活動</Text>
-                        <TextInput style={styles.input} placeholder="例如：從公司走路回家"
+                        <TextInput allowFontScaling={false} style={styles.input} placeholder="例如：從公司走路回家"
                             placeholderTextColor={Theme.colors.gray400} value={activity} onChangeText={setActivity} maxLength={30} />
                     </View>
                     <View style={styles.fieldGroup}>
                         <Text style={styles.label}>備註</Text>
-                        <TextInput style={[styles.input, styles.multiline]} placeholder="例如：大概要20分鐘"
+                        <TextInput allowFontScaling={false} style={[styles.input, styles.multiline]} placeholder="例如：大概要20分鐘"
                             placeholderTextColor={Theme.colors.gray400} value={notes} onChangeText={setNotes} maxLength={100} multiline />
                     </View>
 

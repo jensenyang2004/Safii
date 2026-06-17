@@ -277,6 +277,7 @@ export default function FriendsScreen() {
             <>
               <View style={styles.searchContainer}>
                 <TextInput
+            allowFontScaling={false}
                   style={styles.searchInput}
                   placeholder="搜索用戶..."
                   value={searchQuery}

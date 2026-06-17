@@ -65,6 +65,7 @@ const RoutePlanner: React.FC<RoutePlannerProps> = ({ userLocation, mapRef }) => 
         <BlurView intensity={90} tint="light" style={styles.blurView}>
           <View style={styles.searchInnerContainer}>
             <TextInput
+            allowFontScaling={false}
               style={styles.input}
               placeholder="Enter destination"
               value={destination}

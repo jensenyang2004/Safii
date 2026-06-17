@@ -146,6 +146,7 @@ export default function SetHomeLocationScreen() {
                 )}
                 <Text style={styles.label}>地址描述（選填）</Text>
                 <TextInput
+            allowFontScaling={false}
                     style={styles.input}
                     placeholder="例如：家"
                     value={address}
@@ -168,6 +169,7 @@ export default function SetHomeLocationScreen() {
                     ))}
                 </View>
                 <TextInput
+            allowFontScaling={false}
                     style={[styles.input, { marginTop: 8 }]}
                     placeholder="自訂半徑"
                     value={radius}

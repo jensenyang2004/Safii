@@ -17,7 +17,7 @@ module.exports = {
     // --- iOS 設定 ---
     ios: {
       bundleIdentifier: "com.nightbase.firebase",
-      buildNumber: "7",
+      buildNumber: "8",
       supportsTablet: false,
       config: {
         googleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY,
@@ -135,12 +135,11 @@ module.exports = {
         {
           ios: {
 
-            // newArchEnabled: false,
-            newArchEnabled: true,
+            newArchEnabled: false,
             flipper: false,
             useFrameworks: "static",
-            modularHeaders: true,    
-            fabricEnabled: true      
+            modularHeaders: true,
+            fabricEnabled: false
 
           },
           android: {

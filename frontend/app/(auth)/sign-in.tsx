@@ -86,6 +86,7 @@ const SignInScreen = () => {
             autoCapitalize="none"
             textContentType="emailAddress"
             autoComplete="email"
+            allowFontScaling={false}
             placeholderTextColor="#A9A9A9"
           />
         </View>
@@ -98,6 +99,7 @@ const SignInScreen = () => {
             secureTextEntry
             textContentType="password"
             autoComplete="current-password"
+            allowFontScaling={false}
             onSubmitEditing={submit}
             placeholderTextColor="#A9A9A9"
           />

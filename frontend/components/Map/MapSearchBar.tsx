@@ -188,6 +188,7 @@ const MapSearchBar: React.FC<MapSearchBarProps> = ({
             </TouchableOpacity>
           )}
           <TextInput
+            allowFontScaling={false}
             style={[styles.input, isSearchActive && styles.inputActive]}
             placeholder="搜尋地點或附近的地點"
             value={query}

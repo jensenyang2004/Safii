@@ -182,6 +182,7 @@ export default function HomeScreen() {
         {editingName ? (
           <View style={homeStyles.nameEditRow}>
             <TextInput
+            allowFontScaling={false}
               style={homeStyles.nameEditInput}
               value={newDisplayName}
               onChangeText={setNewDisplayName}

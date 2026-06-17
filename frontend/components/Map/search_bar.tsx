@@ -14,6 +14,7 @@ const SearchBarWithPlaces = () => {
       <View style={styles.searchContainer}>
         <Ionicons name="search" size={24} color="#757575" style={styles.icon} />
         <TextInput
+            allowFontScaling={false}
           style={styles.input}
           placeholder="搜尋想去的地方"
           placeholderTextColor="#757575"

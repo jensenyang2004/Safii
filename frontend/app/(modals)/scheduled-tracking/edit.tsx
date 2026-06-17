@@ -133,7 +133,7 @@ export default function EditScheduleScreen() {
 
             <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
                 <Text style={styles.label}>排程名稱</Text>
-                <TextInput style={styles.input} value={name} onChangeText={setName} placeholderTextColor={Theme.colors.gray400} />
+                <TextInput allowFontScaling={false} style={styles.input} value={name} onChangeText={setName} placeholderTextColor={Theme.colors.gray400} />
 
                 <Text style={styles.label}>重複日</Text>
                 <View style={styles.dayRow}>
@@ -151,12 +151,12 @@ export default function EditScheduleScreen() {
                 <View style={styles.row}>
                     <View style={{ flex: 1 }}>
                         <Text style={styles.label}>開始時間</Text>
-                        <TextInput style={styles.input} value={startTime} onChangeText={setStartTime} placeholderTextColor={Theme.colors.gray400} />
+                        <TextInput allowFontScaling={false} style={styles.input} value={startTime} onChangeText={setStartTime} placeholderTextColor={Theme.colors.gray400} />
                     </View>
                     <View style={{ width: 12 }} />
                     <View style={{ flex: 1 }}>
                         <Text style={styles.label}>結束時間</Text>
-                        <TextInput style={styles.input} value={endTime} onChangeText={setEndTime} placeholderTextColor={Theme.colors.gray400} />
+                        <TextInput allowFontScaling={false} style={styles.input} value={endTime} onChangeText={setEndTime} placeholderTextColor={Theme.colors.gray400} />
                     </View>
                 </View>
 
@@ -167,17 +167,17 @@ export default function EditScheduleScreen() {
                 </View>
                 {!useDefaultHome && (
                     <View style={{ gap: 8 }}>
-                        <TextInput style={styles.input} placeholder="地址描述" value={destAddress} onChangeText={setDestAddress} placeholderTextColor={Theme.colors.gray400} />
+                        <TextInput allowFontScaling={false} style={styles.input} placeholder="地址描述" value={destAddress} onChangeText={setDestAddress} placeholderTextColor={Theme.colors.gray400} />
                         <View style={styles.row}>
-                            <TextInput style={[styles.input, { flex: 1 }]} placeholder="緯度" value={destLat} onChangeText={setDestLat} keyboardType="numeric" placeholderTextColor={Theme.colors.gray400} />
+                            <TextInput allowFontScaling={false} style={[styles.input, { flex: 1 }]} placeholder="緯度" value={destLat} onChangeText={setDestLat} keyboardType="numeric" placeholderTextColor={Theme.colors.gray400} />
                             <View style={{ width: 8 }} />
-                            <TextInput style={[styles.input, { flex: 1 }]} placeholder="經度" value={destLng} onChangeText={setDestLng} keyboardType="numeric" placeholderTextColor={Theme.colors.gray400} />
+                            <TextInput allowFontScaling={false} style={[styles.input, { flex: 1 }]} placeholder="經度" value={destLng} onChangeText={setDestLng} keyboardType="numeric" placeholderTextColor={Theme.colors.gray400} />
                         </View>
                     </View>
                 )}
                 <View style={[styles.row, { marginTop: 8 }]}>
                     <Text style={[styles.switchLabel, { flex: 1 }]}>到達判定半徑（公尺）</Text>
-                    <TextInput style={[styles.input, { width: 80, textAlign: 'center' }]} value={destRadius} onChangeText={setDestRadius} keyboardType="numeric" placeholderTextColor={Theme.colors.gray400} />
+                    <TextInput allowFontScaling={false} style={[styles.input, { width: 80, textAlign: 'center' }]} value={destRadius} onChangeText={setDestRadius} keyboardType="numeric" placeholderTextColor={Theme.colors.gray400} />
                 </View>
 
                 <TouchableOpacity
@@ -210,13 +210,13 @@ export default function EditScheduleScreen() {
                 )}
 
                 <Text style={styles.label}>未回應視為緊急（次數）</Text>
-                <TextInput style={styles.input} value={unresponsiveThreshold} onChangeText={setUnresponsiveThreshold} keyboardType="numeric" placeholderTextColor={Theme.colors.gray400} />
+                <TextInput allowFontScaling={false} style={styles.input} value={unresponsiveThreshold} onChangeText={setUnresponsiveThreshold} keyboardType="numeric" placeholderTextColor={Theme.colors.gray400} />
 
                 <Text style={styles.label}>活動</Text>
-                <TextInput style={styles.input} placeholder="例如：下班通勤" value={activity} onChangeText={setActivity} placeholderTextColor={Theme.colors.gray400} />
+                <TextInput allowFontScaling={false} style={styles.input} placeholder="例如：下班通勤" value={activity} onChangeText={setActivity} placeholderTextColor={Theme.colors.gray400} />
 
                 <Text style={styles.label}>備註</Text>
-                <TextInput style={[styles.input, { height: 80, textAlignVertical: 'top' }]} placeholder="備註（選填）" value={notes} onChangeText={setNotes} multiline placeholderTextColor={Theme.colors.gray400} />
+                <TextInput allowFontScaling={false} style={[styles.input, { height: 80, textAlignVertical: 'top' }]} placeholder="備註（選填）" value={notes} onChangeText={setNotes} multiline placeholderTextColor={Theme.colors.gray400} />
             </ScrollView>
         </SafeAreaView>
     );

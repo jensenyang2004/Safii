@@ -116,6 +116,7 @@ export default function NewScheduleScreen() {
                 {/* Name */}
                 <Text style={styles.label}>排程名稱</Text>
                 <TextInput
+            allowFontScaling={false}
                     style={styles.input}
                     placeholder="例如：下班回家"
                     value={name}
@@ -144,6 +145,7 @@ export default function NewScheduleScreen() {
                     <View style={{ flex: 1 }}>
                         <Text style={styles.label}>開始時間</Text>
                         <TextInput
+            allowFontScaling={false}
                             style={styles.input}
                             placeholder="17:00"
                             value={startTime}
@@ -155,6 +157,7 @@ export default function NewScheduleScreen() {
                     <View style={{ flex: 1 }}>
                         <Text style={styles.label}>結束時間</Text>
                         <TextInput
+            allowFontScaling={false}
                             style={styles.input}
                             placeholder="19:00"
                             value={endTime}
@@ -178,6 +181,7 @@ export default function NewScheduleScreen() {
                 {!useDefaultHome && (
                     <View style={styles.destBlock}>
                         <TextInput
+            allowFontScaling={false}
                             style={styles.input}
                             placeholder="地址描述"
                             value={destAddress}
@@ -186,6 +190,7 @@ export default function NewScheduleScreen() {
                         />
                         <View style={styles.row}>
                             <TextInput
+            allowFontScaling={false}
                                 style={[styles.input, { flex: 1 }]}
                                 placeholder="緯度"
                                 value={destLat}
@@ -195,6 +200,7 @@ export default function NewScheduleScreen() {
                             />
                             <View style={{ width: 8 }} />
                             <TextInput
+            allowFontScaling={false}
                                 style={[styles.input, { flex: 1 }]}
                                 placeholder="經度"
                                 value={destLng}
@@ -208,6 +214,7 @@ export default function NewScheduleScreen() {
                 <View style={styles.row}>
                     <Text style={[styles.switchLabel, { flex: 1 }]}>到達判定半徑（公尺）</Text>
                     <TextInput
+            allowFontScaling={false}
                         style={[styles.input, { width: 80, textAlign: 'center' }]}
                         value={destRadius}
                         onChangeText={setDestRadius}
@@ -256,6 +263,7 @@ export default function NewScheduleScreen() {
                 {/* Unresponsive threshold */}
                 <Text style={styles.label}>未回應視為緊急（次數）</Text>
                 <TextInput
+            allowFontScaling={false}
                     style={styles.input}
                     value={unresponsiveThreshold}
                     onChangeText={setUnresponsiveThreshold}
@@ -266,6 +274,7 @@ export default function NewScheduleScreen() {
                 {/* Activity & notes */}
                 <Text style={styles.label}>活動</Text>
                 <TextInput
+            allowFontScaling={false}
                     style={styles.input}
                     placeholder="例如：下班通勤"
                     value={activity}
@@ -274,6 +283,7 @@ export default function NewScheduleScreen() {
                 />
                 <Text style={styles.label}>備註</Text>
                 <TextInput
+            allowFontScaling={false}
                     style={[styles.input, { height: 80, textAlignVertical: 'top' }]}
                     placeholder="備註（選填）"
                     value={notes}

@@ -165,6 +165,7 @@ export default function SignUp() {
                 onChangeText={setEmail}
                 keyboardType="email-address"
                 autoCapitalize="none"
+                allowFontScaling={false}
                 placeholderTextColor="#A9A9A9"
               />
             </View>
@@ -177,6 +178,7 @@ export default function SignUp() {
                 onChangeText={(text) => { setUsername(text); setUsernameAvailable(null); }}
                 onBlur={() => checkUsername(username)}
                 autoCapitalize="none"
+                allowFontScaling={false}
                 placeholderTextColor="#A9A9A9"
               />
             </View>
@@ -199,6 +201,7 @@ export default function SignUp() {
                 secureTextEntry
                 textContentType="newPassword"
                 autoComplete="new-password"
+                allowFontScaling={false}
                 placeholderTextColor="#A9A9A9"
               />
             </View>
@@ -212,6 +215,7 @@ export default function SignUp() {
                 secureTextEntry
                 textContentType="newPassword"
                 autoComplete="new-password"
+                allowFontScaling={false}
                 placeholderTextColor="#A9A9A9"
               />
             </View>
