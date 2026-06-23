@@ -377,7 +377,6 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
           // console.log('isInfoSent has been set to true');
         } else {
           setIsInfoSent(false);
-          console.log('⏳ Session is still active. isInfoSent set to false.');
         }
 
 
@@ -388,7 +387,6 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
           }
         }
 
-        console.log(`🔄 Resumed session. Re-calculated strikes: ${currentStrikeCount}`);
 
         await AsyncStorage.setItem(STORAGE_KEYS.CURRENT_STRIKE, currentStrikeCount.toString());
 
@@ -428,7 +426,6 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
         const nextCI = timeline.find(e => e.type === 'session_end' && e.time > now)?.time || null;
         setNextCheckInTime(nextCI);
 
-        console.log('✅ State Reconciled. Strike:', currentStrikeCount);
       } else {
         // Not active — reset to clean state
         setIsTracking(false);
@@ -553,59 +550,52 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
   };
 
   const scheduleAllNotifications = async (timeline: TimelineEvent[]): Promise<string[]> => {
-    const notificationIds: string[] = [];
+    const now = Date.now();
 
-    for (const event of timeline) {
-      const now = Date.now();
-      if (event.time <= now) {
-        continue;
-      }
-
-      let title: string, body: string;
-      if (event.type === 'session_end') {
-        title = `⏰ 請回報安全`;
-        body = '請在十分鐘內回報安全狀態';
-      } else if (event.type === 'missed_report') {
-        if (event.strike < (event.strikeThreshold ?? 3)) {
-          title = `⚠️ 錯過安全回報`;
-          body = `您未在時限內回報。新的安全報平安時段已開始，請務必在下次時限內回報。`;
-        } else {
-          title = '🚨 觸發緊急通知';
-          body = `因為尚未回報安全，您的即時位置已經分享給設定的緊急聯絡人`;
-        }
-      } else {
-        title = '⚠️ 安全提醒';
-        body = '請確認您目前的安全狀態。';
-      }
-
-      // Calculate seconds until the event
-      const seconds = Math.max(Math.round((event.time - now) / 1000), 1);
-
-      const notificationId = await Notifications.scheduleNotificationAsync({
-        content: {
-          title,
-          body,
-          sound: 'default',
-          data: {
-            type: event.type,
-            strike: event.strike,
-            eventTime: event.time,
-            deadline: event.deadline,
-            strikeThreshold: event.strikeThreshold,
+    const promises = timeline
+      .filter(event => event.time > now)
+      .map(event => {
+        let title: string, body: string;
+        if (event.type === 'session_end') {
+          title = `⏰ 請回報安全`;
+          body = '請在十分鐘內回報安全狀態';
+        } else if (event.type === 'missed_report') {
+          if (event.strike < (event.strikeThreshold ?? 3)) {
+            title = `⚠️ 錯過安全回報`;
+            body = `您未在時限內回報。新的安全報平安時段已開始，請務必在下次時限內回報。`;
+          } else {
+            title = '🚨 觸發緊急通知';
+            body = `因為尚未回報安全，您的即時位置已經分享給設定的緊急聯絡人`;
           }
-        },
-        trigger: {
-          type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-          seconds,
-          repeats: false,
-        },
+        } else {
+          title = '⚠️ 安全提醒';
+          body = '請確認您目前的安全狀態。';
+        }
+
+        const seconds = Math.max(Math.round((event.time - now) / 1000), 1);
+
+        return Notifications.scheduleNotificationAsync({
+          content: {
+            title,
+            body,
+            sound: 'default',
+            data: {
+              type: event.type,
+              strike: event.strike,
+              eventTime: event.time,
+              deadline: event.deadline,
+              strikeThreshold: event.strikeThreshold,
+            },
+          },
+          trigger: {
+            type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+            seconds,
+            repeats: false,
+          },
+        });
       });
 
-      notificationIds.push(notificationId);
-      console.log(`📅 Scheduled: ${title} in ${seconds} seconds (for ${new Date(event.time).toLocaleTimeString()})`);
-    }
-
-    return notificationIds;
+    return Promise.all(promises);
   };
 
   const startTrackingMode = async (modeId: any, sessionMinutes: number) => {

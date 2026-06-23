@@ -56,6 +56,7 @@ import Theme from '@/constants/Theme';
 
 import * as Notifications from 'expo-notifications';
 import { useLocalSearchParams } from 'expo-router';
+import { authenticateWithBiometrics } from '@/utils/biometrics';
 
 const GOOGLE_MAPS_API_KEY = Constants.expoConfig?.extra?.GOOGLE_MAPS_API_KEY;
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
@@ -673,12 +674,12 @@ export default function Map() {
   ];
 
   const handleDismissLocationSentCard = async () => {
-
+    const ok = await authenticateWithBiometrics('請驗證身份以回報安全');
+    if (!ok) return;
     try {
-      await reportSafety(); // 乖乖等 Firebase 寫入完成
-      setShowLocationSentCard(false); // 確定成功了，才把卡片關掉
+      await reportSafety();
+      setShowLocationSentCard(false);
     } catch (error) {
-      // 如果失敗了，卡片不要關，跳出警告讓使用者再按一次
       Alert.alert("錯誤", "回報安全失敗，請檢查網路後重試");
     }
   };
@@ -706,7 +707,6 @@ export default function Map() {
     setIsFollowingUser(false);
   }, [flyAt]);
 
-  console.log("Map component rendering...");
   return (
     <View style={styles.container}>
 

@@ -135,9 +135,11 @@ const styles = StyleSheet.create({
     color: '#333',
   },
   inputWrapper: {
+    height: 56,
     backgroundColor: '#FFFFFF',
     borderRadius: 20,
     marginBottom: 20,
+    justifyContent: 'center',
     shadowColor: '#000',
     shadowOpacity: 0.08,
     shadowRadius: 8,
@@ -145,10 +147,10 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   input: {
-    paddingVertical: 16,
     paddingHorizontal: 20,
     fontSize: 16,
     color: '#333',
+    textAlignVertical: 'center',
   },
   button: {
     backgroundColor: '#F18C8E',

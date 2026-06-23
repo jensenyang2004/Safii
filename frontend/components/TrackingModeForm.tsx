@@ -28,6 +28,7 @@ export default function TrackingModeForm({ mode }: Props) {
     const { schedules, createSchedule, updateSchedule } = useScheduledTracking();
     const saving = useRef(false);
     const [loaded, setLoaded] = useState(mode === 'new');
+    const original = useRef<ReturnType<typeof buildPayload> | null>(null);
 
     const [name, setName] = useState('');
     const [activity, setActivity] = useState('');
@@ -56,8 +57,28 @@ export default function TrackingModeForm({ mode }: Props) {
         setStartTime(s.startTime || '09:00');
         setEndTime(s.endTime || '10:00');
         setSelectedContactIds(s.emergencyContactIds ?? []);
+        original.current = {
+            name: s.name?.trim() || '',
+            daysOfWeek: s.daysOfWeek ?? [],
+            startTime: s.startTime || '09:00',
+            endTime: s.endTime || '10:00',
+            timezone: DEFAULT_TIMEZONE,
+            destination: { useDefaultHome: true, lat: 0, lng: 0, radius: 100, address: '' },
+            emergencyContactIds: s.emergencyContactIds ?? [],
+            checkIntervalMinutes: s.checkIntervalMinutes ?? 15,
+            isManualOnly: s.isManualOnly ?? (s.daysOfWeek?.length === 0),
+            unresponsiveThreshold: 3,
+            activity: s.activity?.trim() || '',
+            notes: s.notes?.trim() || '',
+        };
         setLoaded(true);
     }, [mode, modeId, schedules.length]);
+
+    const nextDayLabel = useMemo(() => {
+        if (endTime >= startTime) return '';
+        if (daysOfWeek.length === 1) return `（週${DAY_LABELS[(daysOfWeek[0] + 1) % 7]}）`;
+        return '（次日）';
+    }, [endTime, startTime, daysOfWeek]);
 
     const ratioText = useMemo(() => {
         const n = Number(checkIntervalMinutes) || 1;
@@ -133,6 +154,17 @@ export default function TrackingModeForm({ mode }: Props) {
         }
     };
 
+    const handleBack = () => {
+        if (mode !== 'edit' || !original.current) { router.back(); return; }
+        const current = buildPayload();
+        const changed = JSON.stringify(current) !== JSON.stringify(original.current);
+        if (!changed) { router.back(); return; }
+        Alert.alert('放棄變更？', '您有未儲存的變更，確定要離開嗎？', [
+            { text: '繼續編輯', style: 'cancel' },
+            { text: '放棄變更', style: 'destructive', onPress: () => router.back() },
+        ]);
+    };
+
     const isEdit = mode === 'edit';
 
     if (!loaded) {
@@ -146,7 +178,7 @@ export default function TrackingModeForm({ mode }: Props) {
     return (
         <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.backButton}
+                <TouchableOpacity onPress={handleBack} style={styles.backButton}
                     hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                     <Ionicons name="arrow-back" size={24} color={INK} />
                 </TouchableOpacity>
@@ -248,7 +280,7 @@ export default function TrackingModeForm({ mode }: Props) {
                                 </View>
                                 <Text style={styles.timeSep}>→</Text>
                                 <View style={{ flex: 1 }}>
-                                    <Text style={styles.label}>結束{endTime < startTime ? '　（次日）' : ''}</Text>
+                                    <Text style={styles.label}>結束{nextDayLabel ? `　${nextDayLabel}` : ''}</Text>
                                     <TouchableOpacity style={styles.timeDisplay} onPress={() => openPicker('end')} activeOpacity={0.75}>
                                         <Ionicons name="time-outline" size={15} color={TEAL} />
                                         <Text style={styles.timeDisplayText}>{endTime}</Text>
@@ -427,7 +459,7 @@ const styles = StyleSheet.create({
     typeOptionText: { fontSize: 14, fontWeight: '700', color: INK },
     typeOptionTextActive: { color: '#fff' },
     fieldGroup: { marginTop: 10 },
-    multiline: { minHeight: 60, textAlignVertical: 'top' },
+    multiline: { minHeight: 60, textAlignVertical: 'top', width: '100%', alignSelf: 'stretch' },
 
     contactPickerBtn: {
         marginTop: 16, flexDirection: 'row', alignItems: 'center', gap: 10,

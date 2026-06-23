@@ -19,47 +19,60 @@ import { ScheduledTracking } from '@/types/scheduledTracking';
 
 import { useLocationSharing } from '@/hooks/useLocationSharing';
 import { useFriends } from '@/context/FriendProvider';
+import { authenticateWithBiometrics } from '@/utils/biometrics';
 
 import { BlurView } from 'expo-blur';
 
 
-function TrackingToggle({ isActive, onToggle }: { isActive: boolean; onToggle: () => void }) {
+function TrackingToggle({ isActive, onToggle }: { isActive: boolean; onToggle: () => Promise<void> }) {
+  const [display, setDisplay] = useState(isActive);
   const anim = useRef(new Animated.Value(isActive ? 1 : 0)).current;
 
   useEffect(() => {
+    setDisplay(isActive);
     Animated.timing(anim, { toValue: isActive ? 1 : 0, duration: 220, useNativeDriver: false }).start();
   }, [isActive]);
 
-  const thumbX = anim.interpolate({ inputRange: [0, 1], outputRange: [2, 58] });
-  const bgColor = anim.interpolate({ inputRange: [0, 1], outputRange: ['#D1D5DB', Theme.colors.greenSuccess] });
+  const handlePress = async () => {
+    const next = !display;
+    setDisplay(next);
+    Animated.timing(anim, { toValue: next ? 1 : 0, duration: 220, useNativeDriver: false }).start();
+    try {
+      await onToggle();
+    } catch {
+      setDisplay(!next);
+      Animated.timing(anim, { toValue: !next ? 1 : 0, duration: 220, useNativeDriver: false }).start();
+    }
+  };
+
+  const thumbX = anim.interpolate({ inputRange: [0, 1], outputRange: [2, 50] });
+  const thumbColor = anim.interpolate({ inputRange: [0, 1], outputRange: ['#9CA3AF', Theme.tracking_colors.successGreen] });
 
   return (
-    <TouchableOpacity onPress={onToggle} activeOpacity={0.85}>
-      <Animated.View style={[toggleStyles.track, { backgroundColor: bgColor }]}>
-        <Text style={[toggleStyles.trackLabel, { left: 8, opacity: isActive ? 1 : 0 }]}>進行中</Text>
-        <Text style={[toggleStyles.trackLabel, { right: 8, opacity: isActive ? 0 : 1 }]}>關閉</Text>
-        <Animated.View style={[toggleStyles.thumb, { transform: [{ translateX: thumbX }] }]} />
-      </Animated.View>
+    <TouchableOpacity onPress={handlePress} activeOpacity={0.85}>
+      <View style={toggleStyles.track}>
+        <Animated.View style={[toggleStyles.thumb, { backgroundColor: thumbColor, transform: [{ translateX: thumbX }] }]}>
+          <Text style={toggleStyles.thumbLabel}>{display ? '進行中' : '關閉'}</Text>
+        </Animated.View>
+      </View>
     </TouchableOpacity>
   );
 }
 
 const toggleStyles = StyleSheet.create({
   track: {
-    width: 90, height: 30, borderRadius: 15,
+    width: 120, height: 32, borderRadius: 16,
+    backgroundColor: '#E5E7EB',
     position: 'relative', justifyContent: 'center',
   },
   thumb: {
     position: 'absolute',
-    width: 26, height: 26, borderRadius: 13,
-    backgroundColor: '#fff',
+    width: 68, height: 28, borderRadius: 14,
+    alignItems: 'center', justifyContent: 'center',
     shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 2, shadowOffset: { width: 0, height: 1 },
     elevation: 2,
   },
-  trackLabel: {
-    position: 'absolute',
-    fontSize: 11, fontWeight: '700', color: '#fff',
-  },
+  thumbLabel: { fontSize: 11, fontWeight: '700', color: '#fff' },
 });
 
 function ContactAvatarStack({ contactIds, friends }: {
@@ -169,7 +182,15 @@ export default function HomeScreen() {
               {isManual ? (
                 <TrackingToggle
                   isActive={isActive}
-                  onToggle={() => isActive ? stopTrackingMode() : startTrackingMode(item.id, item.checkIntervalMinutes)}
+                  onToggle={async () => {
+                    if (isActive) {
+                      const ok = await authenticateWithBiometrics('請驗證身份以停止報平安');
+                      if (!ok) throw new Error('auth cancelled');
+                      await stopTrackingMode();
+                    } else {
+                      await startTrackingMode(item.id, item.checkIntervalMinutes);
+                    }
+                  }}
                 />
               ) : (
                 isActive && (

@@ -95,7 +95,14 @@ export default function FriendsScreen() {
 
       <Pressable
         style={styles.removeButton}
-        onPress={() => removeFriend(item.userId)}
+        onPress={() => Alert.alert(
+          '移除好友',
+          `確定要移除「${item.displayName || item.username}」嗎？`,
+          [
+            { text: '取消', style: 'cancel' },
+            { text: '移除', style: 'destructive', onPress: () => removeFriend(item.userId) },
+          ]
+        )}
       >
         <FontAwesome5 name="user-minus" size={16} color="#EF4444" />
       </Pressable>

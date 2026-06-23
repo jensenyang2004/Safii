@@ -11,7 +11,6 @@ import * as Location from 'expo-location';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert, Linking } from 'react-native';
 
-const BACKGROUND_LOCATION_TASK = 'background-location-task-tracking';
 const SHARING_SESSION_DOC_ID_KEY = 'active_sharing_session_doc_id';
 
 // --- Types ---
@@ -77,9 +76,9 @@ export const useLocationSharing = () => {
 
         subscription = await Location.watchPositionAsync(
           {
-            accuracy: Location.Accuracy.High,
-            timeInterval: 1000,
-            distanceInterval: 0.5,
+            accuracy: Location.Accuracy.Balanced,
+            timeInterval: 3000,
+            distanceInterval: 8,
           },
           async (loc) => {
             const { latitude, longitude } = loc.coords;
@@ -325,30 +324,13 @@ export const useLocationSharing = () => {
 
   // --- Actions ---
 
-  // Shared helper: ensure background task is running
-  const ensureBackgroundTask = async () => {
-    if (!(await Location.hasStartedLocationUpdatesAsync(BACKGROUND_LOCATION_TASK))) {
-      await AsyncStorage.setItem('current_user_id', user!.uid);
-      await Location.startLocationUpdatesAsync(BACKGROUND_LOCATION_TASK, {
-        accuracy: Location.Accuracy.High,
-        timeInterval: 1000,
-        distanceInterval: 0.5,
-        showsBackgroundLocationIndicator: true,
-        foregroundService: {
-          notificationTitle: 'Location Sharing Active',
-          notificationBody: 'Your location is being shared.',
-        },
-      });
-    }
-  };
-
-  // Shared helper: request background permission, returns true if granted
+  // Shared helper: request foreground permission, returns true if granted
   const requestPermission = async (): Promise<boolean> => {
-    const { status } = await Location.requestBackgroundPermissionsAsync();
+    const { status } = await Location.requestForegroundPermissionsAsync();
     if (status !== 'granted') {
       Alert.alert(
-        '需要背景位置權限',
-        '將位置權限設定為「永遠」以開啟分享功能',
+        '需要位置權限',
+        '請允許取用位置以開啟分享功能',
         [
           { text: '取消', style: 'cancel' },
           { text: '前往設定', onPress: () => Linking.openSettings() },
@@ -391,7 +373,6 @@ export const useLocationSharing = () => {
       await updateDoc(doc(db, 'active_sharing_sessions', sessionId), {
         sharedWithUserIds: arrayUnion(friendId),
       });
-      await ensureBackgroundTask();
       console.log(`✅ Started sharing with contact: ${friendId}`);
     } catch (e) {
       console.error('Failed to start sharing with contact:', e);
@@ -414,7 +395,6 @@ export const useLocationSharing = () => {
       await updateDoc(doc(db, 'active_sharing_sessions', sessionId), {
         sharedWithUserIds: arrayUnion(...sharedWithUserIds),
       });
-      await ensureBackgroundTask();
       console.log(`✅ Sharing with all contacts on session: ${sessionId}`);
     } catch (e) {
       console.error('Failed to start sharing session:', e);
@@ -448,20 +428,7 @@ export const useLocationSharing = () => {
     try {
       await Promise.all(stopPromises);
 
-      // Clean up AsyncStorage key
       await AsyncStorage.removeItem(SHARING_SESSION_DOC_ID_KEY);
-
-      // Stop background task only if emergency tracking is not also active
-      const isEmergencyModeActive = await AsyncStorage.getItem('tracking_active');
-      if (isEmergencyModeActive !== 'true') {
-        if (await Location.hasStartedLocationUpdatesAsync(BACKGROUND_LOCATION_TASK)) {
-          await Location.stopLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
-          console.log('🛑 Background location task stopped.');
-        }
-      } else {
-        console.log('Leaving background task running — emergency mode still active.');
-      }
-
       console.log(`✅ Stopped sharing with ${contact.username}`);
     } catch (e) {
       console.error(`Failed to stop sharing with ${contact.username}:`, e);
@@ -478,17 +445,6 @@ export const useLocationSharing = () => {
       }
 
       await AsyncStorage.removeItem(SHARING_SESSION_DOC_ID_KEY);
-
-      const isEmergencyModeActive = await AsyncStorage.getItem('tracking_active');
-      if (isEmergencyModeActive !== 'true') {
-        if (await Location.hasStartedLocationUpdatesAsync(BACKGROUND_LOCATION_TASK)) {
-          await Location.stopLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
-          console.log('🛑 Background location task stopped.');
-        }
-      } else {
-        console.log('Leaving background task running — emergency mode still active.');
-      }
-
       console.log('✅ Stopped all sharing.');
     } catch (e) {
       console.error('Failed to stop all sharing:', e);

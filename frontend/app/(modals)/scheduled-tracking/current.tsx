@@ -7,6 +7,7 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Theme from '@/constants/Theme';
 import { useScheduledTracking } from '@/context/ScheduledTrackingContext';
+import { authenticateWithBiometrics } from '@/utils/biometrics';
 
 const INK = '#15223F';
 const TEAL = Theme.colors.edit;
@@ -47,7 +48,9 @@ export default function CurrentTrackingScreen() {
 
     const countdown = useCountdown(endTimeMs);
 
-    const handleStop = () => {
+    const handleStop = async () => {
+        const ok = await authenticateWithBiometrics('請驗證身份以停止報平安');
+        if (!ok) return;
         Alert.alert('停止報平安', '確定要提早停止這次報平安？', [
             { text: '取消', style: 'cancel' },
             {
