@@ -53,8 +53,12 @@ export const scheduleActivator = onSchedule('every 1 minutes', async () => {
         }
 
         // Calculate scheduledEndTime in the same timezone
+        // If end time is earlier than or equal to now (start time), it's a cross-day schedule → shift to next day
         const [endHour, endMin] = (schedule.endTime as string).split(':').map(Number);
-        const scheduledEndDt = nowInTz.set({ hour: endHour, minute: endMin, second: 0, millisecond: 0 });
+        let scheduledEndDt = nowInTz.set({ hour: endHour, minute: endMin, second: 0, millisecond: 0 });
+        if (scheduledEndDt <= nowInTz) {
+            scheduledEndDt = scheduledEndDt.plus({ days: 1 });
+        }
         const scheduledEndTime = admin.firestore.Timestamp.fromMillis(scheduledEndDt.toMillis());
 
         // Build contactStatus map (same shape as manual tracking)
