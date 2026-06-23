@@ -5,7 +5,6 @@ import { useTracking } from '@/context/TrackProvider';
 import { BlurView } from 'expo-blur';
 import * as Theme from '../../constants/Theme';
 import { uiParameters } from '../../constants/Theme';
-import { usePermissions } from '../../hooks/usePermissions';
 
 type TrackModeCardProps = {
   id: string;
@@ -16,7 +15,6 @@ type TrackModeCardProps = {
 
 export default function TrackModeCard({ id, name, contacts, checkIntervalMinutes }: TrackModeCardProps) {
   const { startTrackingMode } = useTracking();
-  const { foregroundLocationStatus, backgroundLocationStatus } = usePermissions();
 
   const visibleContacts = contacts.slice(0, 3);
   const moreCount = contacts.length - visibleContacts.length;
@@ -25,17 +23,6 @@ export default function TrackModeCard({ id, name, contacts, checkIntervalMinutes
   const handleStart = () => startTrackingMode(id, checkIntervalMinutes);
 
   return (
-    <View>
-      {foregroundLocationStatus === 'denied' && backgroundLocationStatus !== 'granted' && (
-        <Text style={styles.locationWarning}>
-          位置權限未開啟，緊急聯絡人將無法看到您的位置。
-        </Text>
-      )}
-      {foregroundLocationStatus === 'granted' && backgroundLocationStatus !== 'granted' && (
-        <Text style={styles.locationWarning}>
-          開啟「永遠允許」定位可讓緊急聯絡人看到您的即時位置；否則他們可能看到數小時前的位置。
-        </Text>
-      )}
     <View style={styles.shadowContainer}>
       <BlurView
         intensity={90}
@@ -91,7 +78,6 @@ export default function TrackModeCard({ id, name, contacts, checkIntervalMinutes
           )}
         </View>
       </BlurView>
-    </View>
     </View>
   );
 }
@@ -174,12 +160,5 @@ const styles = StyleSheet.create({
     fontSize: Theme.typography.fontSizes.caption,
     lineHeight: Theme.typography.fontSizes.caption,
     textAlign: 'center',
-  },
-  locationWarning: {
-    fontSize: 12,
-    color: Theme.colors.textSecondary,
-    textAlign: 'center',
-    paddingHorizontal: 24,
-    paddingBottom: 4,
   },
 });

@@ -23,7 +23,6 @@ type ScheduledTrackingContextType = {
     createSchedule: (data: Omit<ScheduledTracking, 'id' | 'userId' | 'createdAt' | 'updatedAt'>) => Promise<void>;
     updateSchedule: (id: string, data: Partial<Omit<ScheduledTracking, 'id' | 'userId'>>) => Promise<void>;
     deleteSchedule: (id: string) => Promise<void>;
-    markArrivedHome: () => Promise<void>;
     stopActiveSession: () => Promise<void>;
     updateDefaultHome: (home: DefaultHome) => Promise<void>;
 };
@@ -149,14 +148,6 @@ export const ScheduledTrackingProvider = ({ children }: { children: React.ReactN
         await deleteDoc(doc(db, 'scheduled_tracking', id));
     };
 
-    const markArrivedHome = async () => {
-        if (!activeSession) return;
-        await updateDoc(doc(db, 'active_tracking', activeSession.id), {
-            hasArrivedHome: true,
-            arrivedAt: serverTimestamp(),
-        });
-    };
-
     const stopActiveSession = async () => {
         if (!activeSession) return;
         await updateDoc(doc(db, 'active_tracking', activeSession.id), {
@@ -185,7 +176,6 @@ export const ScheduledTrackingProvider = ({ children }: { children: React.ReactN
             createSchedule,
             updateSchedule,
             deleteSchedule,
-            markArrivedHome,
             stopActiveSession,
             updateDefaultHome,
         }}>

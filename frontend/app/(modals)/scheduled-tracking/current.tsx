@@ -35,7 +35,7 @@ function useCountdown(targetMs: number | null): string {
 }
 
 export default function CurrentTrackingScreen() {
-    const { activeSession, schedules, markArrivedHome, stopActiveSession } = useScheduledTracking();
+    const { activeSession, schedules, stopActiveSession } = useScheduledTracking();
 
     const schedule = activeSession
         ? schedules.find(s => s.id === activeSession.scheduleId)
@@ -46,19 +46,6 @@ export default function CurrentTrackingScreen() {
         : null;
 
     const countdown = useCountdown(endTimeMs);
-
-    const handleArrived = () => {
-        Alert.alert('確認到家', '標記為已安全到家？', [
-            { text: '取消', style: 'cancel' },
-            {
-                text: '確認',
-                onPress: async () => {
-                    await markArrivedHome();
-                    Alert.alert('✅ 已標記', '到時間後報平安將自動結束。');
-                },
-            },
-        ]);
-    };
 
     const handleStop = () => {
         Alert.alert('停止報平安', '確定要提早停止這次報平安？', [
@@ -135,23 +122,9 @@ export default function CurrentTrackingScreen() {
                     </View>
                 )}
 
-                {/* hasArrivedHome indicator */}
-                {activeSession.hasArrivedHome && (
-                    <View style={styles.arrivedBanner}>
-                        <Ionicons name="checkmark-circle" size={18} color={GREEN} />
-                        <Text style={styles.arrivedText}>已標記到家，結束時將自動判定安全</Text>
-                    </View>
-                )}
-
                 {/* Actions */}
                 {isTracking && (
                     <View style={styles.actions}>
-                        {!activeSession.hasArrivedHome && (
-                            <TouchableOpacity style={styles.arrivedBtn} onPress={handleArrived}>
-                                <Ionicons name="home" size={20} color="#fff" />
-                                <Text style={styles.arrivedBtnText}>我到家了</Text>
-                            </TouchableOpacity>
-                        )}
                         <TouchableOpacity style={styles.stopBtn} onPress={handleStop}>
                             <Ionicons name="stop-circle-outline" size={20} color={PINK} />
                             <Text style={styles.stopBtnText}>立即停止報平安</Text>
@@ -216,19 +189,7 @@ const styles = StyleSheet.create({
     countdownValue: { fontSize: 48, fontWeight: '700', color: INK, fontVariant: ['tabular-nums'] },
     destText: { fontSize: 13, color: Theme.colors.gray500, marginTop: 8 },
 
-    arrivedBanner: {
-        flexDirection: 'row', alignItems: 'center', gap: 8,
-        backgroundColor: '#E6F9F2', borderRadius: 12,
-        padding: 12, width: '100%', marginBottom: 16,
-    },
-    arrivedText: { flex: 1, fontSize: 13, color: GREEN, fontWeight: '500' },
-
     actions: { width: '100%', gap: 12, marginBottom: 24 },
-    arrivedBtn: {
-        flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-        backgroundColor: GREEN, borderRadius: 14, paddingVertical: 16,
-    },
-    arrivedBtnText: { color: '#fff', fontSize: 17, fontWeight: '700' },
     stopBtn: {
         flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
         borderWidth: 1.5, borderColor: PINK, borderRadius: 14, paddingVertical: 14,

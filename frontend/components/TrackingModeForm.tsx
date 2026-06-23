@@ -248,7 +248,7 @@ export default function TrackingModeForm({ mode }: Props) {
                                 </View>
                                 <Text style={styles.timeSep}>→</Text>
                                 <View style={{ flex: 1 }}>
-                                    <Text style={styles.label}>結束</Text>
+                                    <Text style={styles.label}>結束{endTime < startTime ? '　（次日）' : ''}</Text>
                                     <TouchableOpacity style={styles.timeDisplay} onPress={() => openPicker('end')} activeOpacity={0.75}>
                                         <Ionicons name="time-outline" size={15} color={TEAL} />
                                         <Text style={styles.timeDisplayText}>{endTime}</Text>

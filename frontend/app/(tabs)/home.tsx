@@ -94,7 +94,7 @@ export default function HomeScreen() {
   };
 
   const { schedules, activeSession, loading: scheduleLoading, deleteSchedule } = useScheduledTracking();
-  const { isTracking, trackingModeId } = useTracking();
+  const { isTracking, trackingModeId, startTrackingMode, stopTrackingMode } = useTracking();
   const { unifiedList, sharedByFriends, startSharingWithContact, stopSharingWithContact } = useLocationSharing();
   const { friends } = useFriends();
 
@@ -113,6 +113,7 @@ export default function HomeScreen() {
 
   const renderItem = ({ item }: { item: ScheduledTracking }) => {
     const hasSchedule = (item.daysOfWeek?.length ?? 0) > 0;
+    const isManual = item.isManualOnly ?? !hasSchedule;
     const dayLabel = hasSchedule
       ? item.daysOfWeek.map(d => DAY_SHORT[d]).join('、')
       : null;
@@ -141,6 +142,26 @@ export default function HomeScreen() {
               </Text>
               <ContactAvatarStack contactIds={item.emergencyContactIds ?? []} friends={friends} />
             </View>
+
+            {isManual && (
+              <TouchableOpacity
+                style={[homeStyles.settingsStartBtn, isActive && { backgroundColor: Theme.colors.gray300 }]}
+                onPress={() => {
+                  if (isActive) {
+                    Alert.alert('停止報平安', '確定要停止目前的報平安模式？', [
+                      { text: '取消', style: 'cancel' },
+                      { text: '停止', style: 'destructive', onPress: () => stopTrackingMode() },
+                    ]);
+                  } else {
+                    startTrackingMode(item.id, item.checkIntervalMinutes);
+                  }
+                }}
+              >
+                <Text style={homeStyles.settingsStartBtnText}>
+                  {isActive ? '停止報平安' : `開啟${item.name || '報平安'}模式`}
+                </Text>
+              </TouchableOpacity>
+            )}
 
             <View style={homeStyles.settingsBtns}>
               <TouchableOpacity
@@ -552,6 +573,17 @@ const homeStyles = StyleSheet.create({
   settingsRow: { flexDirection: 'column', justifyContent: 'space-between', paddingVertical: 6, gap: 8 },
   settingsLabel: { color: '#6b7280' },
   settingsValue: { color: '#111827', fontWeight: '600' },
+
+  settingsStartBtn: {
+    marginTop: 12,
+    backgroundColor: Theme.colors.brandPink,
+    paddingVertical: 12,
+    borderRadius: Theme.radii.xl,
+    alignItems: 'center',
+    borderWidth: 0.2,
+    borderColor: 'rgba(0,0,0,0.1)',
+  },
+  settingsStartBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
 
   settingsBtns: {
     marginTop: 12,
