@@ -1,8 +1,8 @@
 // app/(tabs)/home.tsx
 
-import { ActivityIndicator, View, Text, Pressable, Alert, StyleSheet, FlatList, TouchableOpacity, ScrollView, Image, TextInput } from 'react-native';
+import { ActivityIndicator, View, Text, Pressable, Alert, StyleSheet, FlatList, TouchableOpacity, ScrollView, Image, TextInput, Animated } from 'react-native';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { router } from 'expo-router';
 import { useAuth } from '@/context/AuthProvider';
 import { updateProfile } from 'firebase/auth';
@@ -22,6 +22,45 @@ import { useFriends } from '@/context/FriendProvider';
 
 import { BlurView } from 'expo-blur';
 
+
+function TrackingToggle({ isActive, onToggle }: { isActive: boolean; onToggle: () => void }) {
+  const anim = useRef(new Animated.Value(isActive ? 1 : 0)).current;
+
+  useEffect(() => {
+    Animated.timing(anim, { toValue: isActive ? 1 : 0, duration: 220, useNativeDriver: false }).start();
+  }, [isActive]);
+
+  const thumbX = anim.interpolate({ inputRange: [0, 1], outputRange: [2, 58] });
+  const bgColor = anim.interpolate({ inputRange: [0, 1], outputRange: ['#D1D5DB', Theme.colors.greenSuccess] });
+
+  return (
+    <TouchableOpacity onPress={onToggle} activeOpacity={0.85}>
+      <Animated.View style={[toggleStyles.track, { backgroundColor: bgColor }]}>
+        <Text style={[toggleStyles.trackLabel, { left: 8, opacity: isActive ? 1 : 0 }]}>進行中</Text>
+        <Text style={[toggleStyles.trackLabel, { right: 8, opacity: isActive ? 0 : 1 }]}>關閉</Text>
+        <Animated.View style={[toggleStyles.thumb, { transform: [{ translateX: thumbX }] }]} />
+      </Animated.View>
+    </TouchableOpacity>
+  );
+}
+
+const toggleStyles = StyleSheet.create({
+  track: {
+    width: 90, height: 30, borderRadius: 15,
+    position: 'relative', justifyContent: 'center',
+  },
+  thumb: {
+    position: 'absolute',
+    width: 26, height: 26, borderRadius: 13,
+    backgroundColor: '#fff',
+    shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 2, shadowOffset: { width: 0, height: 1 },
+    elevation: 2,
+  },
+  trackLabel: {
+    position: 'absolute',
+    fontSize: 11, fontWeight: '700', color: '#fff',
+  },
+});
 
 function ContactAvatarStack({ contactIds, friends }: {
   contactIds: string[];
@@ -127,10 +166,17 @@ export default function HomeScreen() {
           <View style={homeStyles.settingsInnerContainer}>
             <View style={homeStyles.settingsCardHeader}>
               <Text style={homeStyles.settingsCardTitle} numberOfLines={1}>{item.name || '(未命名)'}</Text>
-              {isActive && (
-                <View style={homeStyles.activePill}>
-                  <Text style={homeStyles.activePillText}>進行中</Text>
-                </View>
+              {isManual ? (
+                <TrackingToggle
+                  isActive={isActive}
+                  onToggle={() => isActive ? stopTrackingMode() : startTrackingMode(item.id, item.checkIntervalMinutes)}
+                />
+              ) : (
+                isActive && (
+                  <View style={homeStyles.activePill}>
+                    <Text style={homeStyles.activePillText}>進行中</Text>
+                  </View>
+                )
               )}
             </View>
 
@@ -142,26 +188,6 @@ export default function HomeScreen() {
               </Text>
               <ContactAvatarStack contactIds={item.emergencyContactIds ?? []} friends={friends} />
             </View>
-
-            {isManual && (
-              <TouchableOpacity
-                style={[homeStyles.settingsStartBtn, isActive && { backgroundColor: Theme.colors.gray300 }]}
-                onPress={() => {
-                  if (isActive) {
-                    Alert.alert('停止報平安', '確定要停止目前的報平安模式？', [
-                      { text: '取消', style: 'cancel' },
-                      { text: '停止', style: 'destructive', onPress: () => stopTrackingMode() },
-                    ]);
-                  } else {
-                    startTrackingMode(item.id, item.checkIntervalMinutes);
-                  }
-                }}
-              >
-                <Text style={homeStyles.settingsStartBtnText}>
-                  {isActive ? '停止報平安' : `開啟${item.name || '報平安'}模式`}
-                </Text>
-              </TouchableOpacity>
-            )}
 
             <View style={homeStyles.settingsBtns}>
               <TouchableOpacity
@@ -573,17 +599,6 @@ const homeStyles = StyleSheet.create({
   settingsRow: { flexDirection: 'column', justifyContent: 'space-between', paddingVertical: 6, gap: 8 },
   settingsLabel: { color: '#6b7280' },
   settingsValue: { color: '#111827', fontWeight: '600' },
-
-  settingsStartBtn: {
-    marginTop: 12,
-    backgroundColor: Theme.colors.brandPink,
-    paddingVertical: 12,
-    borderRadius: Theme.radii.xl,
-    alignItems: 'center',
-    borderWidth: 0.2,
-    borderColor: 'rgba(0,0,0,0.1)',
-  },
-  settingsStartBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
 
   settingsBtns: {
     marginTop: 12,
