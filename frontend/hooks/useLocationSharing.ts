@@ -100,7 +100,7 @@ export const useLocationSharing = () => {
     return () => {
       subscription?.remove();
     };
-  }, [isSharing, user]);
+  }, [isSharing, user?.uid]);
 
   // On mount: verify any stored session key is still valid in Firestore, clean up if stale
   useEffect(() => {
@@ -206,7 +206,7 @@ export const useLocationSharing = () => {
       incomingListenersRef.current = {};
       setSharedByFriends({});
     };
-  }, [user]);
+  }, [user?.uid]);
 
   // --- Outgoing listeners: who I am sharing with ---
   useEffect(() => {
@@ -320,7 +320,8 @@ export const useLocationSharing = () => {
     return () => {
       unsubscribes.forEach(unsub => unsub());
     };
-  }, [user]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.uid]);
 
   // --- Actions ---
 

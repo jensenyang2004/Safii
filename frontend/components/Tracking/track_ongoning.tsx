@@ -19,9 +19,11 @@ const Card_ongoing = ({ trackingMode }: { trackingMode: TrackingMode }) => {
   const { stopTrackingMode, currentStrike, nextCheckInTime } = useTracking();
   const { createSharingSession, stopAllSharing, unifiedList } = useLocationSharing();
 
-  const isSharingForThisMode = (trackingMode.emergencyContactIds ?? []).some(
+  const [localSharing, setLocalSharing] = React.useState(false);
+  const firestoreSharing = (trackingMode.emergencyContactIds ?? []).some(
     id => unifiedList.find(c => c.userId === id)
   );
+  const isSharingForThisMode = localSharing || firestoreSharing;
 
   const [remainingTime, setRemainingTime] = React.useState(0);
 
@@ -47,7 +49,7 @@ const Card_ongoing = ({ trackingMode }: { trackingMode: TrackingMode }) => {
     if (isSharingForThisMode) {
       Alert.alert('停止分享', '確定要停止與緊急聯絡人分享位置嗎？', [
         { text: '取消', style: 'cancel' },
-        { text: '停止分享', style: 'destructive', onPress: () => stopAllSharing() },
+        { text: '停止分享', style: 'destructive', onPress: () => { stopAllSharing(); setLocalSharing(false); } },
       ]);
       return;
     }
@@ -61,7 +63,7 @@ const Card_ongoing = ({ trackingMode }: { trackingMode: TrackingMode }) => {
       `將立即與「${trackingMode.name}」的緊急聯絡人分享您的即時位置，確認繼續？`,
       [
         { text: '取消', style: 'cancel' },
-        { text: '確認分享', onPress: () => createSharingSession(ids) },
+        { text: '確認分享', onPress: async () => { await createSharingSession(ids); setLocalSharing(true); } },
       ]
     );
   };
