@@ -1,6 +1,6 @@
 import React, { useRef, useCallback } from 'react';
 import { View, Dimensions, ViewToken } from 'react-native';
-import { FlatList } from 'react-native-gesture-handler';
+import { FlatList } from 'react-native';
 
 const { width: screenWidth } = Dimensions.get('window');
 
