@@ -144,7 +144,7 @@ const requestBackgroundPermissions = async () => {
   if (backgroundStatus !== 'granted') {
     Alert.alert(
       "需要位置權限",
-      "緊急報平安功能需要背景定位權限，請在設定中開啟「永遠允許」。",
+      "沒有背景定位權限，緊急聯絡人將無法在背景接收您的位置更新。",
       [{ text: "確定" }]
     );
     return false;
@@ -331,7 +331,7 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
       if (status !== 'granted') {
         Alert.alert(
           '通知權限未開啟',
-          '沒有通知權限，您將無法收到即時的報平安提醒。您仍可使用 Safii 的其他功能，但建議前往設定中開啟通知以獲得完整保護。',
+          '沒有通知權限，您將無法收到即時的報平安提醒。您仍可使用 Safii 的其他功能。',
         );
         console.log('⚠️ Notification permissions not granted — app continues with reduced functionality.');
       } else {
@@ -356,11 +356,72 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
 
   const loadAndReconcileState = async () => {
     try {
-      const timelineStr = await AsyncStorage.getItem(STORAGE_KEYS.TIMELINE);
-      const isActiveStr = await AsyncStorage.getItem(STORAGE_KEYS.IS_ACTIVE);
-      const startTimeStr = await AsyncStorage.getItem(STORAGE_KEYS.START_TIME);
+      let timelineStr = await AsyncStorage.getItem(STORAGE_KEYS.TIMELINE);
+      let isActiveStr = await AsyncStorage.getItem(STORAGE_KEYS.IS_ACTIVE);
+      let startTimeStr = await AsyncStorage.getItem(STORAGE_KEYS.START_TIME);
       const reportDeadlineStr = await AsyncStorage.getItem(STORAGE_KEYS.REPORT_DEADLINE);
-      const modeId = await AsyncStorage.getItem(STORAGE_KEYS.TRACKING_MODE_ID);
+      let modeId = await AsyncStorage.getItem(STORAGE_KEYS.TRACKING_MODE_ID);
+
+      // If AsyncStorage is empty (e.g. after reinstall), try to recover from Firestore
+      if ((!timelineStr || isActiveStr !== 'true') && user?.uid) {
+        try {
+          const [manualSnap, scheduleSnap] = await Promise.all([
+            getDocs(query(
+              collection(db, 'manual_tracking'),
+              where('trackedUserId', '==', user.uid),
+              where('isActive', '==', true)
+            )),
+            getDocs(query(
+              collection(db, 'active_tracking'),
+              where('trackedUserId', '==', user.uid),
+              where('isActive', '==', true),
+              where('triggeredBy', '==', 'schedule')
+            )),
+          ]);
+
+          const sessionDoc = !manualSnap.empty ? manualSnap.docs[0]
+            : !scheduleSnap.empty ? scheduleSnap.docs[0]
+            : null;
+
+          if (sessionDoc) {
+            const data = sessionDoc.data();
+            if (data.timeline && data.sessionStartTime) {
+              const isManual = !manualSnap.empty;
+              const type = isManual ? 'manual' : 'schedule';
+              const docIdKey = isManual ? STORAGE_KEYS.MANUAL_TRACKING_DOC_ID : STORAGE_KEYS.ACTIVE_TRACKING_DOC_ID;
+
+              // Reschedule notifications (they're device-local, can't be stored in DB)
+              // Cancel any already-scheduled notifications first to prevent duplicates
+              // (race: startTrackingMode may have scheduled them before IS_ACTIVE was written)
+              await Notifications.cancelAllScheduledNotificationsAsync();
+              const newNotificationIds = await scheduleAllNotifications(data.timeline);
+
+              await AsyncStorage.multiSet([
+                [STORAGE_KEYS.TIMELINE, JSON.stringify(data.timeline)],
+                [STORAGE_KEYS.IS_ACTIVE, 'true'],
+                [STORAGE_KEYS.START_TIME, String(data.sessionStartTime)],
+                [STORAGE_KEYS.CURRENT_STRIKE, String(data.currentStrike ?? 0)],
+                [STORAGE_KEYS.TRACKING_MODE_ID, data.scheduleId ?? ''],
+                [STORAGE_KEYS.INITIAL_SESSION_MINUTES, String(data.initialSessionMinutes ?? 15)],
+                [STORAGE_KEYS.UNRESPONSIVE_THRESHOLD, String(data.strikeThreshold ?? 1)],
+                [STORAGE_KEYS.CURRENT_USER_ID, user.uid],
+                [STORAGE_KEYS.EMERGENCY_CONTACT_IDS, JSON.stringify(data.emergencyContactIds ?? [])],
+                [STORAGE_KEYS.SESSION_TYPE, type],
+                [docIdKey, sessionDoc.id],
+                [STORAGE_KEYS.NOTIFICATION_IDS, JSON.stringify(newNotificationIds)],
+              ]);
+
+              timelineStr = JSON.stringify(data.timeline);
+              isActiveStr = 'true';
+              startTimeStr = String(data.sessionStartTime);
+              modeId = data.scheduleId ?? null;
+              console.log(`✅ Recovered session from Firestore (${type}): ${sessionDoc.id}`);
+            }
+          }
+        } catch (e) {
+          console.warn('⚠️ Firestore recovery failed, continuing without session:', e);
+        }
+      }
 
       if (timelineStr && isActiveStr === 'true' && startTimeStr) {
         const timeline: TimelineEvent[] = JSON.parse(timelineStr);
@@ -368,12 +429,11 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
 
         const finalEvent = timeline[timeline.length - 1];
         const unresponsiveThresholdStr = await AsyncStorage.getItem(STORAGE_KEYS.UNRESPONSIVE_THRESHOLD);
-        const strikeThreshold = unresponsiveThresholdStr ? parseInt(unresponsiveThresholdStr) : 3; // Default to 3
+        const strikeThreshold = unresponsiveThresholdStr ? parseInt(unresponsiveThresholdStr) : 1;
 
         // Determine if info has been sent
         if (finalEvent && now > finalEvent.time) {
           setIsInfoSent(true);
-          console.log('🚨 Session has ended. isInfoSent set to true.');
           // console.log('isInfoSent has been set to true');
         } else {
           setIsInfoSent(false);
@@ -394,12 +454,10 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
         setSessionType(storedSessionType);
 
         if (currentStrikeCount >= strikeThreshold) {
-          console.log('🚨 [前景計時器] 偵測到 FINAL STRIKE！準備更新 Firebase');
           try {
             const active = await getActiveDocRef();
             if (active) {
               await updateDoc(active.ref, { overallStatus: 'notifying', lastUpdateTime: serverTimestamp() });
-              console.log('🔥 [前景計時器] 成功將雲端狀態改為 notifying！');
             }
           } catch (error) {
             console.error('更新緊急狀態失敗:', error);
@@ -418,16 +476,32 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
             setIsReportDue(true);
             setReportDeadline(deadline);
           } else {
-             // Deadline passed
-             await TrackingStorage.clearReportDeadline();
+            // Deadline passed — clear both storage and React state so card dismisses
+            await TrackingStorage.clearReportDeadline();
+            setIsReportDue(false);
+            setReportDeadline(null);
           }
+        } else {
+          setIsReportDue(false);
+          setReportDeadline(null);
         }
 
         const nextCI = timeline.find(e => e.type === 'session_end' && e.time > now)?.time || null;
         setNextCheckInTime(nextCI);
 
       } else {
-        // Not active — reset to clean state
+        // Not active — cancel stale notifications and force-close Firestore if still open
+        await Notifications.cancelAllScheduledNotificationsAsync();
+        try {
+          const active = await getActiveDocRef();
+          if (active) {
+            await updateDoc(active.ref, {
+              isActive: false,
+              overallStatus: 'safe_stopped',
+              stoppedAt: serverTimestamp(),
+            });
+          }
+        } catch {}
         setIsTracking(false);
         setTrackingModeId(null);
         setTimeline([]);
@@ -444,12 +518,14 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
     }
   };
 
-  // Initial load
+  // Initial load — depends only on user?.uid (stable primitive) so loadAndReconcileState
+  // is not included; including it would re-fire on every render since it has no useCallback.
   useEffect(() => {
     if (user) {
       loadAndReconcileState();
     }
-  }, [user, loadAndReconcileState]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.uid]);
 
   // 請理 AsyncStorage
   useEffect(() => {
@@ -491,13 +567,11 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
           console.log('⏱️ Check-in time reached.');
           const currentEvent = timeline.find(e => e.type === 'session_end' && e.time === nextCheckInTime);
           if (currentEvent && currentEvent.deadline) {
-            AsyncStorage.setItem(STORAGE_KEYS.REPORT_DEADLINE, currentEvent.deadline.toString())
-              .then(() => {
-                setReportDeadline(currentEvent.deadline ?? null);
-                setIsReportDue(true);
-              });
+            setReportDeadline(currentEvent.deadline);
+            setIsReportDue(true);
+            AsyncStorage.setItem(STORAGE_KEYS.REPORT_DEADLINE, currentEvent.deadline.toString());
           } else {
-             loadAndReconcileState();
+            loadAndReconcileState();
           }
         }
       }, 1000);
@@ -614,12 +688,25 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
       }
 
       const emergencyContactIds: string[] = (activeMode as any).emergencyContactIds ?? [];
-      const strikeThreshold = activeMode.unresponsiveThreshold ?? 3;
+      const strikeThreshold = activeMode.unresponsiveThreshold ?? 1;
+
+      // Cancel any stale notifications from previous sessions before scheduling new ones
+      const oldNotificationIdsStr = await AsyncStorage.getItem(STORAGE_KEYS.NOTIFICATION_IDS);
+      if (oldNotificationIdsStr) {
+        const oldIds: string[] = JSON.parse(oldNotificationIdsStr);
+        await TrackingNotifications.cancelAllNotifications(oldIds);
+      }
 
       console.log('🚀 Starting tracking with pre-calculated timeline...');
 
       const calculatedTimeline = calculateFullTimeline(startTime, sessionMs, strikeThreshold);
       const notificationIds = await scheduleAllNotifications(calculatedTimeline);
+
+      // Write these two keys immediately so loadAndReconcileState (which fires on every render
+      // due to missing useCallback) sees IS_ACTIVE='true' and skips the Firestore recovery path
+      // even if it runs during the upcoming network write below.
+      await AsyncStorage.setItem(STORAGE_KEYS.IS_ACTIVE, 'true');
+      await AsyncStorage.setItem(STORAGE_KEYS.TIMELINE, JSON.stringify(calculatedTimeline));
 
       const finalEvent = calculatedTimeline[calculatedTimeline.length - 1];
       if (finalEvent) {
@@ -645,14 +732,18 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
           activity: (activeMode as any).activity || '',
           activityLocation: (activeMode as any).destination?.address || '',
           notes: (activeMode as any).notes || '',
+          // Session state — stored in DB so it can be recovered after app reinstall
+          timeline: calculatedTimeline,
+          sessionStartTime: startTime,
+          initialSessionMinutes: sessionMinutes,
+          currentStrike: 0,
+          strikeThreshold,
         });
         await AsyncStorage.setItem(STORAGE_KEYS.MANUAL_TRACKING_DOC_ID, trackingDocRef.id);
         await AsyncStorage.setItem(STORAGE_KEYS.SESSION_TYPE, 'manual');
         console.log("✅ Dead man's switch set in manual_tracking.");
       }
 
-      await AsyncStorage.setItem(STORAGE_KEYS.TIMELINE, JSON.stringify(calculatedTimeline));
-      await AsyncStorage.setItem(STORAGE_KEYS.IS_ACTIVE, 'true');
       await AsyncStorage.setItem(STORAGE_KEYS.START_TIME, startTime.toString());
       await AsyncStorage.setItem(STORAGE_KEYS.CURRENT_STRIKE, '0');
       await AsyncStorage.setItem(STORAGE_KEYS.NOTIFICATION_IDS, JSON.stringify(notificationIds));
@@ -661,10 +752,14 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
       await AsyncStorage.setItem(STORAGE_KEYS.CURRENT_USER_ID, user.uid);
       await AsyncStorage.setItem(STORAGE_KEYS.EMERGENCY_CONTACT_IDS, JSON.stringify(emergencyContactIds));
       await AsyncStorage.setItem(STORAGE_KEYS.UNRESPONSIVE_THRESHOLD, strikeThreshold.toString());
+      await AsyncStorage.removeItem(STORAGE_KEYS.REPORT_DEADLINE);
 
       setTimeline(calculatedTimeline);
       setIsTracking(true);
       setCurrentStrike(0);
+      setIsInfoSent(false);
+      setIsReportDue(false);
+      setReportDeadline(null);
       setTrackingModeId(modeId);
       setSessionType('manual');
 
@@ -698,13 +793,13 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
         setForegroundWatcher(watcher);
         Alert.alert(
           '位置分享提醒',
-          '目前為「使用 App 期間」定位。當 App 在背景時，緊急聯絡人可能看到您數小時前的位置。\n\n建議前往設定開啟「永遠允許」以獲得最即時的保護。',
+          '目前為「使用 App 期間」定位。當 App 在背景時，緊急聯絡人可能看到您數小時前的位置。',
           [{ text: '了解' }]
         );
       } else {
         Alert.alert(
           '位置未開啟',
-          '您的緊急聯絡人將無法看到您的位置。報平安提醒功能仍會正常運作。\n\n您可以隨時在設定中開啟定位。',
+          '聯絡人將無法看到您的位置，報平安功能仍會正常運作。',
           [{ text: '了解' }]
         );
       }
@@ -730,7 +825,7 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
 
       const sessionMs = initialSessionMinutesStr ? parseInt(initialSessionMinutesStr) * 60 * 1000 : 30 * 60 * 1000;
       const newStartTime = Date.now();
-      const strikeThreshold = unresponsiveThresholdStr ? parseInt(unresponsiveThresholdStr) : 3;
+      const strikeThreshold = unresponsiveThresholdStr ? parseInt(unresponsiveThresholdStr) : 1;
 
       console.log('🔄 Recalculating timeline from current time...');
       const newTimeline = calculateFullTimeline(newStartTime, sessionMs, strikeThreshold);
@@ -744,7 +839,10 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
           await updateDoc(active.ref, {
             emergencyActivationTime: newEmergencyActivationTime,
             overallStatus: 'tracking',
-            lastUpdateTime: serverTimestamp()
+            lastUpdateTime: serverTimestamp(),
+            timeline: newTimeline,
+            sessionStartTime: newStartTime,
+            currentStrike: 0,
           });
           console.log("✅ Dead man's switch updated in Firestore.");
         }
@@ -793,11 +891,20 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
     try {
       const sessionMs = schedule.checkIntervalMinutes * 60 * 1000;
       const startTime = Date.now();
-      const strikeThreshold = schedule.unresponsiveThreshold ?? 3;
+      const strikeThreshold = schedule.unresponsiveThreshold ?? 1;
       const emergencyContactIds = schedule.emergencyContactIds ?? [];
 
       const calculatedTimeline = calculateFullTimeline(startTime, sessionMs, strikeThreshold);
       const notificationIds = await scheduleAllNotifications(calculatedTimeline);
+
+      // Store session state in Firestore so it survives reinstall
+      await updateDoc(doc(db, 'active_tracking', activeTrackingDocId), {
+        timeline: calculatedTimeline,
+        sessionStartTime: startTime,
+        initialSessionMinutes: schedule.checkIntervalMinutes,
+        currentStrike: 0,
+        strikeThreshold,
+      });
 
       await AsyncStorage.setItem(STORAGE_KEYS.TIMELINE, JSON.stringify(calculatedTimeline));
       await AsyncStorage.setItem(STORAGE_KEYS.IS_ACTIVE, 'true');
@@ -841,15 +948,7 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
     }
 
     try {
-      const notificationIdsStr = await AsyncStorage.getItem(STORAGE_KEYS.NOTIFICATION_IDS);
-
-      if (notificationIdsStr) {
-        const notificationIds = JSON.parse(notificationIdsStr);
-        for (const id of notificationIds) {
-          await Notifications.cancelScheduledNotificationAsync(id).catch(() => { });
-        }
-        console.log('🧹 Cancelled all future notifications');
-      }
+      await Notifications.cancelAllScheduledNotificationsAsync();
 
       try {
         const active = await getActiveDocRef();
@@ -896,6 +995,7 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
       setIsReportDue(false);
       setReportDeadline(null);
       setNextCheckInTime(null);
+      setIsInfoSent(false);
 
       console.log('🛑 ✅ 本地狀態已強制重置');
     }

@@ -1,13 +1,27 @@
 // app/(tabs)/_layout.tsx
 import React from "react";
-import { View } from "react-native";
+import { View, Platform, PlatformIOSStatic } from "react-native";
+
+const isIpad = Platform.OS === "ios" && (Platform as PlatformIOSStatic).isPad;
 import { Stack, Tabs } from "expo-router";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Theme from "../../constants/Theme";
 
+const tabIconStyle = (focused: boolean) => ({
+  borderRadius: 38,
+  height: 55,
+  width: 100,
+  marginTop: isIpad ? 0 : 20,
+  backgroundColor: focused ? "rgba(0,0,0,0.06)" : "transparent",
+  alignItems: "center" as const,
+  justifyContent: "center" as const,
+});
+
 export default function TabLayout() {
+  const { bottom } = useSafeAreaInsets();
 
   return (
     <>
@@ -18,35 +32,25 @@ export default function TabLayout() {
           tabBarActiveTintColor: Theme.colors.brandPink,
           tabBarShowLabel: false,
 
-          // Tab bar container
           tabBarStyle: {
             position: "absolute",
-            // bottom: 12, // visually lift a bit; safe area handled inside items/padding
+            bottom: 0,
             borderRadius: 38,
             backgroundColor: Theme.colors.brandOffWhite,
             borderTopColor: "transparent",
-            // width: "94%",
-            height: "10%",
-            
-            
-
-            // bottom: "3%",
-            left: "3%", // adds distance from the left edge
-            right: "3%",
-            // margin: "3%",
-            // height: 100,
-            // alignSelf: "center",
-
-            elevation: 0,           // <— Android shadow
-            shadowOpacity: 0,       // <— iOS shadow
+            height: isIpad ? 80 + bottom : 80,
+            paddingBottom: isIpad ? bottom : 0,
+            left: 0,
+            right: 0,
+            elevation: 0,
+            shadowOpacity: 0,
+            zIndex: 100,
           },
 
-          // Each tab item: fill vertical space and center content
           tabBarItemStyle: {
             flex: 1,
             alignItems: "center",
-            justifyContent: "center", // Add this for good measure
-            
+            justifyContent: isIpad ? "center" : "flex-end",
           },
         }}
       >
@@ -54,18 +58,7 @@ export default function TabLayout() {
           name="map"
           options={{
             tabBarIcon: ({ color, focused }) => (
-              <View
-                style={{
-                  // padding: 8,               // gives rounded background some breathing room
-                  marginTop: 40,
-                  borderRadius: 38,
-                  height: 60,
-                  width: 80,
-                  backgroundColor: focused ? "rgba(0,0,0,0.06)" : "transparent",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
+              <View style={tabIconStyle(focused)}>
                 <FontAwesome5 name="map-marked-alt" size={24} color={color} />
               </View>
             ),
@@ -76,18 +69,7 @@ export default function TabLayout() {
           name="home"
           options={{
             tabBarIcon: ({ color, focused }) => (
-              <View
-                style={{
-                  // padding: 8,               // gives rounded background some breathing room
-                  marginTop: 40,
-                  borderRadius: 38,
-                  height: 60,
-                  width: 80,
-                  backgroundColor: focused ? "rgba(0,0,0,0.06)" : "transparent",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
+              <View style={tabIconStyle(focused)}>
                 <FontAwesome name="home" size={24} color={color} />
               </View>
             ),
@@ -98,17 +80,7 @@ export default function TabLayout() {
           name="friends"
           options={{
             tabBarIcon: ({ color, focused }) => (
-              <View
-                style={{
-                  marginTop: 40,
-                  borderRadius: 38,
-                  height: 60,
-                  width: 80,
-                  backgroundColor: focused ? "rgba(0,0,0,0.06)" : "transparent",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
+              <View style={tabIconStyle(focused)}>
                 <FontAwesome5 name="user-friends" size={24} color={color} />
               </View>
             ),
@@ -125,21 +97,7 @@ export default function TabLayout() {
         <Tabs.Screen
           name="firebase-test"
           options={{
-            tabBarIcon: ({ color, focused }) => (
-              <View
-                style={{
-                  marginTop: 40,
-                  borderRadius: 38,
-                  height: 60,
-                  width: 80,
-                  backgroundColor: focused ? "rgba(0,0,0,0.06)" : "transparent",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <FontAwesome5 name="fire-alt" size={24} color={color} />
-              </View>
-            ),
+            href: null,
           }}
         />
 

@@ -17,7 +17,7 @@ module.exports = {
     // --- iOS 設定 ---
     ios: {
       bundleIdentifier: "com.nightbase.firebase",
-      buildNumber: "8",
+      buildNumber: "13",
       supportsTablet: false,
       config: {
         googleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY,
@@ -31,6 +31,7 @@ module.exports = {
         NSLocationWhenInUseUsageDescription: "Safii uses your location to keep your emergency contacts informed during active safety check-in sessions. For example, when you start a tracking session before walking home alone, your contacts can see your real-time location on a map, and if you miss a check-in, your last known location is automatically sent to them.",
         NSLocationAlwaysAndWhenInUseUsageDescription: "Safii needs background location access to continue updating your real-time position to emergency contacts when the app is not actively open. For example, if your phone is in your pocket while walking home, Safii keeps your contacts informed of your location in the background, and if you fail to check in on time, your last known position is automatically shared with them.",
         NSLocationAlwaysUsageDescription: "Safii needs background location access to continue updating your real-time position to emergency contacts when the app is not actively open. For example, if your phone is in your pocket while walking home, Safii keeps your contacts informed of your location in the background, and if you fail to check in on time, your last known position is automatically shared with them.",
+        NSFaceIDUsageDescription: "Safii uses Face ID to verify your identity before stopping a safety check-in session, ensuring that only you can cancel an active alert.",
         NSAppTransportSecurity: {
           NSAllowsArbitraryLoads: false
         }
