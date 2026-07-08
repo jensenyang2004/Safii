@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTracking } from '@/context/TrackProvider';
-import { useLocationSharing } from '@/hooks/useLocationSharing';
+import { useLocationSharing, GroupedSharingContact } from '@/hooks/useLocationSharing';
 import { authenticateWithBiometrics } from '@/utils/biometrics';
 import { BlurView } from 'expo-blur';
 import { uiParameters } from '../../constants/Theme';
@@ -17,7 +17,7 @@ interface TrackingMode {
 
 const Card_ongoing = ({ trackingMode }: { trackingMode: TrackingMode }) => {
   const { stopTrackingMode, currentStrike, nextCheckInTime } = useTracking();
-  const { createSharingSession, stopAllSharing, unifiedList } = useLocationSharing();
+  const { createSharingSession, stopSharingWithContact, unifiedList } = useLocationSharing();
 
   const [localSharing, setLocalSharing] = React.useState(false);
   const firestoreSharing = (trackingMode.emergencyContactIds ?? []).some(
@@ -49,7 +49,13 @@ const Card_ongoing = ({ trackingMode }: { trackingMode: TrackingMode }) => {
     if (isSharingForThisMode) {
       Alert.alert('停止分享', '確定要停止與緊急聯絡人分享位置嗎？', [
         { text: '取消', style: 'cancel' },
-        { text: '停止分享', style: 'destructive', onPress: () => { stopAllSharing(); setLocalSharing(false); } },
+        { text: '停止分享', style: 'destructive', onPress: async () => {
+            const contactsToStop = (trackingMode.emergencyContactIds ?? [])
+              .map(id => unifiedList.find(c => c.userId === id))
+              .filter((c): c is GroupedSharingContact => !!c);
+            await Promise.all(contactsToStop.map(c => stopSharingWithContact(c)));
+            setLocalSharing(false);
+          }},
       ]);
       return;
     }
@@ -91,7 +97,7 @@ const Card_ongoing = ({ trackingMode }: { trackingMode: TrackingMode }) => {
         <View style={[styles.innerContainer, { backgroundColor: uiParameters.mainComponent.background }]}>
           <View style={styles.leftContent}>
             <Text style={[styles.title, { color: uiParameters.mainComponent.text }]} numberOfLines={1}>
-              正在進行{trackingMode?.name ?? '模式'}...
+              進行{trackingMode?.name ?? '模式'}...
             </Text>
             <View style={styles.progressContainer}>
               <View style={[styles.progressBar, { backgroundColor: uiParameters.progressBar.background }]}>
@@ -106,10 +112,10 @@ const Card_ongoing = ({ trackingMode }: { trackingMode: TrackingMode }) => {
                 />
               </View>
               <StrikeDots />
-              {isSharingForThisMode && (
-                <Text style={styles.sharingIndicator}>位置分享中</Text>
-              )}
             </View>
+            {isSharingForThisMode && (
+              <Text style={styles.sharingIndicator}>位置分享中</Text>
+            )}
           </View>
 
           <View style={styles.rightContent}>
@@ -162,26 +168,23 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   blurView: {
-    width: '100%',
-    height: '100%',
+    flex: 1,
     borderRadius: 9999,
     overflow: 'hidden',
   },
   innerContainer: {
-    width: '100%',
-    height: '100%',
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingVertical: 12,
-    paddingHorizontal: 32,
+    paddingHorizontal: 20,
+    gap: 12,
   },
   leftContent: {
     flex: 1,
     minWidth: 0,
     flexDirection: 'column',
-    alignItems: 'flex-start',
-    gap: 8,
+    gap: 4,
   },
   title: {
     fontWeight: 'bold',
@@ -216,12 +219,10 @@ const styles = StyleSheet.create({
     borderRadius: 5,
   },
   rightContent: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-end',
     gap: 16,
-    paddingVertical: 24,
   },
   iconButton: {
     width: 48,

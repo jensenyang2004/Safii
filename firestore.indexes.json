@@ -24,6 +24,39 @@
       "density": "SPARSE_ALL"
     },
     {
+      "collectionGroup": "active_tracking",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "trackedUserId", "order": "ASCENDING" },
+        { "fieldPath": "isActive", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "active_tracking",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "scheduleId", "order": "ASCENDING" },
+        { "fieldPath": "isActive", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "active_tracking",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "trackedUserId", "order": "ASCENDING" },
+        { "fieldPath": "isActive", "order": "ASCENDING" },
+        { "fieldPath": "triggeredBy", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "manual_tracking",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "trackedUserId", "order": "ASCENDING" },
+        { "fieldPath": "isActive", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "TrackingMode",
       "queryScope": "COLLECTION",
       "fields": [

@@ -12,7 +12,8 @@ import {
     doc,
     getDoc,
     serverTimestamp,
-    limit
+    limit,
+    arrayRemove,
 } from 'firebase/firestore';
 import { useAuth } from './AuthProvider';
 import { Alert, Pressable, View } from 'react-native';
@@ -344,6 +345,24 @@ export const FriendProvider = ({ children }: { children: React.ReactNode }) => {
             // Remove from both users' friends collections
             await deleteDoc(doc(db, 'users', user?.uid, 'friends', friendId));
             await deleteDoc(doc(db, 'users', friendId, 'friends', user?.uid));
+
+            // Remove from any active sharing sessions
+            const sessionsSnap = await getDocs(
+                query(
+                    collection(db, 'active_sharing_sessions'),
+                    where('sharingUserId', '==', user?.uid),
+                    where('isActive', '==', true)
+                )
+            );
+            await Promise.all(sessionsSnap.docs.map(async (sessionDoc) => {
+                const data = sessionDoc.data();
+                const remaining = (data.sharedWithUserIds ?? []).filter((id: string) => id !== friendId);
+                if (remaining.length === 0) {
+                    await updateDoc(sessionDoc.ref, { isActive: false, sharedWithUserIds: [] });
+                } else {
+                    await updateDoc(sessionDoc.ref, { sharedWithUserIds: arrayRemove(friendId) });
+                }
+            }));
 
             Alert.alert('成功移除好友');
             fetchFriends();

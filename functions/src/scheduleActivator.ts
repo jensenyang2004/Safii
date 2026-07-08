@@ -22,20 +22,20 @@ export const scheduleActivator = onSchedule('every 1 minutes', async () => {
         const nowInTz = DateTime.now().setZone(schedule.timezone || 'UTC');
         // luxon weekday: 1=Mon...7=Sun → convert to JS convention 0=Sun...6=Sat
         const currentDay = nowInTz.weekday % 7;
-        const currentTime = nowInTz.toFormat('HH:mm');
 
         if (!(schedule.daysOfWeek as number[]).includes(currentDay)) continue;
-        if (schedule.startTime !== currentTime) continue;
 
-        // Skip if user already has an active session
-        const existingSnap = await db.collection('active_tracking')
-            .where('trackedUserId', '==', schedule.userId)
-            .where('isActive', '==', true)
-            .limit(1)
-            .get();
+        // Allow up to 3 minutes of Cloud Scheduler drift
+        const [startH, startM] = (schedule.startTime as string).split(':').map(Number);
+        const startTotalMinutes = startH * 60 + startM;
+        const nowTotalMinutes = nowInTz.hour * 60 + nowInTz.minute;
+        const minutesSinceStart = nowTotalMinutes - startTotalMinutes;
+        if (minutesSinceStart < 0 || minutesSinceStart > 3) continue;
 
-        if (!existingSnap.empty) {
-            console.log(`[scheduleActivator] User ${schedule.userId} already has active session, skipping schedule ${scheduleId}`);
+        // Skip if this schedule was already activated today (active or manually stopped)
+        const todayStr = nowInTz.toFormat('yyyy-MM-dd');
+        if (schedule.lastActivatedDate === todayStr) {
+            console.log(`[scheduleActivator] Schedule ${scheduleId} already activated today (${todayStr}), skipping.`);
             continue;
         }
 
@@ -69,6 +69,7 @@ export const scheduleActivator = onSchedule('every 1 minutes', async () => {
         }
 
         const trackingDocRef = db.collection('active_tracking').doc();
+        await scheduleDoc.ref.update({ lastActivatedDate: todayStr });
         await trackingDocRef.set({
             trackedUserId: schedule.userId,
             emergencyContactIds,

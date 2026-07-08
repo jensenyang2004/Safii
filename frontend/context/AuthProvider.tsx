@@ -2,8 +2,8 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { auth, db } from '@/libs/firebase';
-import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { onAuthStateChanged, User as FirebaseUser, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
+import { doc, getDoc, deleteDoc, collection, getDocs, query, where } from 'firebase/firestore';
 import { router } from 'expo-router';
 import { Alert } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
@@ -26,14 +26,16 @@ const AuthContext = createContext<{
   onboardingComplete: boolean;
   completeOnboarding: () => void;
   signOut: () => Promise<void>;
+  deleteAccount: () => Promise<void>;
   fetchUserInfo: (authUser: FirebaseUser | null) => Promise<void>;
 }>({
   user: null,
-  loading: true, // Initial loading state
+  loading: true,
   onboardingComplete: false,
   completeOnboarding: () => {},
-  signOut: async () => {}, // Default no-op function
-  fetchUserInfo: async () => {}, // Default no-op function
+  signOut: async () => {},
+  deleteAccount: async () => {},
+  fetchUserInfo: async () => {},
 });
 
 // 2. Create the provider component
@@ -47,6 +49,50 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       const userOnboardingKey = `${ONBOARDING_COMPLETED_KEY}_${user.uid}`;
       SecureStore.setItemAsync(userOnboardingKey, 'true');
       setOnboardingComplete(true);
+    }
+  };
+
+  const deleteAccount = async () => {
+    const doDelete = async () => {
+      const uid = user!.uid;
+      if (user?.username) await deleteDoc(doc(db, 'usernames', user.username.toLowerCase()));
+      const friendsSnap = await getDocs(collection(db, 'users', uid, 'friends'));
+      await Promise.all(friendsSnap.docs.map(d => deleteDoc(d.ref)));
+      const schedSnap = await getDocs(query(collection(db, 'scheduled_tracking'), where('userId', '==', uid)));
+      await Promise.all(schedSnap.docs.map(d => deleteDoc(d.ref)));
+      await deleteDoc(doc(db, 'users', uid));
+      await auth.currentUser!.delete();
+      await signOut();
+    };
+
+    try {
+      await doDelete();
+    } catch (err: any) {
+      if (err.code === 'auth/requires-recent-login') {
+        Alert.prompt(
+          '請確認您的身份',
+          '為了安全，請輸入您的密碼以確認刪除帳號。',
+          [
+            { text: '取消', style: 'cancel' },
+            {
+              text: '確認',
+              onPress: async (password) => {
+                if (!password) return;
+                try {
+                  const credential = EmailAuthProvider.credential(user!.email!, password);
+                  await reauthenticateWithCredential(auth.currentUser!, credential);
+                  await doDelete();
+                } catch {
+                  Alert.alert('刪除失敗', '密碼錯誤，請稍後再試。');
+                }
+              },
+            },
+          ],
+          'secure-text'
+        );
+      } else {
+        Alert.alert('刪除失敗', '請稍後再試。');
+      }
     }
   };
 
@@ -128,7 +174,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, signOut, fetchUserInfo, onboardingComplete, completeOnboarding }}>
+    <AuthContext.Provider value={{ user, loading, signOut, deleteAccount, fetchUserInfo, onboardingComplete, completeOnboarding }}>
       {children}
     </AuthContext.Provider>
   );

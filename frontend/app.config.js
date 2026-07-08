@@ -17,7 +17,7 @@ module.exports = {
     // --- iOS 設定 ---
     ios: {
       bundleIdentifier: "com.nightbase.firebase",
-      buildNumber: "13",
+      buildNumber: "17",
       supportsTablet: false,
       config: {
         googleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY,
@@ -84,10 +84,10 @@ module.exports = {
       url: "https://u.expo.dev/e7d435f3-55a6-4e7d-88e3-bf34383bc8be"
     },
 
-    // --- Plugins (合併了兩個檔案的內容) ---
+
     plugins: [
-      "expo-router", // 👈 補上
-      "expo-font",   // 👈 補上
+      "expo-router", 
+      "expo-font",   
       "expo-sqlite",
       "expo-web-browser",
       "expo-dev-client",
@@ -144,7 +144,8 @@ module.exports = {
             newArchEnabled: true
           }
         }
-      ]
+      ],
+      "./plugins/withIPhoneOnly.js"
     ],
     experiments: {
       typedRoutes: true

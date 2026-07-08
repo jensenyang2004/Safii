@@ -1,6 +1,6 @@
 // app/(tabs)/home.tsx
 
-import { ActivityIndicator, View, Text, Pressable, Alert, StyleSheet, FlatList, TouchableOpacity, ScrollView, Image, TextInput, Animated } from 'react-native';
+import { ActivityIndicator, View, Text, Pressable, Alert, StyleSheet, FlatList, TouchableOpacity, ScrollView, Image, TextInput, Animated, Modal } from 'react-native';
 
 import { useState, useRef, useEffect } from 'react';
 import { router } from 'expo-router';
@@ -35,13 +35,12 @@ function TrackingToggle({ isActive, onToggle }: { isActive: boolean; onToggle: (
 
   const handlePress = async () => {
     const next = !display;
-    setDisplay(next);
-    Animated.timing(anim, { toValue: next ? 1 : 0, duration: 220, useNativeDriver: false }).start();
     try {
       await onToggle();
+      setDisplay(next);
+      Animated.timing(anim, { toValue: next ? 1 : 0, duration: 220, useNativeDriver: false }).start();
     } catch {
-      setDisplay(!next);
-      Animated.timing(anim, { toValue: !next ? 1 : 0, duration: 220, useNativeDriver: false }).start();
+      // auth cancelled or action failed — toggle stays in place
     }
   };
 
@@ -121,8 +120,24 @@ function ContactAvatarStack({ contactIds, friends }: {
 
 const DAY_SHORT = ['日', '一', '二', '三', '四', '五', '六'];
 
+function scheduleRangeLabel(daysOfWeek: number[], startTime: string, endTime: string): string {
+  const spansDay = endTime < startTime;
+  const daysPart = daysOfWeek.length === 1
+    ? `週${DAY_SHORT[daysOfWeek[0]]}`
+    : daysOfWeek.map(d => DAY_SHORT[d]).join('、');
+
+  if (!spansDay) return `${daysPart} ${startTime} ~ ${endTime}`;
+
+  const endDayPart = daysOfWeek.length === 1
+    ? `週${DAY_SHORT[(daysOfWeek[0] + 1) % 7]}`
+    : '次日';
+
+  return `${daysPart} ${startTime} ~ ${endDayPart} ${endTime}`;
+}
+
 export default function HomeScreen() {
-  const { user, fetchUserInfo } = useAuth();
+  const { user, fetchUserInfo, signOut, deleteAccount } = useAuth();
+  const [showAccountModal, setShowAccountModal] = useState(false);
   const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<'tracking' | 'sharing'>('tracking');
   const [editingName, setEditingName] = useState(false);
@@ -167,7 +182,7 @@ export default function HomeScreen() {
     const hasSchedule = (item.daysOfWeek?.length ?? 0) > 0;
     const isManual = item.isManualOnly ?? !hasSchedule;
     const dayLabel = hasSchedule
-      ? item.daysOfWeek.map(d => DAY_SHORT[d]).join('、')
+      ? scheduleRangeLabel(item.daysOfWeek, item.startTime, item.endTime)
       : null;
     const isActive =
       (isTracking && trackingModeId === item.id) ||
@@ -203,9 +218,7 @@ export default function HomeScreen() {
 
             <View style={homeStyles.settingsRow}>
               <Text style={homeStyles.settingsLabel}>
-                {dayLabel
-                  ? `${dayLabel}　${item.startTime} – ${item.endTime}`
-                  : `每 ${item.checkIntervalMinutes ?? 15} 分鐘回報`}
+                {dayLabel ?? `每 ${item.checkIntervalMinutes ?? 15} 分鐘回報`}
               </Text>
               <ContactAvatarStack contactIds={item.emergencyContactIds ?? []} friends={friends} />
             </View>
@@ -247,6 +260,29 @@ export default function HomeScreen() {
 
       <View style={homeStyles.headerContainer}>
         <ProfilePhotoUploader />
+        <Modal visible={showAccountModal} animationType="fade" transparent onRequestClose={() => setShowAccountModal(false)}>
+          <TouchableOpacity style={homeStyles.accountModalBackdrop} activeOpacity={1} onPress={() => setShowAccountModal(false)}>
+            <View style={homeStyles.accountModalContent}>
+              <TouchableOpacity style={homeStyles.accountModalButton} onPress={() => { setShowAccountModal(false); signOut(); }}>
+                <FontAwesome5 name="sign-out-alt" size={18} color="#374151" />
+                <Text style={homeStyles.accountModalText}>登出</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={homeStyles.accountModalButton} onPress={() => {
+                setShowAccountModal(false);
+                setTimeout(() => {
+                  Alert.alert('刪除帳號', '此動作無法復原。您的帳號與所有資料將被永久刪除。', [
+                    { text: '取消', style: 'cancel' },
+                    { text: '確認刪除', style: 'destructive', onPress: deleteAccount },
+                  ]);
+                }, 300);
+              }}>
+                <FontAwesome5 name="trash" size={18} color="#EF4444" />
+                <Text style={[homeStyles.accountModalText, { color: '#EF4444' }]}>刪除帳號</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </Modal>
+
         {editingName ? (
           <View style={homeStyles.nameEditRow}>
             <TextInput
@@ -272,12 +308,17 @@ export default function HomeScreen() {
             )}
           </View>
         ) : (
-          <TouchableOpacity style={homeStyles.nameRow} onPress={() => { setNewDisplayName(user?.displayName || user?.username || ''); setEditingName(true); }} activeOpacity={0.7}>
-            <Text style={homeStyles.username}>
-              {user?.displayName || user?.username || user?.nickname || user?.email || 'Unknown User'}
-            </Text>
-            <FontAwesome5 name="pen" size={12} color="#A9A9A9" style={{ marginLeft: 6, marginTop: 2 }} />
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <TouchableOpacity onPress={() => setShowAccountModal(true)}>
+              <FontAwesome5 name="user-circle" size={22} color="#A9A9A9" />
+            </TouchableOpacity>
+            <TouchableOpacity style={homeStyles.nameRow} onPress={() => { setNewDisplayName(user?.displayName || user?.username || ''); setEditingName(true); }} activeOpacity={0.7}>
+              <Text style={homeStyles.username}>
+                {user?.displayName || user?.username || user?.nickname || user?.email || 'Unknown User'}
+              </Text>
+              <FontAwesome5 name="pen" size={12} color="#A9A9A9" style={{ marginLeft: 6, marginTop: 2 }} />
+            </TouchableOpacity>
+          </View>
         )}
         <Text style={homeStyles.handle}>@{user?.username}</Text>
       </View>
@@ -354,6 +395,7 @@ export default function HomeScreen() {
               </>
             )}
           </View>
+          <Text style={homeStyles.disclaimer}>Safii 為輔助通知工具，緊急情況請立即撥打 110 或 119。</Text>
         </ScrollView>
       ) : (<FlatList
         data={friends}
@@ -362,7 +404,11 @@ export default function HomeScreen() {
         ListEmptyComponent={
           <View style={homeStyles.settingsEmpty}>
             <Text style={homeStyles.settingsEmptyTitle}>尚未加入任何好友</Text>
-            <Text style={homeStyles.settingsDim}>加入好友後即可分享位置</Text>
+            <TouchableOpacity onPress={() => router.push('/(tabs)/friends')}>
+              <Text style={[homeStyles.settingsDim, { color: Theme.colors.brandPink, textDecorationLine: 'underline' }]}>
+                加入好友後即可分享位置
+              </Text>
+            </TouchableOpacity>
           </View>
         }
         renderItem={({ item }) => {
@@ -431,6 +477,7 @@ export default function HomeScreen() {
             </View>
           );
         }}
+        ListFooterComponent={<Text style={homeStyles.disclaimer}>Safii 為輔助通知工具，緊急情況請立即撥打 110 或 119。</Text>}
       />)}
 
     </SafeAreaView>
@@ -439,6 +486,13 @@ export default function HomeScreen() {
 }
 
 const homeStyles = StyleSheet.create({
+  disclaimer: {
+    textAlign: 'center',
+    fontSize: 11,
+    color: '#C0C0C0',
+    paddingHorizontal: 20,
+    paddingTop: 16,
+  },
   headerContainer: {
     paddingHorizontal: 20,
     alignItems: 'center',
@@ -520,6 +574,35 @@ const homeStyles = StyleSheet.create({
     backgroundColor: '#F3F4F6',
     padding: 7,
     borderRadius: 20,
+  },
+  accountModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  accountModalContent: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 8,
+    width: 220,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  accountModalButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+  },
+  accountModalText: {
+    fontSize: 16,
+    color: '#374151',
   },
   signOutButton: {
     backgroundColor: Theme.colors.gray200,

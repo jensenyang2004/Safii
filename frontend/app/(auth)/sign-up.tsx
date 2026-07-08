@@ -10,8 +10,10 @@ import { doc, setDoc, serverTimestamp, runTransaction, getDoc } from 'firebase/f
 import { router, Stack } from 'expo-router';
 import { AntDesign } from '@expo/vector-icons'
 import { FirebaseError } from 'firebase/app';
+import { useAuth } from '@/context/AuthProvider';
 
 export default function SignUp() {
+  const { fetchUserInfo } = useAuth();
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -100,7 +102,9 @@ export default function SignUp() {
       // 4) 寫入 Firestore
       await setDoc(doc(db, 'users', user.uid), userDoc);
 
-      // console.log('User registered with UID:', user.uid);
+      // Refresh user state now that both updateProfile and setDoc are complete
+      await fetchUserInfo(auth.currentUser);
+
       // 5) 註冊成功，跳到主畫面
       setLoading(false);
 

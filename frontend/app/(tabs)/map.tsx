@@ -22,7 +22,8 @@ import React, { useEffect, useState, useRef, use } from 'react';
 import MapView, { Marker, Polyline, Callout } from 'react-native-maps';
 import * as Location from 'expo-location';
 import TrackModeCard from '@/components/Tracking/track_base';
-import UnifiedTrackingCard from '@/components/Tracking/UnifiedTrackingCard';
+import Card_ongoing from '@/components/Tracking/track_ongoning';
+import ReportSafetyCard from '@/components/Tracking/ReportSafetyCard';
 import MapCarousel from '@/components/Map/carousel';
 import { useTracking } from '@/context/TrackProvider';
 import { useScheduledTracking } from '@/context/ScheduledTrackingContext';
@@ -105,7 +106,7 @@ export default function Map() {
     console.log("🙈🙈🙈 isInfoSent changed:", isInfoSent);
   }, [isInfoSent]);
 
-  const tabBarHeight = screenHeight * 0.09;
+  const tabBarHeight = 80;
 
   const mapRef = useRef<MapView>(null);
 
@@ -271,7 +272,6 @@ export default function Map() {
     (async () => {
       let { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('權限不足', '請開啟定位權限以使用地圖功能');
         return;
       }
 
@@ -589,12 +589,16 @@ export default function Map() {
     />,
   });
 
-  if (isTracking && trackingModeId) {
+  if (isTracking && trackingModeId && !isInfoSent) {
     const activeMode = trackingModes.find(mode => mode.id === trackingModeId);
     if (activeMode) {
-      carouselData.push({ id: activeMode.id, component: <UnifiedTrackingCard trackingMode={activeMode} /> });
+      if (isReportDue) {
+        carouselData.push({ id: 'report-safety', component: <ReportSafetyCard /> });
+      } else {
+        carouselData.push({ id: activeMode.id, component: <Card_ongoing trackingMode={activeMode} /> });
+      }
     }
-  } else {
+  } else if (!isTracking || !trackingModeId) {
     const manualSchedules = (schedules ?? []).filter(sc =>
       sc.isManualOnly === true || (sc.isManualOnly === undefined && (sc.daysOfWeek?.length ?? 0) === 0)
     );

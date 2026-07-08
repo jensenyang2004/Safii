@@ -1,6 +1,6 @@
 // app/(tabs)/_layout.tsx
 import React from "react";
-import { View, Platform, PlatformIOSStatic } from "react-native";
+import { View, Pressable, StyleSheet, Platform, PlatformIOSStatic } from "react-native";
 
 const isIpad = Platform.OS === "ios" && (Platform as PlatformIOSStatic).isPad;
 import { Stack, Tabs } from "expo-router";
@@ -14,8 +14,7 @@ const tabIconStyle = (focused: boolean) => ({
   borderRadius: 38,
   height: 55,
   width: 100,
-  marginTop: isIpad ? 0 : 20,
-  backgroundColor: focused ? "rgba(0,0,0,0.06)" : "transparent",
+  backgroundColor: "transparent",
   alignItems: "center" as const,
   justifyContent: "center" as const,
 });
@@ -49,8 +48,23 @@ export default function TabLayout() {
 
           tabBarItemStyle: {
             flex: 1,
-            alignItems: "center",
-            justifyContent: isIpad ? "center" : "flex-end",
+          },
+          tabBarButton: (props) => {
+            const { children, onPress } = props;
+            const selected = props['aria-selected'];
+            return (
+              <Pressable onPress={onPress} style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+                {selected && (
+                  <View pointerEvents="none" style={{
+                    ...StyleSheet.absoluteFillObject,
+                    backgroundColor: "rgba(0,0,0,0.06)",
+                    borderRadius: 35,
+                    marginHorizontal: 0,
+                  }} />
+                )}
+                <View pointerEvents="none">{children}</View>
+              </Pressable>
+            );
           },
         }}
       >
@@ -58,8 +72,10 @@ export default function TabLayout() {
           name="map"
           options={{
             tabBarIcon: ({ color, focused }) => (
-              <View style={tabIconStyle(focused)}>
-                <FontAwesome5 name="map-marked-alt" size={24} color={color} />
+              <View style={{ flex: 1, alignSelf: 'stretch', alignItems: 'center', justifyContent: 'center' }}>
+                <View style={tabIconStyle(focused)}>
+                  <FontAwesome5 name="map-marked-alt" size={24} color={color} />
+                </View>
               </View>
             ),
           }}
@@ -69,8 +85,10 @@ export default function TabLayout() {
           name="home"
           options={{
             tabBarIcon: ({ color, focused }) => (
-              <View style={tabIconStyle(focused)}>
-                <FontAwesome name="home" size={24} color={color} />
+              <View style={{ flex: 1, alignSelf: 'stretch', alignItems: 'center', justifyContent: 'center' }}>
+                <View style={tabIconStyle(focused)}>
+                  <FontAwesome name="home" size={24} color={color} />
+                </View>
               </View>
             ),
           }}
@@ -80,8 +98,10 @@ export default function TabLayout() {
           name="friends"
           options={{
             tabBarIcon: ({ color, focused }) => (
-              <View style={tabIconStyle(focused)}>
-                <FontAwesome5 name="user-friends" size={24} color={color} />
+              <View style={{ flex: 1, alignSelf: 'stretch', alignItems: 'center', justifyContent: 'center' }}>
+                <View style={tabIconStyle(focused)}>
+                  <FontAwesome5 name="user-friends" size={24} color={color} />
+                </View>
               </View>
             ),
           }}

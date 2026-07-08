@@ -67,7 +67,7 @@ export default function TrackingModeForm({ mode }: Props) {
             emergencyContactIds: s.emergencyContactIds ?? [],
             checkIntervalMinutes: s.checkIntervalMinutes ?? 15,
             isManualOnly: s.isManualOnly ?? (s.daysOfWeek?.length === 0),
-            unresponsiveThreshold: 3,
+            unresponsiveThreshold: 1,
             activity: s.activity?.trim() || '',
             notes: s.notes?.trim() || '',
         };
@@ -128,7 +128,7 @@ export default function TrackingModeForm({ mode }: Props) {
         emergencyContactIds: selectedContactIds,
         checkIntervalMinutes: Number(checkIntervalMinutes) || 15,
         isManualOnly,
-        unresponsiveThreshold: 3,
+        unresponsiveThreshold: 1,
         activity: activity.trim(),
         notes: notes.trim(),
     });

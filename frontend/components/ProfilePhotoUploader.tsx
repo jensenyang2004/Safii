@@ -27,21 +27,27 @@ export default function ProfilePhotoUploader() {
             setDeleting(false);
             if (err.code === 'auth/requires-recent-login') {
                 Alert.prompt(
-                    '請重新驗證',
+                    '請確認您的身份',
                     '為了安全，請輸入您的密碼以確認刪除帳號。',
-                    async (password) => {
-                        if (!password) return;
-                        try {
-                            const credential = EmailAuthProvider.credential(user!.email!, password);
-                            await reauthenticateWithCredential(auth.currentUser!, credential);
-                            if (user?.username) await deleteDoc(doc(db, 'usernames', user.username.toLowerCase()));
-                            await deleteDoc(doc(db, 'users', user!.uid));
-                            await auth.currentUser!.delete();
-                            signOut();
-                        } catch {
-                            Alert.alert('刪除失敗', '密碼錯誤，請稍後再試。');
-                        }
-                    },
+                    [
+                        { text: '取消', style: 'cancel' },
+                        {
+                            text: '確認',
+                            onPress: async (password) => {
+                                if (!password) return;
+                                try {
+                                    const credential = EmailAuthProvider.credential(user!.email!, password);
+                                    await reauthenticateWithCredential(auth.currentUser!, credential);
+                                    if (user?.username) await deleteDoc(doc(db, 'usernames', user.username.toLowerCase()));
+                                    await deleteDoc(doc(db, 'users', user!.uid));
+                                    await auth.currentUser!.delete();
+                                    signOut();
+                                } catch {
+                                    Alert.alert('刪除失敗', '密碼錯誤，請稍後再試。');
+                                }
+                            },
+                        },
+                    ],
                     'secure-text'
                 );
             } else {
@@ -70,7 +76,7 @@ export default function ProfilePhotoUploader() {
             const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
             if (status !== 'granted') {
-                Alert.alert('Permission needed', 'Please allow access to your photo library to upload a profile picture.');
+                Alert.alert('需要權限', '需要相簿權限才能上傳大頭照。');
                 return;
             }
 
@@ -98,7 +104,7 @@ export default function ProfilePhotoUploader() {
             const { status } = await ImagePicker.requestCameraPermissionsAsync();
 
             if (status !== 'granted') {
-                Alert.alert('Permission needed', 'Please allow access to your camera to take a profile picture.');
+                Alert.alert('需要權限', '需要相機權限才能拍攝大頭照。');
                 return;
             }
 
@@ -191,14 +197,6 @@ export default function ProfilePhotoUploader() {
                                 <TouchableOpacity style={styles.modalButton} onPress={async () => { setShowOptions(false); await takePhoto(); }}>
                                     <FontAwesome name="camera" size={20}/>
                                     <Text style={styles.modalButtonText}>拍照</Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity style={[styles.modalButton, styles.modalCancel]} onPress={async () => { setShowOptions(false); await signOut(); }}>
-                                    <FontAwesome name="sign-out" size={20} color="#EF4444" />
-                                    <Text style={[styles.modalButtonText, { color: '#EF4444' }]}>登出</Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity style={[styles.modalButton, styles.modalCancel]} onPress={confirmDeleteAccount} disabled={deleting}>
-                                    <FontAwesome name="trash" size={20} color="#EF4444" />
-                                    <Text style={[styles.modalButtonText, { color: '#EF4444' }]}>刪除帳號</Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity style={[styles.modalButton, styles.modalCancel]} onPress={() => setShowOptions(false)}>
                                     <Text style={[styles.modalButtonText, { color: '#374151' }]}>取消</Text>
