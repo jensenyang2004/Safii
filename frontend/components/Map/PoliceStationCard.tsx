@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions, Linking, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Linking, Platform } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { MaterialIcons } from '@expo/vector-icons';
 
@@ -11,8 +11,6 @@ interface PoliceStationCardProps {
   onNavigate: () => void;
   bottomOffset?: number;
 }
-
-const { width: screenWidth } = Dimensions.get('window');
 
 const PoliceStationCard: React.FC<PoliceStationCardProps> = ({
   name,

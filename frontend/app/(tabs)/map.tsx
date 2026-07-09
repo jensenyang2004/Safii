@@ -1,11 +1,10 @@
 
+// frontend/app/(tabs)/map.tsx
 
-// frontend/app/%28tabs%29/map.tsx
 import { MaterialIcons } from '@expo/vector-icons';
 import {
   View,
   StyleSheet,
-  Dimensions,
   ScrollView,
   Pressable,
   ActivityIndicator,
@@ -60,7 +59,6 @@ import { useLocalSearchParams } from 'expo-router';
 import { authenticateWithBiometrics } from '@/utils/biometrics';
 
 const GOOGLE_MAPS_API_KEY = Constants.expoConfig?.extra?.GOOGLE_MAPS_API_KEY;
-const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 export default function Map() {
   const [location, setLocation] = useState<Location.LocationObject | null>(null);
@@ -105,6 +103,11 @@ export default function Map() {
     }
     console.log("🙈🙈🙈 isInfoSent changed:", isInfoSent);
   }, [isInfoSent]);
+
+  useEffect(() => {
+    console.log('🔍 [Map] mounted');
+    return () => console.log('🔍 [Map] unmounted');
+  }, []);
 
   const tabBarHeight = 80;
 
@@ -303,8 +306,8 @@ export default function Map() {
     if (!locationToAnimate) return;
 
     if (isNavigating) {
-      const rawHeading = locationToAnimate.coords.heading;   
-      const appliedHeading = (rawHeading != null && rawHeading >= 0) ? rawHeading : 0     
+      const rawHeading = locationToAnimate.coords.heading;
+      const appliedHeading = (rawHeading != null && rawHeading >= 0) ? rawHeading : 0
       console.log(`📷 📷 📷 [Camera] raw heading: ${rawHeading}, applied heading: ${appliedHeading}, speed: ${locationToAnimate.coords.speed}`);
       mapRef.current?.animateCamera({
         center: locationToAnimate.coords,

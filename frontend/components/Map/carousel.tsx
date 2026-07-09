@@ -1,13 +1,6 @@
 import React, { useRef, useCallback } from 'react';
-import { View, Dimensions, ViewToken } from 'react-native';
+import { View, ViewToken, useWindowDimensions } from 'react-native';
 import { FlatList } from 'react-native';
-
-const { width: screenWidth } = Dimensions.get('window');
-
-const CARD_WIDTH = screenWidth * 1;
-const SPACING = 16;
-const SNAP_INTERVAL = CARD_WIDTH + SPACING;
-const SIDE_PADDING = (screenWidth - CARD_WIDTH) / 2;
 
 type CarouselItem = {
   id: string;
@@ -21,6 +14,12 @@ type MapCarouselProps = {
 
 export default function MapCarousel({ data, onVisibleItemChange }: MapCarouselProps) {
   const flatListRef = useRef<FlatList>(null);
+
+  const { width: screenWidth } = useWindowDimensions();
+  const CARD_WIDTH = screenWidth * 1;
+  const SPACING = 16;
+  const SNAP_INTERVAL = CARD_WIDTH + SPACING;
+  const SIDE_PADDING = (screenWidth - CARD_WIDTH) / 2;
 
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 50 }).current;
 

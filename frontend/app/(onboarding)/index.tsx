@@ -1,5 +1,6 @@
+// frontend/app/(onboarding)/index.tsx
 import React, { useRef, useState, useEffect } from 'react';
-import { View, StyleSheet, Dimensions, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, useWindowDimensions, TouchableOpacity } from 'react-native';
 import { BlurView } from 'expo-blur';
 import PagerView from 'react-native-pager-view';
 import OnboardingPage from '../../components/OnboardingPage';
@@ -11,13 +12,12 @@ import { useBiometrics } from '../../hooks/useBiometrics';
 import { useAuth } from '@/context/AuthProvider';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const { width } = Dimensions.get('window');
-
 export default function OnboardingScreen() {
   const pagerRef = useRef<PagerView>(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const { user, completeOnboarding } = useAuth();
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
 
   const {
     notificationStatus,
@@ -101,7 +101,7 @@ export default function OnboardingScreen() {
         scrollEnabled={true}
       >
         {pages.map((page, index) => (
-            <View key={index} style={styles.page}>
+            <View key={index} style={[styles.page, { width }]}>
               <OnboardingPage
                 {...page}
                 bottomInset={insets.bottom}
@@ -153,7 +153,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   page: {
-    width: width,
     justifyContent: 'center',
     alignItems: 'center',
   },

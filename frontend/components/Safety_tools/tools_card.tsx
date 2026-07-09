@@ -1,18 +1,16 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, useWindowDimensions } from 'react-native';
 import Carousel from 'react-native-reanimated-carousel';
 import { Ionicons } from '@expo/vector-icons';
-
-const { width } = Dimensions.get('window');
-
-const CARD_WIDTH = width * 0.9;
 
 const ToolCard = ({ showBottomBar = true, onFindSafeSpot }) => {
   const items = ['求助', '假電話', '警報聲', '尋找安全地點'];
   const [currentIndex, setCurrentIndex] = useState(0);
+  const { width } = useWindowDimensions();
+  const CARD_WIDTH = width * 0.9;
   return (
     <View style={styles.toolCardWrapper}>
-      <View style={styles.container}>
+      <View style={[styles.container, { width: CARD_WIDTH }]}>
         <View style={styles.chevronWrapper}>
           <Ionicons name="chevron-down" size={24} color="black" />
         </View>
@@ -61,7 +59,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   container: {
-    width: CARD_WIDTH,
     borderRadius: 20,
     backgroundColor: '#FAF3EF',
     paddingVertical: 20,

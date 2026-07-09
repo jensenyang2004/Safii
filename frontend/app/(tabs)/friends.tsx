@@ -1,3 +1,4 @@
+// frontend/app/(tabs)/friends.tsx
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, Pressable, TextInput, ActivityIndicator, Image, Alert, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import { useFriends } from '../../context/FriendProvider';
@@ -45,6 +46,10 @@ export default function FriendsScreen() {
 
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  useEffect(() => {
+    console.log('🔍 [friends] mounted');
+    return () => console.log('🔍 [friends] unmounted');
+  }, []);
 
   useEffect(() => {
     // Don't search if query is too short
@@ -52,6 +57,8 @@ export default function FriendsScreen() {
       setSearchResults([]);
       return;
     }
+
+
 
     // Debounce the search to prevent too many requests
     const debounceTimeout = setTimeout(async () => {
@@ -284,7 +291,7 @@ export default function FriendsScreen() {
             <>
               <View style={styles.searchContainer}>
                 <TextInput
-            allowFontScaling={false}
+                  allowFontScaling={false}
                   style={styles.searchInput}
                   placeholder="搜索用戶..."
                   value={searchQuery}

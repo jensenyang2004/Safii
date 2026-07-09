@@ -1,11 +1,9 @@
 import React from 'react';
-import { View, Text, StyleSheet, Dimensions, Image, ImageSourcePropType, Pressable, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, useWindowDimensions, Image, ImageSourcePropType, Pressable, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import * as WebBrowser from 'expo-web-browser';
 import * as Theme from '../constants/Theme';
-
-const { width, height } = Dimensions.get('window');
 
 const TOP_BAR_HEIGHT = 20;
 
@@ -44,25 +42,32 @@ const OnboardingPage: React.FC<OnboardingPageProps> = ({
 }) => {
   const hasText = !!(title || description);
 
+  const { width, height } = useWindowDimensions();
+
+  const naturalImageSize = imageSource ? Image.resolveAssetSource(imageSource) : null;
+  const imageRenderHeight = naturalImageSize
+    ? width * (naturalImageSize.height / naturalImageSize.width)
+    : height;
+
   return (
-    <View style={styles.outerContainer}>
-      <View style={[styles.topBanner, { height: topBarHeight }]}>
-        {topBarContent}
-      </View>
-      
-      <LinearGradient colors={backgroundColor as [string, string, ...string[]]} style={[styles.container, { paddingTop }]}>
+    <View style={[styles.outerContainer, { width, height }]}>
+      <LinearGradient colors={backgroundColor as [string, string, ...string[]]} style={[styles.container, { paddingTop, width }]}>
         {imageSource && (
-          <View style={styles.imageWrapper}>
+          <View style={[styles.imageWrapper, { overflow: 'hidden' }]}>
             <Image
               source={imageSource}
-              style={[styles.image, { height: height - topBarHeight }]}
+              style={[styles.image, { width, height: imageRenderHeight }]}
               resizeMode="cover"
             />
           </View>
         )}
 
+        <View style={[styles.topBanner, { height: topBarHeight, width }]} pointerEvents="box-none">
+          {topBarContent}
+        </View>
+
         {(hasText || buttonText) && (
-          <View style={[styles.contentContainer, { bottom: bottomInset + 65 }]}>
+          <View style={[styles.contentContainer, { bottom: bottomInset + 65, width }]}>
             {title && <Text style={styles.title}>{title}</Text>}
             {description && <Text style={styles.description}>{description}</Text>}
             
@@ -101,19 +106,17 @@ const OnboardingPage: React.FC<OnboardingPageProps> = ({
 const styles = StyleSheet.create({
   outerContainer: {
     flex: 1,
-    width: width,
-    height: height,
   },
   topBanner: {
-    height: TOP_BAR_HEIGHT,
-    width: width,
-    backgroundColor: '#fcf2ee',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    backgroundColor: 'transparent',
     alignItems: 'center',
     justifyContent: 'center',
   },
   container: {
     flex: 1,
-    width: width,
   },
   imageWrapper: {
     ...StyleSheet.absoluteFillObject,
@@ -125,10 +128,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   image: {
-    width: width,
   },
   contentContainer: {
-    width: width,
     paddingHorizontal: 30,
     alignItems: 'center',
     position: 'absolute',

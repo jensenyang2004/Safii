@@ -85,6 +85,11 @@ function ContactAvatarStack({ contactIds, friends }: {
   const visible = contacts.slice(0, 3);
   const moreCount = contacts.length - visible.length;
 
+  useEffect(() => {
+    console.log('🔍 [home] mounted');
+    return () => console.log('🔍 [home] unmounted');
+  }, []);
+
   if (contacts.length === 0) {
     return <Text style={homeStyles.settingsValue}>—</Text>;
   }
@@ -286,7 +291,7 @@ export default function HomeScreen() {
         {editingName ? (
           <View style={homeStyles.nameEditRow}>
             <TextInput
-            allowFontScaling={false}
+              allowFontScaling={false}
               style={homeStyles.nameEditInput}
               value={newDisplayName}
               onChangeText={setNewDisplayName}
