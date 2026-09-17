@@ -65,6 +65,16 @@ export default function TabLayout() {
           }}
         />
 
+        <Tabs.Screen
+          name="manage"
+          options={{
+            title: "工具",
+            tabBarIcon: ({ color }) => (
+              <MaterialIcons name="build" size={24} color={color} />
+            ),
+          }}
+        />
+
       </Tabs>
     </>
   );

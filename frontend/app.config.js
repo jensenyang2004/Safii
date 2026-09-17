@@ -7,7 +7,7 @@ module.exports = {
   expo: {
     name: "Safii",
     slug: "Safii",
-    version: "2.1.0",
+    version: "2.1.1",
     orientation: "portrait",
     icon: "./assets/images/icon.png",
     scheme: "safii",
@@ -17,7 +17,7 @@ module.exports = {
     // --- iOS 設定 ---
     ios: {
       bundleIdentifier: "com.nightbase.firebase",
-      buildNumber: "18",
+      buildNumber: "19",
       supportsTablet: false,
       config: {
         googleMapsApiKey: process.env.GOOGLE_MAPS_API_KEY,
@@ -92,6 +92,7 @@ module.exports = {
       "expo-web-browser",
       "expo-dev-client",
       "expo-secure-store",
+      "expo-audio",
       "@react-native-firebase/app",
       "@react-native-firebase/auth",
       [

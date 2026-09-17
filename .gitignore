@@ -2,7 +2,8 @@
 
 # dependencies
 node_modules/
-
+# personal learning
+doc/
 # Expo
 .expo/
 dist/
@@ -126,6 +127,9 @@ node_modules/
 # dataconnect generated files
 .dataconnect
 frontend/.env.example
+
+# Personal Claude Code instructions
+CLAUDE.local.md
 
 # Sensitive Firebase config files
 frontend/google-services.json

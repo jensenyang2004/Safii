@@ -17,12 +17,13 @@ service cloud.firestore {
 
     // User profiles: any signed-in user can read (needed for friend search/display), owner writes
     match /users/{userId} {
+      
       allow read: if isAuthenticated();
       allow write: if isOwner(userId);
 
-      // Friends list: owner only
+      // Friends list: owner, or the friend being added/removed (needed for bidirectional accept/remove writes)
       match /friends/{friendId} {
-        allow read, write: if isOwner(userId);
+        allow read, write: if isOwner(userId) || isOwner(friendId);
       }
 
       // Real-time location: owner writes, friends can read
