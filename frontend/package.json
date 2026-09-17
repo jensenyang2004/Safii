@@ -38,6 +38,7 @@
     "buffer": "^6.0.3",
     "expo": "~54.0.35",
     "expo-application": "~7.0.7",
+    "expo-audio": "~1.1.1",
     "expo-audio-streaming": "^0.1.7",
     "expo-auth-session": "~7.0.8",
     "expo-av": "~16.0.7",

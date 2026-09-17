@@ -25,6 +25,22 @@ export default function ModalLayout() {
           headerShown: false,
         }}
       />
+      <Stack.Screen
+        name="fake-alert/call"
+        options={{
+          presentation: 'fullScreenModal',
+          headerShown: false,
+          gestureEnabled: false,
+          animation: 'fade',
+        }}
+      />
+      <Stack.Screen
+        name="fake-alert/message"
+        options={{
+          presentation: 'modal',
+          headerShown: false,
+        }}
+      />
     </Stack>
   );
 }

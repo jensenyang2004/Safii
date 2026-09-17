@@ -92,6 +92,7 @@ module.exports = {
       "expo-web-browser",
       "expo-dev-client",
       "expo-secure-store",
+      "expo-audio",
       "@react-native-firebase/app",
       "@react-native-firebase/auth",
       [
