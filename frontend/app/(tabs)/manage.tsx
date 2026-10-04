@@ -506,23 +506,28 @@ export default function ManageFakeAlertScreen() {
         </View>
       </View>
 
-      <Text style={styles.sectionTitle}>立即測試</Text>
-      <View style={styles.card}>
-        <Pressable
-          style={[styles.primaryButton, isFakeAlertPaused && styles.primaryButtonDisabled]}
-          onPress={() => triggerCall(false)}
-          disabled={isFakeAlertPaused}
-        >
-          <Text style={styles.primaryButtonText}>排程假來電（{DEFAULT_CALL_DELAY_SECONDS} 秒後）</Text>
-        </Pressable>
-        <Pressable
-          style={[styles.primaryButton, isFakeAlertPaused && styles.primaryButtonDisabled]}
-          onPress={() => triggerMessages(false)}
-          disabled={isFakeAlertPaused}
-        >
-          <Text style={styles.primaryButtonText}>排程假訊息（{DEFAULT_FIRST_MESSAGE_DELAY_SECONDS} 秒後開始）</Text>
-        </Pressable>
-      </View>
+      {/* Quick-test path for development builds only. */}
+      {__DEV__ && (
+        <>
+          <Text style={styles.sectionTitle}>開發測試</Text>
+          <View style={styles.card}>
+            <Pressable
+              style={[styles.primaryButton, isFakeAlertPaused && styles.primaryButtonDisabled]}
+              onPress={() => triggerCall(false)}
+              disabled={isFakeAlertPaused}
+            >
+              <Text style={styles.primaryButtonText}>排程假來電（{DEFAULT_CALL_DELAY_SECONDS} 秒後）</Text>
+            </Pressable>
+            <Pressable
+              style={[styles.primaryButton, isFakeAlertPaused && styles.primaryButtonDisabled]}
+              onPress={() => triggerMessages(false)}
+              disabled={isFakeAlertPaused}
+            >
+              <Text style={styles.primaryButtonText}>排程假訊息（{DEFAULT_FIRST_MESSAGE_DELAY_SECONDS} 秒後開始）</Text>
+            </Pressable>
+          </View>
+        </>
+      )}
     </ScrollView>
   );
 }

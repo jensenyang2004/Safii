@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
-import { router } from 'expo-router';
+import { Redirect, router } from 'expo-router';
 import { getFakeContacts, saveFakeContacts, getMessageTemplates } from '@/services/fakeAlert/storage';
 import { scheduleFakeMessages } from '@/services/fakeAlert/scheduler';
 import { FakeContact } from '@/types/fakeAlert';
@@ -13,6 +13,10 @@ import {
 // so stage 2's call.tsx has something to render, then jumps straight there —
 // stands in for stage 4's manage screen, which doesn't exist yet.
 //
+// Routes are reachable by deep link in any build, so in production this
+// screen only redirects away (see the default export at the bottom) and
+// never touches storage.
+//
 // Reach this on a real device without a debugger attached: open Safari on
 // the device and go to `safii://fake-alert/debug-seed` (the dev client build
 // must already be installed and the app scheme is "safii", per app.config.js).
@@ -20,7 +24,7 @@ import {
 
 const DEBUG_CONTACT_ID = 'debug-contact-1';
 
-export default function FakeAlertDebugSeedScreen() {
+function FakeAlertDebugSeedScreen() {
   const [status, setStatus] = useState('seeding...');
   const [contact, setContact] = useState<FakeContact | null>(null);
 
@@ -124,3 +128,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
+
+function DisabledInProduction() {
+  return <Redirect href="/" />;
+}
+
+export default __DEV__ ? FakeAlertDebugSeedScreen : DisabledInProduction;
