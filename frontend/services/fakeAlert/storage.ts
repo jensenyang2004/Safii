@@ -85,10 +85,42 @@ export const setHasVerifiedSetup = async (verified: boolean) => {
   await AsyncStorage.setItem(FAKE_ALERT_STORAGE_KEYS.HAS_VERIFIED_SETUP, verified.toString());
 };
 
+// --- Handled notification ids ---
+// FakeAlertGate's dedup set: request ids of fake alert notifications already
+// acted on (navigated or deliberately swallowed). Persisted so a remount or
+// JS reload can't replay the same last notification response. Capped — ids
+// are only ever compared against recent responses.
+
+const HANDLED_NOTIFICATION_IDS_KEY = 'fake_alert_handled_notification_ids';
+const HANDLED_NOTIFICATION_IDS_LIMIT = 50;
+
+const getHandledNotificationIds = async (): Promise<string[]> => {
+  const str = await AsyncStorage.getItem(HANDLED_NOTIFICATION_IDS_KEY);
+  return str ? JSON.parse(str) : [];
+};
+
+export const hasHandledNotification = async (notificationId: string): Promise<boolean> => {
+  const ids = await getHandledNotificationIds();
+  return ids.includes(notificationId);
+};
+
+export const markNotificationHandled = async (notificationId: string) => {
+  const ids = await getHandledNotificationIds();
+  if (ids.includes(notificationId)) return;
+  ids.push(notificationId);
+  await AsyncStorage.setItem(
+    HANDLED_NOTIFICATION_IDS_KEY,
+    JSON.stringify(ids.slice(-HANDLED_NOTIFICATION_IDS_LIMIT))
+  );
+};
+
 // --- Cleanup ---
 // Used by the logout flow (stage 5). Cancelling any OS notifications first
 // is the scheduler's job — this just wipes the persisted state.
 
 export const clearAllFakeAlertData = async () => {
-  await AsyncStorage.multiRemove(Object.values(FAKE_ALERT_STORAGE_KEYS));
+  await AsyncStorage.multiRemove([
+    ...Object.values(FAKE_ALERT_STORAGE_KEYS),
+    HANDLED_NOTIFICATION_IDS_KEY,
+  ]);
 };

@@ -19,6 +19,7 @@ import { NotificationProvider } from '../context/NotificationProvider';
 import { ScheduledTrackingProvider } from '@/context/ScheduledTrackingContext';
 import * as SecureStore from 'expo-secure-store';
 import { usePermissions } from '../hooks/usePermissions';
+import FakeAlertGate from '@/components/FakeAlert/FakeAlertGate';
 
 const ONBOARDING_COMPLETED_KEY = 'onboarding_completed';
 
@@ -112,11 +113,14 @@ function RootLayoutNav() {
   }
 
   return (
-    <Stack>
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-      <Stack.Screen name="(modals)" options={{ headerShown: false }} />
-      <Stack.Screen name="(onboarding)" options={{ headerShown: false }} />
-    </Stack>
+    <>
+      <Stack>
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+        <Stack.Screen name="(modals)" options={{ headerShown: false }} />
+        <Stack.Screen name="(onboarding)" options={{ headerShown: false }} />
+      </Stack>
+      <FakeAlertGate />
+    </>
   );
 }
