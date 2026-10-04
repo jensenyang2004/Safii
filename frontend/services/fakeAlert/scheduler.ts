@@ -1,9 +1,15 @@
 import * as Notifications from 'expo-notifications';
 import { v4 as uuidv4 } from 'uuid';
-import { FAKE_ALERT_NOTIFICATION_TYPES } from '@/constants/fakeAlert';
+import {
+  COMBO_CALL_AFTER_LAST_MESSAGE_SECONDS,
+  DEFAULT_MESSAGE_GAP_SECONDS_RANGE,
+  DEFAULT_RINGTONE_KEY,
+  FAKE_ALERT_NOTIFICATION_TYPES,
+} from '@/constants/fakeAlert';
 import {
   FakeAlertKind,
   FakeAlertSchedule,
+  FakeAlertScheduleListItem,
   FakeCallConfig,
   FakeComboConfig,
   FakeContact,
@@ -17,6 +23,7 @@ import {
   getActiveSchedule,
   getHasVerifiedSetup,
   getActiveSchedules,
+  reconcileActiveSchedules,
   removeActiveSchedule,
   saveActiveSchedules,
 } from './storage';
@@ -61,13 +68,14 @@ export const getNotificationUsage = async (): Promise<NotificationUsage> => {
   return { totalPending: pending.length, fakeAlertPending: pending.filter(isFakeAlertRequest).length };
 };
 
-const assertCapacity = async (kind: FakeAlertKind, messageCount: number) => {
+/** `released` = pending notifications about to be cancelled, counted as free. */
+const assertCapacity = async (kind: FakeAlertKind, messageCount: number, released = 0) => {
   const usage = await getNotificationUsage();
-  const result = validateCapacity(kind, messageCount, usage);
+  const result = validateCapacity(kind, messageCount, usage, released);
   if (!result.ok) {
     throw new FakeAlertCapacityError(
       getRequiredNotificationCount(kind, messageCount),
-      getRemainingFakeAlertSlots(usage),
+      getRemainingFakeAlertSlots(usage, released),
       result.reason
     );
   }
@@ -370,6 +378,89 @@ export const cancelAllFakeAlerts = async () => {
     console.error('[FakeAlert] cancel all: failed to cancel after retry', failed);
   }
   await saveActiveSchedules([]);
+};
+
+/**
+ * The manage tab's schedule list, reconciled against the OS's pending
+ * notifications. Also the one place expired records get deleted.
+ */
+export const getScheduleList = async (): Promise<FakeAlertScheduleListItem[]> => {
+  const pending = await Notifications.getAllScheduledNotificationsAsync();
+  return reconcileActiveSchedules(new Set(pending.map(request => request.identifier)));
+};
+
+/**
+ * Re-arms a schedule whose notifications were lost: same kind, caller,
+ * messages and lead time, counted from now. Validate first, then cancel,
+ * then create — so a capacity or verification failure leaves the old record
+ * untouched, and any of its notifications that are somehow still pending are
+ * counted as freed rather than doubled up.
+ */
+export const rescheduleLostFakeAlert = async (
+  schedule: FakeAlertSchedule,
+  contact: FakeContact,
+  options: ScheduleOptions = {}
+): Promise<FakeAlertSchedule> => {
+  const pending = await Notifications.getAllScheduledNotificationsAsync();
+  const pendingIds = new Set(pending.map(request => request.identifier));
+  const released = schedule.notificationIds.filter(id => pendingIds.has(id)).length;
+  const messageCount = schedule.messages?.length ?? 0;
+
+  await assertVerified(options.bypassVerification ?? false);
+  await assertCapacity(schedule.kind, messageCount, released);
+
+  const leadSeconds = Math.max(
+    Math.round(((schedule.fireAt ?? schedule.scheduledAt) - schedule.scheduledAt) / 1000),
+    1
+  );
+  // The original templates may have been edited or deleted since; the
+  // record's own message texts are what was armed, so re-arm those.
+  const templates: MessageTemplate[] = (schedule.messages ?? []).map(m => ({
+    id: m.id,
+    text: m.text,
+    isCustom: true,
+  }));
+  const templateIds = templates.map(t => t.id);
+
+  await cancelFakeAlertSchedule(schedule.id);
+
+  if (schedule.kind === 'call') {
+    return scheduleFakeCall(
+      {
+        contactId: contact.id,
+        delaySeconds: leadSeconds,
+        ringtoneKey: schedule.call?.ringtoneKey ?? DEFAULT_RINGTONE_KEY,
+      },
+      contact,
+      options
+    );
+  }
+  if (schedule.kind === 'message') {
+    return scheduleFakeMessages(
+      {
+        contactId: contact.id,
+        templateIds,
+        firstDelaySeconds: leadSeconds,
+        gapSecondsRange: DEFAULT_MESSAGE_GAP_SECONDS_RANGE,
+      },
+      contact,
+      templates,
+      options
+    );
+  }
+  return scheduleFakeCombo(
+    {
+      contactId: contact.id,
+      templateIds,
+      firstDelaySeconds: leadSeconds,
+      gapSecondsRange: DEFAULT_MESSAGE_GAP_SECONDS_RANGE,
+      callAfterLastMessageSeconds: COMBO_CALL_AFTER_LAST_MESSAGE_SECONDS,
+      ringtoneKey: schedule.call?.ringtoneKey ?? DEFAULT_RINGTONE_KEY,
+    },
+    contact,
+    templates,
+    options
+  );
 };
 
 /**

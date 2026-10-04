@@ -1,12 +1,15 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, TextInput, Pressable, ScrollView, Alert, StyleSheet } from 'react-native';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { v4 as uuidv4 } from 'uuid';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import * as Theme from '@/constants/Theme';
 import FakeContactAvatar from '@/components/FakeAlert/FakeContactAvatar';
+import FakeAlertScheduleCard from '@/components/FakeAlert/FakeAlertScheduleCard';
+import { INK } from '@/components/ui/tokens';
 import { useSetupTestFlow } from '@/hooks/useSetupTestFlow';
 import { useTracking } from '@/context/TrackProvider';
 import {
@@ -20,6 +23,9 @@ import {
   scheduleFakeCall,
   scheduleFakeMessages,
   cancelAllFakeAlerts,
+  cancelFakeAlertSchedule,
+  getScheduleList,
+  rescheduleLostFakeAlert,
   FakeAlertVerificationError,
   FakeAlertCapacityError,
 } from '@/services/fakeAlert/scheduler';
@@ -29,7 +35,7 @@ import {
   DEFAULT_FIRST_MESSAGE_DELAY_SECONDS,
   DEFAULT_MESSAGE_GAP_SECONDS_RANGE,
 } from '@/constants/fakeAlert';
-import { FakeContact, MessageTemplate } from '@/types/fakeAlert';
+import { FakeAlertScheduleListItem, FakeContact, MessageTemplate } from '@/types/fakeAlert';
 
 // This is the "manage.tsx" screen from the plan — it lives at the (tabs)
 // route path so it can register as a tab, but tabBarIcon/title (set in
@@ -44,6 +50,11 @@ export default function ManageFakeAlertScreen() {
   // Same condition FakeAlertGate swallows on — keep the two in sync.
   const isFakeAlertPaused = isReportDue || isInfoSent;
   const insets = useSafeAreaInsets();
+  const tabBarHeight = useBottomTabBarHeight();
+
+  const [scheduleItems, setScheduleItems] = useState<FakeAlertScheduleListItem[]>([]);
+  const [listError, setListError] = useState(false);
+  const [now, setNow] = useState(Date.now());
 
   const [newContactName, setNewContactName] = useState('');
   const [newContactAvatarKey, setNewContactAvatarKey] = useState<string | null>(DEFAULT_AVATAR_KEYS[0]);
@@ -61,10 +72,6 @@ export default function ManageFakeAlertScreen() {
     setTemplates(loadedTemplates);
     setHasVerified(verified);
   }, []);
-
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
 
   // The test flow sets the verified flag in storage as a side effect —
   // re-read it once the flow reports success so the badge below updates.
@@ -126,6 +133,13 @@ export default function ManageFakeAlertScreen() {
     const next = templates.filter(t => t.id !== id);
     await saveMessageTemplates(next);
     setTemplates(next);
+  };
+
+  const confirmDeleteTemplate = (template: MessageTemplate) => {
+    Alert.alert('刪除範本', `確定要刪除「${template.text}」嗎？`, [
+      { text: '取消', style: 'cancel' },
+      { text: '刪除', style: 'destructive', onPress: () => deleteTemplate(template.id) },
+    ]);
   };
 
   const triggerCall = async (bypassVerification = false) => {
@@ -206,10 +220,113 @@ export default function ManageFakeAlertScreen() {
     }
   };
 
+  const loadSchedules = useCallback(async () => {
+    try {
+      setScheduleItems(await getScheduleList());
+      setListError(false);
+    } catch (err) {
+      console.error('[FakeAlert] failed to load schedule list', err);
+      setListError(true);
+    }
+    setNow(Date.now());
+  }, []);
+
+  // Re-read everything whenever the tab regains focus (e.g. back from the
+  // create form), and keep statuses / "N 分鐘後" current while it stays open.
+  useFocusEffect(
+    useCallback(() => {
+      refresh();
+      loadSchedules();
+      const interval = setInterval(loadSchedules, 30_000);
+      return () => clearInterval(interval);
+    }, [refresh, loadSchedules])
+  );
+
+  // One schedule action at a time — cancel / reschedule both touch OS
+  // notifications and storage, and a double tap must not run them twice.
+  const busyRef = useRef(false);
+  const [busyScheduleId, setBusyScheduleId] = useState<string | null>(null);
+  const runScheduleAction = async (scheduleId: string, action: () => Promise<void>) => {
+    if (busyRef.current) return;
+    busyRef.current = true;
+    setBusyScheduleId(scheduleId);
+    try {
+      await action();
+    } finally {
+      busyRef.current = false;
+      setBusyScheduleId(null);
+      loadSchedules();
+    }
+  };
+
+  const confirmCancelSchedule = (item: FakeAlertScheduleListItem) => {
+    if (item.status === 'fired') {
+      runScheduleAction(item.schedule.id, () => cancelFakeAlertSchedule(item.schedule.id));
+      return;
+    }
+    Alert.alert('取消排程', '這個排程尚未響起的通知都會取消。', [
+      { text: '保留', style: 'cancel' },
+      {
+        text: '取消排程',
+        style: 'destructive',
+        onPress: () => runScheduleAction(item.schedule.id, () => cancelFakeAlertSchedule(item.schedule.id)),
+      },
+    ]);
+  };
+
+  const reschedule = (item: FakeAlertScheduleListItem, bypassVerification = false) =>
+    runScheduleAction(item.schedule.id, async () => {
+      const contact = contacts.find(c => c.id === item.schedule.contactId);
+      if (!contact) {
+        Alert.alert('無法重新排程', '這個排程的假聯絡人已被刪除。');
+        return;
+      }
+      try {
+        await rescheduleLostFakeAlert(item.schedule, contact, { bypassVerification });
+        Alert.alert('已重新排程', '已用原本的設定，從現在起重新計時。');
+      } catch (err) {
+        if (err instanceof FakeAlertVerificationError) {
+          Alert.alert(
+            '尚未驗證通知功能',
+            '還沒確認過通知能正常送達這台裝置。可以先在上面「測試通知功能」，或直接略過風險排程。',
+            [
+              { text: '取消', style: 'cancel' },
+              { text: '我知道風險，仍要排程', style: 'destructive', onPress: () => reschedule(item, true) },
+            ]
+          );
+          return;
+        }
+        if (err instanceof FakeAlertCapacityError) {
+          Alert.alert('無法排程', err.message);
+          return;
+        }
+        Alert.alert('排程失敗', String(err));
+      }
+    });
+
+  const confirmReschedule = (item: FakeAlertScheduleListItem) => {
+    if (isFakeAlertPaused) return;
+    const leadMinutes = Math.max(
+      Math.round(((item.schedule.fireAt ?? item.schedule.scheduledAt) - item.schedule.scheduledAt) / 60_000),
+      1
+    );
+    Alert.alert('重新排程', `會用原本的設定，從現在起約 ${leadMinutes} 分鐘後開始。`, [
+      { text: '取消', style: 'cancel' },
+      { text: '重新排程', onPress: () => reschedule(item) },
+    ]);
+  };
+
   const cancelAll = () => {
     Alert.alert('取消所有排程', '會取消目前所有排程中的假來電/假訊息通知。', [
       { text: '取消', style: 'cancel' },
-      { text: '確定', style: 'destructive', onPress: () => cancelAllFakeAlerts() },
+      {
+        text: '確定',
+        style: 'destructive',
+        onPress: async () => {
+          await cancelAllFakeAlerts();
+          loadSchedules();
+        },
+      },
     ]);
   };
 
@@ -225,7 +342,12 @@ export default function ManageFakeAlertScreen() {
   return (
     <ScrollView
       style={styles.container}
-      contentContainerStyle={[styles.content, { paddingTop: insets.top + 16 }]}
+      contentContainerStyle={[
+        styles.content,
+        // The tab bar is position: absolute, so content needs room under it.
+        { paddingTop: insets.top + 16, paddingBottom: tabBarHeight + 24 },
+      ]}
+      keyboardShouldPersistTaps="handled"
     >
       {isFakeAlertPaused ? (
         <View style={[styles.trackingBanner, styles.trackingBannerPaused]}>
@@ -252,35 +374,98 @@ export default function ManageFakeAlertScreen() {
         </Pressable>
       </View>
 
+      <Text style={styles.sectionTitle}>已排程</Text>
+      <Pressable
+        style={[styles.primaryButton, isFakeAlertPaused && styles.primaryButtonDisabled]}
+        onPress={() => router.push('/(modals)/fake-alert/new')}
+        disabled={isFakeAlertPaused}
+        accessibilityRole="button"
+      >
+        <Text style={styles.primaryButtonText}>建立假來電／假訊息</Text>
+      </Pressable>
+      {isFakeAlertPaused && (
+        <Text style={styles.disabledReasonText}>
+          有平安確認待回報，暫停排程假來電/假訊息。請先到首頁完成回報。
+        </Text>
+      )}
+      {listError ? (
+        <View style={styles.card}>
+          <Text style={styles.cardText}>無法讀取排程清單，請稍後再試。</Text>
+        </View>
+      ) : scheduleItems.length === 0 ? (
+        <View style={styles.card}>
+          <Text style={styles.hintText}>目前沒有排程。排程後會在時間到時收到通知，點擊即可開啟。</Text>
+        </View>
+      ) : (
+        <>
+          {scheduleItems.map(item => (
+            <FakeAlertScheduleCard
+              key={item.schedule.id}
+              item={item}
+              contact={contacts.find(c => c.id === item.schedule.contactId)}
+              now={now}
+              busy={busyScheduleId !== null}
+              rescheduleBlocked={isFakeAlertPaused}
+              onCancel={() => confirmCancelSchedule(item)}
+              onReschedule={() => confirmReschedule(item)}
+            />
+          ))}
+          <Pressable style={styles.dangerButton} onPress={cancelAll} accessibilityRole="button">
+            <Text style={styles.dangerButtonText}>取消所有排程</Text>
+          </Pressable>
+        </>
+      )}
+
       <Text style={styles.sectionTitle}>假聯絡人</Text>
       <View style={styles.card}>
-        {contacts.map(contact => (
-          <View key={contact.id} style={styles.row}>
+        {contacts.map((contact, index) => (
+          <View key={contact.id} style={[styles.row, index > 0 && styles.rowDivider]}>
             <FakeContactAvatar contact={contact} size={40} />
-            <Text style={styles.rowText}>{contact.name}</Text>
-            <Pressable onPress={() => deleteContact(contact.id)} hitSlop={8}>
+            <Text style={[styles.rowText, styles.flexGrow]}>{contact.name}</Text>
+            <Pressable onPress={() => deleteContact(contact.id)} hitSlop={8} accessibilityLabel={`刪除 ${contact.name}`}>
               <MaterialIcons name="close" size={20} color="#8e8e93" />
             </Pressable>
           </View>
         ))}
 
         <View style={styles.avatarPicker}>
-          {DEFAULT_AVATAR_KEYS.map(key => (
-            <Pressable
-              key={key}
-              onPress={() => {
-                setNewContactAvatarKey(key);
-                setNewContactAvatarUri(null);
-              }}
-            >
+          {DEFAULT_AVATAR_KEYS.map(key => {
+            const selected = !newContactAvatarUri && newContactAvatarKey === key;
+            return (
+              <Pressable
+                key={key}
+                style={[styles.avatarOption, selected && styles.avatarOptionSelected]}
+                onPress={() => {
+                  setNewContactAvatarKey(key);
+                  setNewContactAvatarUri(null);
+                }}
+                accessibilityRole="button"
+                accessibilityState={{ selected }}
+              >
+                <FakeContactAvatar
+                  contact={{ id: 'preview', name: newContactName || '?', avatarKey: key, avatarUri: null }}
+                  size={32}
+                />
+              </Pressable>
+            );
+          })}
+          <Pressable
+            style={[styles.avatarOption, !!newContactAvatarUri && styles.avatarOptionSelected]}
+            onPress={pickPhoto}
+            accessibilityRole="button"
+            accessibilityState={{ selected: !!newContactAvatarUri }}
+            accessibilityLabel="從相簿選擇照片"
+          >
+            {newContactAvatarUri ? (
               <FakeContactAvatar
-                contact={{ id: 'preview', name: newContactName || '?', avatarKey: key, avatarUri: null }}
+                contact={{ id: 'preview', name: newContactName || '?', avatarKey: null, avatarUri: newContactAvatarUri }}
                 size={32}
               />
-            </Pressable>
-          ))}
-          <Pressable style={styles.photoButton} onPress={pickPhoto}>
-            <MaterialIcons name="add-a-photo" size={20} color="#666" />
+            ) : (
+              <View style={styles.photoButton}>
+                <MaterialIcons name="add-a-photo" size={20} color="#666" />
+              </View>
+            )}
           </Pressable>
         </View>
         <Text style={styles.warningText}>請勿使用他人的照片 — 選用上面的內建頭像會更安全</Text>
@@ -292,7 +477,7 @@ export default function ManageFakeAlertScreen() {
             value={newContactName}
             onChangeText={setNewContactName}
           />
-          <Pressable style={styles.addButton} onPress={addContact}>
+          <Pressable style={styles.addButton} onPress={addContact} accessibilityLabel="新增聯絡人">
             <MaterialIcons name="add" size={22} color="#fff" />
           </Pressable>
         </View>
@@ -300,10 +485,10 @@ export default function ManageFakeAlertScreen() {
 
       <Text style={styles.sectionTitle}>訊息範本</Text>
       <View style={styles.card}>
-        {templates.map(template => (
-          <View key={template.id} style={styles.row}>
+        {templates.map((template, index) => (
+          <View key={template.id} style={[styles.row, index > 0 && styles.rowDivider]}>
             <Text style={[styles.rowText, styles.flexGrow]}>{template.text}</Text>
-            <Pressable onPress={() => deleteTemplate(template.id)} hitSlop={8}>
+            <Pressable onPress={() => confirmDeleteTemplate(template)} hitSlop={8} accessibilityLabel="刪除範本">
               <MaterialIcons name="close" size={20} color="#8e8e93" />
             </Pressable>
           </View>
@@ -315,7 +500,7 @@ export default function ManageFakeAlertScreen() {
             value={newTemplateText}
             onChangeText={setNewTemplateText}
           />
-          <Pressable style={styles.addButton} onPress={addTemplate}>
+          <Pressable style={styles.addButton} onPress={addTemplate} accessibilityLabel="新增範本">
             <MaterialIcons name="add" size={22} color="#fff" />
           </Pressable>
         </View>
@@ -337,15 +522,6 @@ export default function ManageFakeAlertScreen() {
         >
           <Text style={styles.primaryButtonText}>排程假訊息（{DEFAULT_FIRST_MESSAGE_DELAY_SECONDS} 秒後開始）</Text>
         </Pressable>
-        {isFakeAlertPaused && (
-          <Text style={styles.disabledReasonText}>
-            有平安確認待回報，暫停排程假來電/假訊息。請先到首頁完成回報。
-          </Text>
-        )}
-        <Text style={styles.hintText}>排程後會在時間到時收到通知，點擊即可開啟。</Text>
-        <Pressable style={styles.dangerButton} onPress={cancelAll}>
-          <Text style={styles.dangerButtonText}>取消所有排程</Text>
-        </Pressable>
       </View>
     </ScrollView>
   );
@@ -358,7 +534,6 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 16,
-    paddingBottom: 100,
     gap: 8,
   },
   sectionTitle: {
@@ -383,6 +558,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
   },
+  rowDivider: {
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Theme.colors.gray200,
+    paddingTop: 10,
+  },
   rowText: {
     fontSize: 15,
     color: '#000',
@@ -392,8 +572,18 @@ const styles = StyleSheet.create({
   },
   avatarPicker: {
     flexDirection: 'row',
-    gap: 10,
+    flexWrap: 'wrap',
+    gap: 6,
     alignItems: 'center',
+  },
+  avatarOption: {
+    padding: 2,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  avatarOptionSelected: {
+    borderColor: INK,
   },
   photoButton: {
     width: 32,
@@ -407,7 +597,7 @@ const styles = StyleSheet.create({
   },
   warningText: {
     fontSize: 12,
-    color: '#c0392b',
+    color: Theme.colors.redAccent,
   },
   inlineForm: {
     flexDirection: 'row',
@@ -426,7 +616,8 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 8,
-    backgroundColor: Theme.colors.brandPink,
+    // INK, not brandPink: white on the pink was too low-contrast.
+    backgroundColor: INK,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -471,7 +662,8 @@ const styles = StyleSheet.create({
   primaryButton: {
     paddingVertical: 12,
     borderRadius: 10,
-    backgroundColor: Theme.colors.brandPink,
+    // INK, not brandPink: white on the pink was too low-contrast.
+    backgroundColor: INK,
     alignItems: 'center',
   },
   primaryButtonDisabled: {
@@ -479,7 +671,7 @@ const styles = StyleSheet.create({
   },
   disabledReasonText: {
     fontSize: 12,
-    color: '#c0392b',
+    color: Theme.colors.redAccent,
   },
   primaryButtonText: {
     color: '#fff',
@@ -495,7 +687,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   dangerButtonText: {
-    color: '#c0392b',
+    color: Theme.colors.redAccent,
     fontSize: 14,
   },
 });

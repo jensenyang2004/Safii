@@ -14,7 +14,7 @@ import FakeContactAvatar from '@/components/FakeAlert/FakeContactAvatar';
 export default function FakeMessageScreen() {
   const { scheduleId } = useLocalSearchParams<{ scheduleId: string }>();
   const insets = useSafeAreaInsets();
-  const { contact, messages, totalCount, isComplete, cancelRemaining } = useFakeMessage({
+  const { contact, messages, totalCount, isComplete, canStop, cancelRemaining } = useFakeMessage({
     scheduleId: scheduleId ?? '',
   });
   const listRef = useRef<FlatList<ScheduledFakeMessage>>(null);
@@ -37,7 +37,7 @@ export default function FakeMessageScreen() {
           <FakeContactAvatar contact={contact} size={36} />
           <Text style={styles.headerName}>{displayName}</Text>
         </View>
-        {!isComplete ? (
+        {canStop ? (
           <Pressable onPress={cancelRemaining} hitSlop={12}>
             <Text style={styles.stopLabel}>停止</Text>
           </Pressable>
@@ -61,7 +61,7 @@ export default function FakeMessageScreen() {
         onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
       />
 
-      {!isComplete && totalCount > 0 && (
+      {canStop && !isComplete && totalCount > 0 && (
         <Text style={[styles.typingHint, { paddingBottom: insets.bottom + 12 }]}>
           {messages.length}/{totalCount}
         </Text>

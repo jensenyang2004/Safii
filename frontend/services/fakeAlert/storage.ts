@@ -4,7 +4,13 @@ import {
   DEFAULT_MESSAGE_TEMPLATES,
   SCHEDULE_EXPIRY_AFTER_LAST_FIRE_MS,
 } from '@/constants/fakeAlert';
-import { FakeContact, MessageTemplate, FakeAlertSchedule } from '@/types/fakeAlert';
+import {
+  FakeContact,
+  MessageTemplate,
+  FakeAlertSchedule,
+  FakeAlertScheduleListItem,
+  FakeAlertScheduleStatus,
+} from '@/types/fakeAlert';
 
 // --- Contacts ---
 
@@ -41,7 +47,9 @@ export const saveMessageTemplates = async (templates: MessageTemplate[]) => {
 //
 // Reads filter out expired records (past lastFireAt + expiry) but never write
 // the filtered list back — expired records stay on disk untouched. Writes
-// below go through the raw, unfiltered list for the same reason.
+// below go through the raw, unfiltered list for the same reason. The one
+// place that actually deletes expired records is reconcileActiveSchedules,
+// run when the manage tab's schedule list loads.
 
 const readAllSchedules = async (): Promise<FakeAlertSchedule[]> => {
   const str = await AsyncStorage.getItem(FAKE_ALERT_STORAGE_KEYS.ACTIVE_SCHEDULES);
@@ -56,6 +64,57 @@ export const getActiveSchedules = async (): Promise<FakeAlertSchedule[]> => {
   const now = Date.now();
   const schedules = await readAllSchedules();
   return schedules.filter(s => !isExpired(s, now));
+};
+
+// A notification firing right about now may already be gone from the OS's
+// pending list; don't read that as "lost".
+const FIRE_BOUNDARY_GRACE_MS = 2000;
+
+/** Every OS notification of a schedule with the time it's due. */
+const notificationFireTimes = (schedule: FakeAlertSchedule) => {
+  const times: { id: string; at: number }[] = [];
+  for (const message of schedule.messages ?? []) {
+    if (message.notificationId) times.push({ id: message.notificationId, at: message.fireAt });
+  }
+  if (schedule.callNotificationId) {
+    // The call is always a schedule's last notification (see lastFireAt).
+    times.push({ id: schedule.callNotificationId, at: schedule.lastFireAt ?? schedule.scheduledAt });
+  }
+  return times;
+};
+
+/**
+ * Builds the manage tab's schedule list against the OS's pending
+ * notifications (passed in so this file stays free of OS calls), and is the
+ * only place that writes expired records back out of storage. Nothing is
+ * written when nothing expired.
+ */
+export const reconcileActiveSchedules = async (
+  pendingNotificationIds: ReadonlySet<string>,
+  now = Date.now()
+): Promise<FakeAlertScheduleListItem[]> => {
+  const all = await readAllSchedules();
+  const kept = all.filter(s => !isExpired(s, now));
+  if (kept.length !== all.length) {
+    await saveActiveSchedules(kept);
+  }
+
+  return kept
+    .map(schedule => {
+      const times = notificationFireTimes(schedule);
+      const firedCount = times.filter(t => t.at <= now).length;
+      const isLost = times.some(
+        t => t.at > now + FIRE_BOUNDARY_GRACE_MS && !pendingNotificationIds.has(t.id)
+      );
+      const status: FakeAlertScheduleStatus = isLost
+        ? 'lost'
+        : firedCount === times.length
+          ? 'fired'
+          : firedCount === 0 ? 'pending' : 'inProgress';
+      const messagesFired = (schedule.messages ?? []).filter(m => m.fireAt <= now).length;
+      return { schedule, status, messagesFired };
+    })
+    .sort((a, b) => (a.schedule.fireAt ?? a.schedule.scheduledAt) - (b.schedule.fireAt ?? b.schedule.scheduledAt));
 };
 
 export const saveActiveSchedules = async (schedules: FakeAlertSchedule[]) => {

@@ -74,20 +74,43 @@ export function useFakeMessage({ scheduleId }: UseFakeMessageParams) {
     }
   }, [visibleMessages.length, schedule, scheduleId]);
 
+  // A combo's call rings after the last message, so "stop" has to stay
+  // available until then — this flips once the call's time has passed.
+  const [callHasRung, setCallHasRung] = useState(false);
+  useEffect(() => {
+    if (schedule?.kind !== 'combo') return;
+    const callAt = schedule.lastFireAt ?? schedule.scheduledAt;
+    const remaining = callAt - Date.now();
+    if (remaining <= 0) {
+      setCallHasRung(true);
+      return;
+    }
+    const timer = setTimeout(() => setCallHasRung(true), remaining);
+    return () => clearTimeout(timer);
+  }, [schedule]);
+
+  const [stopped, setStopped] = useState(false);
+
+  // Cancels every notification still pending for this schedule — for combo
+  // that includes the call that hasn't rung yet.
   const cancelRemaining = useCallback(async () => {
     timersRef.current.forEach(clearTimeout);
     timersRef.current = [];
+    setStopped(true);
     await cancelFakeAlertSchedule(scheduleId);
   }, [scheduleId]);
 
   const totalCount = schedule?.messages?.length ?? 0;
   const isComplete = totalCount > 0 && visibleMessages.length >= totalCount;
+  const canStop =
+    !!schedule && !stopped && (schedule.kind === 'combo' ? !callHasRung : !isComplete);
 
   return {
     contact,
     messages: visibleMessages,
     totalCount,
     isComplete,
+    canStop,
     cancelRemaining,
   };
 }

@@ -86,3 +86,20 @@ export interface FakeAlertSchedule {
   /** True if the user bypassed the "setup not verified" warning to schedule anyway. */
   verifiedSkipped: boolean;
 }
+
+/**
+ * Where a schedule stands, as shown in the manage tab's list:
+ * - pending: nothing has fired yet
+ * - inProgress: some notifications fired, more still due
+ * - fired: everything has fired (kept until read-time expiry drops it)
+ * - lost: notifications still due are missing from the OS's pending list
+ *   (e.g. wiped by something else) — they will never fire
+ */
+export type FakeAlertScheduleStatus = 'pending' | 'inProgress' | 'fired' | 'lost';
+
+export interface FakeAlertScheduleListItem {
+  schedule: FakeAlertSchedule;
+  status: FakeAlertScheduleStatus;
+  /** Message notifications that have fired so far (0 for a plain call). */
+  messagesFired: number;
+}
