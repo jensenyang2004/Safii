@@ -69,6 +69,9 @@ export const validateInstantDelayMinutes = (minutes: number): ValidationResult =
   return OK;
 };
 
+export const validateCaller = (contactId: string | null): ValidationResult =>
+  contactId ? OK : { ok: false, reason: '請先選擇一位假聯絡人' };
+
 export const validateMessageCount = (kind: FakeAlertKind, messageCount: number): ValidationResult => {
   if (kind === 'call') return OK;
   if (messageCount < 1) return { ok: false, reason: '請至少選一則訊息範本' };
@@ -94,6 +97,7 @@ export const validateCapacity = (
 
 interface InstantFakeAlertInput {
   kind: FakeAlertKind;
+  contactId: string | null;
   delayMinutes: number;
   messageCount: number;
   usage: NotificationUsage;
@@ -103,12 +107,14 @@ interface InstantFakeAlertInput {
 /** First failing rule wins — drives the create button's disabled reason. */
 export const validateInstantFakeAlert = ({
   kind,
+  contactId,
   delayMinutes,
   messageCount,
   usage,
   released = 0,
 }: InstantFakeAlertInput): ValidationResult => {
   for (const result of [
+    validateCaller(contactId),
     validateInstantDelayMinutes(delayMinutes),
     validateMessageCount(kind, messageCount),
     validateCapacity(kind, messageCount, usage, released),

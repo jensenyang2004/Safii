@@ -77,11 +77,13 @@ export const COMBO_CALL_AFTER_LAST_MESSAGE_SECONDS = 30;
 // FakeAlertGate's 2-minute stale-call window, so a valid tap still finds it.
 export const SCHEDULE_EXPIRY_AFTER_LAST_FIRE_MS = 10 * 60 * 1000;
 
+// Used by the scheduling form as well as the quick-test path.
+export const DEFAULT_MESSAGE_GAP_SECONDS_RANGE: [number, number] = [3, 8];
+export const DEFAULT_RINGTONE_KEY = 'default';
+
 // __DEV__-only quick-test path on the manage tab.
 export const DEFAULT_FIRST_MESSAGE_DELAY_SECONDS = 5;
-export const DEFAULT_MESSAGE_GAP_SECONDS_RANGE: [number, number] = [3, 8];
 export const DEFAULT_CALL_DELAY_SECONDS = 5;
-export const DEFAULT_RINGTONE_KEY = 'default';
 
 // require() targets must be static, so the one ringtone asset we ship with
 // lives here rather than being passed around as a string path.
