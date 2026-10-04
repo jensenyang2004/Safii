@@ -48,8 +48,31 @@ export const DEFAULT_AVATAR_COLORS: Record<string, string> = {
 // delivering local notifications past 64 pending per app. We warn before
 // hitting it rather than after messages silently stop arriving.
 export const IOS_MAX_PENDING_NOTIFICATIONS = 64;
-export const PENDING_NOTIFICATION_WARNING_THRESHOLD = 60;
 
+// data.type values of fake alert notifications. Exact match on purpose —
+// the setup test notification is 'fake_alert_setup_test' and must not count
+// toward the fake alert budget. Shared with TrackProvider, which keeps these
+// when it clears its own notifications.
+export const FAKE_ALERT_NOTIFICATION_TYPES: ReadonlySet<string> = new Set([
+  'fake_call',
+  'fake_message',
+]);
+
+// Apple 未文件化超過 64 則時哪些會被丟（尚未驗證，見 todo #23）。為了不碰到上限，
+// 假通知自己設上限，並替追蹤與排程追蹤保留額度。
+export const FAKE_ALERT_MAX_PENDING = 20;
+export const NON_FAKE_ALERT_RESERVED_NOTIFICATIONS = 16;
+
+// Instant mode ("N minutes from now").
+export const INSTANT_DELAY_PRESET_MINUTES = [3, 5, 10];
+export const INSTANT_DELAY_MIN_MINUTES = 1;
+export const INSTANT_DELAY_MAX_MINUTES = 180;
+
+// Combo: the message burst plays first, then the call rings this long after
+// the last message — "you didn't reply, so they're calling".
+export const COMBO_CALL_AFTER_LAST_MESSAGE_SECONDS = 30;
+
+// __DEV__-only quick-test path on the manage tab.
 export const DEFAULT_FIRST_MESSAGE_DELAY_SECONDS = 5;
 export const DEFAULT_MESSAGE_GAP_SECONDS_RANGE: [number, number] = [3, 8];
 export const DEFAULT_CALL_DELAY_SECONDS = 5;

@@ -4,6 +4,9 @@
 
 export type FakeAlertKind = 'call' | 'message' | 'combo';
 
+/** 'scheduled' (a fixed date-time) lands in phase 2. */
+export type FakeAlertMode = 'instant' | 'scheduled';
+
 export interface FakeContact {
   id: string;
   name: string;
@@ -45,9 +48,21 @@ export interface FakeMessageConfig {
   gapSecondsRange: [number, number];
 }
 
+/** Message burst first, then the call `callAfterLastMessageSeconds` after the last message. */
+export interface FakeComboConfig {
+  contactId: string;
+  templateIds: string[];
+  firstDelaySeconds: number;
+  gapSecondsRange: [number, number];
+  callAfterLastMessageSeconds: number;
+  ringtoneKey: string;
+}
+
 export interface FakeAlertSchedule {
   id: string;
   kind: FakeAlertKind;
+  /** Missing on records written before this field existed — treat as 'instant'. */
+  mode?: FakeAlertMode;
   contactId: string;
   /**
    * Grouping key for the in-app chat UI (stage 3). NOT currently passed to
@@ -59,6 +74,13 @@ export interface FakeAlertSchedule {
   callNotificationId?: string | null;
   messages?: ScheduledFakeMessage[];
   scheduledAt: number;
+  /** Epoch ms of this schedule's first notification. */
+  fireAt: number;
+  /**
+   * Epoch ms of its last notification — the call for call/combo, the last
+   * message for message. Read-time expiry and reconcile key off this.
+   */
+  lastFireAt: number;
   /** Every OS notification id tied to this schedule, for bulk cancel. */
   notificationIds: string[];
   /** True if the user bypassed the "setup not verified" warning to schedule anyway. */

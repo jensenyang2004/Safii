@@ -1,12 +1,11 @@
 import * as Notifications from 'expo-notifications';
 import { v4 as uuidv4 } from 'uuid';
+import { FAKE_ALERT_NOTIFICATION_TYPES } from '@/constants/fakeAlert';
 import {
-  IOS_MAX_PENDING_NOTIFICATIONS,
-  PENDING_NOTIFICATION_WARNING_THRESHOLD,
-} from '@/constants/fakeAlert';
-import {
+  FakeAlertKind,
   FakeAlertSchedule,
   FakeCallConfig,
+  FakeComboConfig,
   FakeContact,
   FakeMessageConfig,
   MessageTemplate,
@@ -20,15 +19,20 @@ import {
   removeActiveSchedule,
   saveActiveSchedules,
 } from './storage';
+import {
+  NotificationUsage,
+  getRemainingFakeAlertSlots,
+  getRequiredNotificationCount,
+  validateCapacity,
+} from './validation';
 
 /**
- * Thrown when scheduling would push pending local notifications past the
- * warning threshold. The caller (stage 4 UI) decides what to do — this
- * layer never blocks silently.
+ * Thrown when scheduling would exceed the fake alert notification budget
+ * (see validation.ts / constants). `message` is user-facing.
  */
 export class FakeAlertCapacityError extends Error {
-  constructor(public pending: number, public requested: number, public limit: number) {
-    super(`Scheduling ${requested} more notifications would push pending count to ${pending + requested}, at/near the iOS limit of ${limit}.`);
+  constructor(public required: number, public remaining: number, message: string) {
+    super(message);
     this.name = 'FakeAlertCapacityError';
   }
 }
@@ -47,15 +51,24 @@ export class FakeAlertVerificationError extends Error {
   }
 }
 
-export const getPendingNotificationCount = async (): Promise<number> => {
+/** Live counts from the OS — storage can be stale, the OS can't. */
+export const getNotificationUsage = async (): Promise<NotificationUsage> => {
   const pending = await Notifications.getAllScheduledNotificationsAsync();
-  return pending.length;
+  const fakeAlertPending = pending.filter(request =>
+    FAKE_ALERT_NOTIFICATION_TYPES.has((request.content.data as { type?: string } | null)?.type ?? '')
+  ).length;
+  return { totalPending: pending.length, fakeAlertPending };
 };
 
-const assertCapacity = async (requested: number) => {
-  const pending = await getPendingNotificationCount();
-  if (pending + requested > PENDING_NOTIFICATION_WARNING_THRESHOLD) {
-    throw new FakeAlertCapacityError(pending, requested, IOS_MAX_PENDING_NOTIFICATIONS);
+const assertCapacity = async (kind: FakeAlertKind, messageCount: number) => {
+  const usage = await getNotificationUsage();
+  const result = validateCapacity(kind, messageCount, usage);
+  if (!result.ok) {
+    throw new FakeAlertCapacityError(
+      getRequiredNotificationCount(kind, messageCount),
+      getRemainingFakeAlertSlots(usage),
+      result.reason
+    );
   }
 };
 
@@ -72,18 +85,33 @@ interface ScheduleOptions {
   bypassVerification?: boolean;
 }
 
-export const scheduleFakeCall = async (
-  config: FakeCallConfig,
-  contact: FakeContact,
-  options: ScheduleOptions = {}
+/**
+ * Runs `build`, which hands notifications to the OS (recording each id in
+ * `scheduledIds`) and returns the record to persist. If anything throws
+ * before that record is saved, every notification already scheduled is
+ * cancelled — otherwise it would fire with no record for FakeAlertGate or
+ * the schedule list to find.
+ */
+const scheduleWithRollback = async (
+  build: (scheduledIds: string[]) => Promise<FakeAlertSchedule>
 ): Promise<FakeAlertSchedule> => {
-  await assertVerified(options.bypassVerification ?? false);
-  await assertCapacity(1);
+  const scheduledIds: string[] = [];
+  try {
+    const schedule = await build(scheduledIds);
+    await addActiveSchedule(schedule);
+    return schedule;
+  } catch (err) {
+    await Promise.all(
+      scheduledIds.map(id => Notifications.cancelScheduledNotificationAsync(id).catch(() => {}))
+    );
+    throw err;
+  }
+};
 
-  const scheduleId = uuidv4();
-  const threadIdentifier = `fake-call-${scheduleId}`;
+const secondsUntil = (epochMs: number) => Math.max(Math.round((epochMs - Date.now()) / 1000), 1);
 
-  const notificationId = await Notifications.scheduleNotificationAsync({
+const scheduleCallNotification = (contact: FakeContact, scheduleId: string, seconds: number) =>
+  Notifications.scheduleNotificationAsync({
     content: {
       title: contact.name,
       body: '來電',
@@ -101,73 +129,53 @@ export const scheduleFakeCall = async (
     },
     trigger: {
       type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-      seconds: Math.max(config.delaySeconds, 1),
+      seconds,
       repeats: false,
     },
   });
 
-  const schedule: FakeAlertSchedule = {
-    id: scheduleId,
-    kind: 'call',
-    contactId: contact.id,
-    threadIdentifier,
-    call: config,
-    callNotificationId: notificationId,
-    scheduledAt: Date.now(),
-    notificationIds: [notificationId],
-    verifiedSkipped: options.bypassVerification ?? false,
-  };
-
-  await addActiveSchedule(schedule);
-  return schedule;
+/**
+ * Lays out the burst: first message at `startAt`, each next one a random
+ * whole-second gap later (whole seconds so fireAt matches when the
+ * TIME_INTERVAL notification actually lands).
+ */
+const buildMessageBurst = (
+  templateIds: string[],
+  templates: MessageTemplate[],
+  startAt: number,
+  [minGap, maxGap]: [number, number]
+): ScheduledFakeMessage[] => {
+  const messages: ScheduledFakeMessage[] = [];
+  let fireAt = startAt;
+  for (const templateId of templateIds) {
+    const template = templates.find(t => t.id === templateId);
+    if (!template) continue;
+    messages.push({ id: uuidv4(), notificationId: null, text: template.text, fireAt });
+    fireAt += Math.round(minGap + Math.random() * (maxGap - minGap)) * 1000;
+  }
+  if (messages.length === 0) {
+    throw new Error('No usable message templates for this burst.');
+  }
+  return messages;
 };
 
 /**
- * Schedules each message in the burst as its own local notification, spaced
- * by a random gap within config.gapSecondsRange. iOS notifications are NOT
- * visually grouped into one thread by the OS — expo-notifications has no
- * JS-level threadIdentifier support for locally scheduled notifications on
- * this SDK version (checked against 0.32.x). `threadIdentifier` is still
- * recorded on the schedule/messages so stage 3's chat screen can group them
+ * Schedules each message as its own local notification. iOS notifications
+ * are NOT visually grouped into one thread by the OS — expo-notifications
+ * has no JS-level threadIdentifier support for locally scheduled
+ * notifications on this SDK version (checked against 0.32.x).
+ * `threadIdentifier` is still recorded so the chat screen can group them
  * itself, and so real OS grouping can be wired in later without a data
  * migration if this gets patched.
  */
-export const scheduleFakeMessages = async (
-  config: FakeMessageConfig,
+const scheduleMessageNotifications = async (
+  messages: ScheduledFakeMessage[],
   contact: FakeContact,
-  templates: MessageTemplate[],
-  options: ScheduleOptions = {}
-): Promise<FakeAlertSchedule> => {
-  await assertVerified(options.bypassVerification ?? false);
-  await assertCapacity(config.templateIds.length);
-
-  const scheduleId = uuidv4();
-  const threadIdentifier = `fake-message-${scheduleId}`;
-  const now = Date.now();
-  const [minGap, maxGap] = config.gapSecondsRange;
-
-  const messages: ScheduledFakeMessage[] = [];
-  let offsetSeconds = config.firstDelaySeconds;
-
-  for (const templateId of config.templateIds) {
-    const template = templates.find(t => t.id === templateId);
-    if (!template) continue;
-
-    const fireAt = now + offsetSeconds * 1000;
-    messages.push({
-      id: uuidv4(),
-      notificationId: null,
-      text: template.text,
-      fireAt,
-    });
-
-    const gap = minGap + Math.random() * (maxGap - minGap);
-    offsetSeconds += gap;
-  }
-
-  const notificationIds: string[] = [];
+  scheduleId: string,
+  threadIdentifier: string,
+  scheduledIds: string[]
+) => {
   for (const message of messages) {
-    const seconds = Math.max(Math.round((message.fireAt - Date.now()) / 1000), 1);
     const notificationId = await Notifications.scheduleNotificationAsync({
       content: {
         title: contact.name,
@@ -183,29 +191,147 @@ export const scheduleFakeMessages = async (
       },
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-        seconds,
+        seconds: secondsUntil(message.fireAt),
         repeats: false,
       },
     });
     message.notificationId = notificationId;
-    notificationIds.push(notificationId);
+    scheduledIds.push(notificationId);
   }
-
-  const schedule: FakeAlertSchedule = {
-    id: scheduleId,
-    kind: 'message',
-    contactId: contact.id,
-    threadIdentifier,
-    messages,
-    scheduledAt: now,
-    notificationIds,
-    verifiedSkipped: options.bypassVerification ?? false,
-  };
-
-  await addActiveSchedule(schedule);
-  return schedule;
 };
 
+export const scheduleFakeCall = async (
+  config: FakeCallConfig,
+  contact: FakeContact,
+  options: ScheduleOptions = {}
+): Promise<FakeAlertSchedule> => {
+  await assertVerified(options.bypassVerification ?? false);
+  await assertCapacity('call', 0);
+
+  return scheduleWithRollback(async scheduledIds => {
+    const scheduleId = uuidv4();
+    const now = Date.now();
+    const seconds = Math.max(config.delaySeconds, 1);
+
+    const callNotificationId = await scheduleCallNotification(contact, scheduleId, seconds);
+    scheduledIds.push(callNotificationId);
+
+    const fireAt = now + seconds * 1000;
+    return {
+      id: scheduleId,
+      kind: 'call',
+      mode: 'instant',
+      contactId: contact.id,
+      threadIdentifier: `fake-call-${scheduleId}`,
+      call: config,
+      callNotificationId,
+      scheduledAt: now,
+      fireAt,
+      lastFireAt: fireAt,
+      notificationIds: [...scheduledIds],
+      verifiedSkipped: options.bypassVerification ?? false,
+    };
+  });
+};
+
+export const scheduleFakeMessages = async (
+  config: FakeMessageConfig,
+  contact: FakeContact,
+  templates: MessageTemplate[],
+  options: ScheduleOptions = {}
+): Promise<FakeAlertSchedule> => {
+  await assertVerified(options.bypassVerification ?? false);
+  await assertCapacity('message', config.templateIds.length);
+
+  return scheduleWithRollback(async scheduledIds => {
+    const scheduleId = uuidv4();
+    const threadIdentifier = `fake-message-${scheduleId}`;
+    const now = Date.now();
+
+    const messages = buildMessageBurst(
+      config.templateIds,
+      templates,
+      now + config.firstDelaySeconds * 1000,
+      config.gapSecondsRange
+    );
+    await scheduleMessageNotifications(messages, contact, scheduleId, threadIdentifier, scheduledIds);
+
+    return {
+      id: scheduleId,
+      kind: 'message',
+      mode: 'instant',
+      contactId: contact.id,
+      threadIdentifier,
+      messages,
+      scheduledAt: now,
+      fireAt: messages[0].fireAt,
+      lastFireAt: messages[messages.length - 1].fireAt,
+      notificationIds: [...scheduledIds],
+      verifiedSkipped: options.bypassVerification ?? false,
+    };
+  });
+};
+
+/**
+ * Message burst first, then the call `callAfterLastMessageSeconds` after the
+ * last message. Both share one scheduleId so FakeAlertGate and the chat
+ * screen see one schedule; it's deleted when the call is handled (or the
+ * user stops it), not when the messages finish — see useFakeMessage.
+ */
+export const scheduleFakeCombo = async (
+  config: FakeComboConfig,
+  contact: FakeContact,
+  templates: MessageTemplate[],
+  options: ScheduleOptions = {}
+): Promise<FakeAlertSchedule> => {
+  await assertVerified(options.bypassVerification ?? false);
+  await assertCapacity('combo', config.templateIds.length);
+
+  return scheduleWithRollback(async scheduledIds => {
+    const scheduleId = uuidv4();
+    const threadIdentifier = `fake-combo-${scheduleId}`;
+    const now = Date.now();
+
+    const messages = buildMessageBurst(
+      config.templateIds,
+      templates,
+      now + config.firstDelaySeconds * 1000,
+      config.gapSecondsRange
+    );
+    await scheduleMessageNotifications(messages, contact, scheduleId, threadIdentifier, scheduledIds);
+
+    const callFireAt =
+      messages[messages.length - 1].fireAt + config.callAfterLastMessageSeconds * 1000;
+    const callNotificationId = await scheduleCallNotification(
+      contact,
+      scheduleId,
+      secondsUntil(callFireAt)
+    );
+    scheduledIds.push(callNotificationId);
+
+    return {
+      id: scheduleId,
+      kind: 'combo',
+      mode: 'instant',
+      contactId: contact.id,
+      threadIdentifier,
+      messages,
+      call: {
+        contactId: contact.id,
+        delaySeconds: Math.round((callFireAt - now) / 1000),
+        ringtoneKey: config.ringtoneKey,
+      },
+      callNotificationId,
+      scheduledAt: now,
+      fireAt: messages[0].fireAt,
+      lastFireAt: callFireAt,
+      notificationIds: [...scheduledIds],
+      verifiedSkipped: options.bypassVerification ?? false,
+    };
+  });
+};
+
+/** Cancels everything still pending for this schedule — for combo that includes the call. */
 export const cancelFakeAlertSchedule = async (scheduleId: string) => {
   const schedule = await getActiveSchedule(scheduleId);
   if (!schedule) return;
@@ -225,3 +351,4 @@ export const cancelAllFakeAlerts = async () => {
   }
   await saveActiveSchedules([]);
 };
+
