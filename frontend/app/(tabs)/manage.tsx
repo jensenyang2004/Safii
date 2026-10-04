@@ -1,11 +1,14 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, TextInput, Pressable, ScrollView, Alert, StyleSheet } from 'react-native';
+import { router } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { v4 as uuidv4 } from 'uuid';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import * as Theme from '@/constants/Theme';
 import FakeContactAvatar from '@/components/FakeAlert/FakeContactAvatar';
 import { useSetupTestFlow } from '@/hooks/useSetupTestFlow';
+import { useTracking } from '@/context/TrackProvider';
 import {
   getFakeContacts,
   saveFakeContacts,
@@ -37,6 +40,10 @@ export default function ManageFakeAlertScreen() {
   const [templates, setTemplates] = useState<MessageTemplate[]>([]);
   const [hasVerified, setHasVerified] = useState(false);
   const { status: setupStatus, runTest } = useSetupTestFlow();
+  const { isTracking, isReportDue, isInfoSent } = useTracking();
+  // Same condition FakeAlertGate swallows on — keep the two in sync.
+  const isFakeAlertPaused = isReportDue || isInfoSent;
+  const insets = useSafeAreaInsets();
 
   const [newContactName, setNewContactName] = useState('');
   const [newContactAvatarKey, setNewContactAvatarKey] = useState<string | null>(DEFAULT_AVATAR_KEYS[0]);
@@ -122,6 +129,7 @@ export default function ManageFakeAlertScreen() {
   };
 
   const triggerCall = async (bypassVerification = false) => {
+    if (isFakeAlertPaused) return;
     if (contacts.length === 0) {
       Alert.alert('還沒有假聯絡人', '請先在下面新增一個假聯絡人。');
       return;
@@ -147,7 +155,7 @@ export default function ManageFakeAlertScreen() {
         return;
       }
       if (err instanceof FakeAlertCapacityError) {
-        Alert.alert('通知數量接近上限', `目前已有 ${err.pending} 則排程中的通知，接近 iOS 的 ${err.limit} 筆上限，請先清一些再排。`);
+        Alert.alert('無法排程', err.message);
         return;
       }
       Alert.alert('排程失敗', String(err));
@@ -155,6 +163,7 @@ export default function ManageFakeAlertScreen() {
   };
 
   const triggerMessages = async (bypassVerification = false) => {
+    if (isFakeAlertPaused) return;
     if (contacts.length === 0) {
       Alert.alert('還沒有假聯絡人', '請先在下面新增一個假聯絡人。');
       return;
@@ -190,7 +199,7 @@ export default function ManageFakeAlertScreen() {
         return;
       }
       if (err instanceof FakeAlertCapacityError) {
-        Alert.alert('通知數量接近上限', `目前已有 ${err.pending} 則排程中的通知，接近 iOS 的 ${err.limit} 筆上限，請先清一些再排。`);
+        Alert.alert('無法排程', err.message);
         return;
       }
       Alert.alert('排程失敗', String(err));
@@ -214,7 +223,27 @@ export default function ManageFakeAlertScreen() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={[styles.content, { paddingTop: insets.top + 16 }]}
+    >
+      {isFakeAlertPaused ? (
+        <View style={[styles.trackingBanner, styles.trackingBannerPaused]}>
+          <MaterialIcons name="pause-circle-outline" size={20} color={Theme.colors.redAccent} />
+          <Text style={[styles.trackingBannerText, styles.trackingBannerTextPaused]}>
+            有待回報的平安確認，假來電暫停中
+          </Text>
+          <Pressable onPress={() => router.navigate('/(tabs)/home')} hitSlop={8}>
+            <Text style={styles.trackingBannerLink}>前往首頁</Text>
+          </Pressable>
+        </View>
+      ) : isTracking ? (
+        <View style={styles.trackingBanner}>
+          <MaterialIcons name="my-location" size={20} color={Theme.colors.textPrimary} />
+          <Text style={styles.trackingBannerText}>追蹤進行中，假來電可正常使用</Text>
+        </View>
+      ) : null}
+
       <Text style={styles.sectionTitle}>設定檢查</Text>
       <View style={styles.card}>
         <Text style={styles.cardText}>{setupStatusLabel[setupStatus]}</Text>
@@ -294,15 +323,26 @@ export default function ManageFakeAlertScreen() {
 
       <Text style={styles.sectionTitle}>立即測試</Text>
       <View style={styles.card}>
-        <Pressable style={styles.primaryButton} onPress={() => triggerCall(false)}>
+        <Pressable
+          style={[styles.primaryButton, isFakeAlertPaused && styles.primaryButtonDisabled]}
+          onPress={() => triggerCall(false)}
+          disabled={isFakeAlertPaused}
+        >
           <Text style={styles.primaryButtonText}>排程假來電（{DEFAULT_CALL_DELAY_SECONDS} 秒後）</Text>
         </Pressable>
-        <Pressable style={styles.primaryButton} onPress={() => triggerMessages(false)}>
+        <Pressable
+          style={[styles.primaryButton, isFakeAlertPaused && styles.primaryButtonDisabled]}
+          onPress={() => triggerMessages(false)}
+          disabled={isFakeAlertPaused}
+        >
           <Text style={styles.primaryButtonText}>排程假訊息（{DEFAULT_FIRST_MESSAGE_DELAY_SECONDS} 秒後開始）</Text>
         </Pressable>
-        <Text style={styles.hintText}>
-          排程後手機會照時間響/收到通知——目前點通知還不會自動打開畫面（那段串接還沒做），要直接看畫面請用除錯路徑。
-        </Text>
+        {isFakeAlertPaused && (
+          <Text style={styles.disabledReasonText}>
+            有平安確認待回報，暫停排程假來電/假訊息。請先到首頁完成回報。
+          </Text>
+        )}
+        <Text style={styles.hintText}>排程後會在時間到時收到通知，點擊即可開啟。</Text>
         <Pressable style={styles.dangerButton} onPress={cancelAll}>
           <Text style={styles.dangerButtonText}>取消所有排程</Text>
         </Pressable>
@@ -401,11 +441,45 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#333',
   },
+  trackingBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: Theme.colors.white,
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+  },
+  trackingBannerPaused: {
+    // No light-red tint in Theme's palette yet.
+    backgroundColor: '#fdecea',
+  },
+  trackingBannerText: {
+    flex: 1,
+    fontSize: 14,
+    color: Theme.colors.textPrimary,
+  },
+  trackingBannerTextPaused: {
+    color: Theme.colors.redAccent,
+    fontWeight: '600',
+  },
+  trackingBannerLink: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Theme.colors.brandBlue,
+  },
   primaryButton: {
     paddingVertical: 12,
     borderRadius: 10,
     backgroundColor: Theme.colors.brandPink,
     alignItems: 'center',
+  },
+  primaryButtonDisabled: {
+    opacity: 0.4,
+  },
+  disabledReasonText: {
+    fontSize: 12,
+    color: '#c0392b',
   },
   primaryButtonText: {
     color: '#fff',
