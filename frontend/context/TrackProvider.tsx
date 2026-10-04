@@ -11,6 +11,7 @@ import { Alert, AppState, AppStateStatus, Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { useAuth } from './AuthProvider';
 import { usePermissions } from '../hooks/usePermissions'; // ADDED
+import { FAKE_ALERT_NOTIFICATION_TYPES } from '@/constants/fakeAlert';
 
 export const STORAGE_KEYS = {
   TIMELINE: 'calculated_timeline',
@@ -230,6 +231,55 @@ const TrackingStorage = {
 };
 
 // --- Module-level Notification Helpers ---
+
+const cancelWithRetry = async (ids: string[]): Promise<string[]> => {
+  const attempt = async (batch: string[]) => {
+    const results = await Promise.allSettled(
+      batch.map(id => Notifications.cancelScheduledNotificationAsync(id))
+    );
+    return batch.filter((_, i) => results[i].status === 'rejected');
+  };
+  const failedOnce = await attempt(ids);
+  return failedOnce.length > 0 ? attempt(failedOnce) : [];
+};
+
+// Clears tracking's local notifications without touching fake alerts.
+// Assumes TrackProvider owns every local notification whose data.type isn't
+// in FAKE_ALERT_NOTIFICATION_TYPES — so this also sweeps orphaned batches and
+// older versions' untyped notifications (todo #28). fake_alert_setup_test is
+// deliberately not preserved (todo #31).
+//
+// Never throws: loadAndReconcileState calls this, and its catch would
+// otherwise run stopTrackingMode on a live session (todo #29). If the
+// pending list can't be read, falls back to the stored NOTIFICATION_IDS —
+// never to cancel-all, which would take fake alerts with it.
+async function cancelTrackingNotifications(context: string): Promise<void> {
+  try {
+    const pending = await Notifications.getAllScheduledNotificationsAsync();
+    const toCancel = pending
+      .filter(r => !FAKE_ALERT_NOTIFICATION_TYPES.has((r.content.data as { type?: string } | null)?.type ?? ''))
+      .map(r => r.identifier);
+    const failed = await cancelWithRetry(toCancel);
+    console.log(
+      `[TrackProvider] ${context}: cancelled ${toCancel.length - failed.length}, ` +
+      `kept ${pending.length - toCancel.length} fake alert, failed ${failed.length}`
+    );
+    if (failed.length > 0) {
+      console.error(`[TrackProvider] ${context}: failed to cancel after retry`, failed);
+    }
+  } catch (err) {
+    console.error(`[TrackProvider] ${context}: could not read pending notifications, falling back to stored ids`, err);
+    try {
+      const failed = await cancelWithRetry(await TrackingStorage.getNotificationIds());
+      if (failed.length > 0) {
+        console.error(`[TrackProvider] ${context}: fallback failed to cancel after retry`, failed);
+      }
+    } catch (fallbackErr) {
+      console.error(`[TrackProvider] ${context}: fallback cancel failed`, fallbackErr);
+    }
+  }
+}
+
 const TrackingNotifications = {
   configureNotifications: async () => {
     if (Platform.OS === 'android') {
@@ -393,7 +443,7 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
               // Reschedule notifications (they're device-local, can't be stored in DB)
               // Cancel any already-scheduled notifications first to prevent duplicates
               // (race: startTrackingMode may have scheduled them before IS_ACTIVE was written)
-              await Notifications.cancelAllScheduledNotificationsAsync();
+              await cancelTrackingNotifications('restore');
               const newNotificationIds = await scheduleAllNotifications(data.timeline);
 
               await AsyncStorage.multiSet([
@@ -491,7 +541,7 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
 
       } else {
         // Not active — cancel stale notifications and force-close Firestore if still open
-        await Notifications.cancelAllScheduledNotificationsAsync();
+        await cancelTrackingNotifications('reconcile-inactive');
         try {
           const active = await getActiveDocRef();
           if (active) {
@@ -948,7 +998,7 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
     }
 
     try {
-      await Notifications.cancelAllScheduledNotificationsAsync();
+      await cancelTrackingNotifications('stop');
 
       try {
         const active = await getActiveDocRef();
@@ -1040,8 +1090,9 @@ export const TrackingProvider = ({ children }: { children: React.ReactNode }) =>
         }
 
         // 2. Cancel all scheduled notifications
-        await Notifications.cancelAllScheduledNotificationsAsync();
-        console.log('🧹 Cancelled all scheduled notifications due to sign-out.');
+        // Fake alerts are cleared by AuthProvider.signOut, not here.
+        await cancelTrackingNotifications('sign-out');
+        console.log('🧹 Cancelled tracking notifications due to sign-out.');
 
         // 3. Deactivate the 'dead man's switch' in Firestore
         try {
