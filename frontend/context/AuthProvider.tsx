@@ -7,6 +7,7 @@ import { doc, getDoc, deleteDoc, collection, getDocs, query, where } from 'fireb
 import { router } from 'expo-router';
 import { Alert } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
+import { clearFakeAlertsForSignOut } from '@/services/fakeAlert/scheduler';
 
 const ONBOARDING_COMPLETED_KEY = 'onboarding_completed';
 
@@ -100,7 +101,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       console.log('STARTING SIGN OUT');
       setLoading(true);
-      
+
+      // Fake alerts are device-local and per-account — cleared explicitly here,
+      // not as a side effect of TrackProvider's sign-out cleanup. It never
+      // throws; the extra try/catch is belt-and-braces so nothing in it can
+      // ever skip auth.signOut().
+      try {
+        await clearFakeAlertsForSignOut();
+      } catch (err) {
+        console.error('Fake alert sign-out cleanup failed:', err);
+      }
+
       await auth.signOut();
       console.log('FIREBASE SIGN OUT COMPLETE');
       setUser(null); // Force update the user state to null

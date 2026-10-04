@@ -13,6 +13,7 @@ import {
 } from '@/types/fakeAlert';
 import {
   addActiveSchedule,
+  clearAllFakeAlertData,
   getActiveSchedule,
   getHasVerifiedSetup,
   getActiveSchedules,
@@ -51,13 +52,13 @@ export class FakeAlertVerificationError extends Error {
   }
 }
 
+const isFakeAlertRequest = (request: Notifications.NotificationRequest) =>
+  FAKE_ALERT_NOTIFICATION_TYPES.has((request.content.data as { type?: string } | null)?.type ?? '');
+
 /** Live counts from the OS — storage can be stale, the OS can't. */
 export const getNotificationUsage = async (): Promise<NotificationUsage> => {
   const pending = await Notifications.getAllScheduledNotificationsAsync();
-  const fakeAlertPending = pending.filter(request =>
-    FAKE_ALERT_NOTIFICATION_TYPES.has((request.content.data as { type?: string } | null)?.type ?? '')
-  ).length;
-  return { totalPending: pending.length, fakeAlertPending };
+  return { totalPending: pending.length, fakeAlertPending: pending.filter(isFakeAlertRequest).length };
 };
 
 const assertCapacity = async (kind: FakeAlertKind, messageCount: number) => {
@@ -331,6 +332,22 @@ export const scheduleFakeCombo = async (
   });
 };
 
+/**
+ * Cancels each id, retries the failures once, and returns the ids that
+ * still failed. Never throws. Each id is cancelled independently, so one
+ * failure never causes a later id to be skipped.
+ */
+const cancelNotificationsWithRetry = async (ids: string[]): Promise<string[]> => {
+  const attempt = async (batch: string[]) => {
+    const results = await Promise.allSettled(
+      batch.map(id => Notifications.cancelScheduledNotificationAsync(id))
+    );
+    return batch.filter((_, i) => results[i].status === 'rejected');
+  };
+  const failedOnce = await attempt(ids);
+  return failedOnce.length > 0 ? attempt(failedOnce) : [];
+};
+
 /** Cancels everything still pending for this schedule — for combo that includes the call. */
 export const cancelFakeAlertSchedule = async (scheduleId: string) => {
   const schedule = await getActiveSchedule(scheduleId);
@@ -352,3 +369,33 @@ export const cancelAllFakeAlerts = async () => {
   await saveActiveSchedules([]);
 };
 
+/**
+ * Sign-out cleanup — called explicitly by AuthProvider.signOut (deleteAccount
+ * goes through it too), not left to TrackProvider's cancel side effects.
+ *
+ * Cancels by data.type against the OS's pending list rather than by stored
+ * ids, so fake alert notifications with no storage record go too — which is
+ * also why storage isn't needed for cancelling and is always wiped, even if
+ * some cancels failed: keeping it would leak this account's fake contacts,
+ * templates and schedules to whoever signs in next.
+ *
+ * Never throws: a failure here must not block auth.signOut().
+ */
+export const clearFakeAlertsForSignOut = async () => {
+  try {
+    const pending = await Notifications.getAllScheduledNotificationsAsync();
+    const fakeAlertIds = pending.filter(isFakeAlertRequest).map(request => request.identifier);
+    const failed = await cancelNotificationsWithRetry(fakeAlertIds);
+    if (failed.length > 0) {
+      console.error('[FakeAlert] sign-out: failed to cancel after retry', failed);
+    }
+  } catch (err) {
+    console.error('[FakeAlert] sign-out: could not cancel pending notifications', err);
+  }
+
+  try {
+    await clearAllFakeAlertData();
+  } catch (err) {
+    console.error('[FakeAlert] sign-out: failed to clear local fake alert data', err);
+  }
+};
