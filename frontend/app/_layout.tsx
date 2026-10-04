@@ -1,3 +1,5 @@
+// Must stay first: installs crypto.getRandomValues, which uuid's v4() needs on RN.
+import 'react-native-get-random-values';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
 import { Stack, router, useSegments } from 'expo-router';
