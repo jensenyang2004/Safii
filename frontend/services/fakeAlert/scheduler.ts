@@ -348,23 +348,26 @@ const cancelNotificationsWithRetry = async (ids: string[]): Promise<string[]> =>
   return failedOnce.length > 0 ? attempt(failedOnce) : [];
 };
 
-/** Cancels everything still pending for this schedule — for combo that includes the call. */
+/**
+ * Cancels everything still pending for this schedule — for combo that
+ * includes the call, which must go even if a message id failed to cancel.
+ */
 export const cancelFakeAlertSchedule = async (scheduleId: string) => {
   const schedule = await getActiveSchedule(scheduleId);
   if (!schedule) return;
 
-  for (const notificationId of schedule.notificationIds) {
-    await Notifications.cancelScheduledNotificationAsync(notificationId);
+  const failed = await cancelNotificationsWithRetry(schedule.notificationIds);
+  if (failed.length > 0) {
+    console.error('[FakeAlert] cancel schedule: failed to cancel after retry', scheduleId, failed);
   }
   await removeActiveSchedule(scheduleId);
 };
 
 export const cancelAllFakeAlerts = async () => {
   const schedules = await getActiveSchedules();
-  for (const schedule of schedules) {
-    for (const notificationId of schedule.notificationIds) {
-      await Notifications.cancelScheduledNotificationAsync(notificationId);
-    }
+  const failed = await cancelNotificationsWithRetry(schedules.flatMap(s => s.notificationIds));
+  if (failed.length > 0) {
+    console.error('[FakeAlert] cancel all: failed to cancel after retry', failed);
   }
   await saveActiveSchedules([]);
 };
