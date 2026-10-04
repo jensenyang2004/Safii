@@ -1,5 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { FAKE_ALERT_STORAGE_KEYS, DEFAULT_MESSAGE_TEMPLATES } from '@/constants/fakeAlert';
+import {
+  FAKE_ALERT_STORAGE_KEYS,
+  DEFAULT_MESSAGE_TEMPLATES,
+  SCHEDULE_EXPIRY_AFTER_LAST_FIRE_MS,
+} from '@/constants/fakeAlert';
 import { FakeContact, MessageTemplate, FakeAlertSchedule } from '@/types/fakeAlert';
 
 // --- Contacts ---
@@ -34,10 +38,24 @@ export const saveMessageTemplates = async (templates: MessageTemplate[]) => {
 // Every armed fake call / message burst lives here until it's cancelled or
 // it finishes firing, so the scheduler can bulk-cancel OS notifications and
 // stage 3's chat screen can read message timing.
+//
+// Reads filter out expired records (past lastFireAt + expiry) but never write
+// the filtered list back — expired records stay on disk untouched. Writes
+// below go through the raw, unfiltered list for the same reason.
 
-export const getActiveSchedules = async (): Promise<FakeAlertSchedule[]> => {
+const readAllSchedules = async (): Promise<FakeAlertSchedule[]> => {
   const str = await AsyncStorage.getItem(FAKE_ALERT_STORAGE_KEYS.ACTIVE_SCHEDULES);
   return str ? JSON.parse(str) : [];
+};
+
+const isExpired = (schedule: FakeAlertSchedule, now: number) =>
+  // Records written before fireAt/lastFireAt existed only have scheduledAt.
+  now > (schedule.lastFireAt ?? schedule.scheduledAt) + SCHEDULE_EXPIRY_AFTER_LAST_FIRE_MS;
+
+export const getActiveSchedules = async (): Promise<FakeAlertSchedule[]> => {
+  const now = Date.now();
+  const schedules = await readAllSchedules();
+  return schedules.filter(s => !isExpired(s, now));
 };
 
 export const saveActiveSchedules = async (schedules: FakeAlertSchedule[]) => {
@@ -45,13 +63,13 @@ export const saveActiveSchedules = async (schedules: FakeAlertSchedule[]) => {
 };
 
 export const addActiveSchedule = async (schedule: FakeAlertSchedule) => {
-  const schedules = await getActiveSchedules();
+  const schedules = await readAllSchedules();
   schedules.push(schedule);
   await saveActiveSchedules(schedules);
 };
 
 export const removeActiveSchedule = async (scheduleId: string) => {
-  const schedules = await getActiveSchedules();
+  const schedules = await readAllSchedules();
   await saveActiveSchedules(schedules.filter(s => s.id !== scheduleId));
 };
 
@@ -61,7 +79,7 @@ export const getActiveSchedule = async (scheduleId: string): Promise<FakeAlertSc
 };
 
 export const updateActiveSchedule = async (schedule: FakeAlertSchedule) => {
-  const schedules = await getActiveSchedules();
+  const schedules = await readAllSchedules();
   const index = schedules.findIndex(s => s.id === schedule.id);
   if (index === -1) {
     schedules.push(schedule);

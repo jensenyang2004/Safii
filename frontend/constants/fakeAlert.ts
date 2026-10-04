@@ -72,6 +72,11 @@ export const INSTANT_DELAY_MAX_MINUTES = 180;
 // the last message — "you didn't reply, so they're calling".
 export const COMBO_CALL_AFTER_LAST_MESSAGE_SECONDS = 30;
 
+// A schedule is treated as gone this long after its last notification, even
+// if nothing consumed it (call never tapped, chat never opened). Longer than
+// FakeAlertGate's 2-minute stale-call window, so a valid tap still finds it.
+export const SCHEDULE_EXPIRY_AFTER_LAST_FIRE_MS = 10 * 60 * 1000;
+
 // __DEV__-only quick-test path on the manage tab.
 export const DEFAULT_FIRST_MESSAGE_DELAY_SECONDS = 5;
 export const DEFAULT_MESSAGE_GAP_SECONDS_RANGE: [number, number] = [3, 8];

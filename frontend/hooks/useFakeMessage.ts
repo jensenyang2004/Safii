@@ -63,8 +63,12 @@ export function useFakeMessage({ scheduleId }: UseFakeMessageParams) {
   // above — the schedule's job is done. Cleaning up here (rather than on a
   // fixed timer) means it also self-heals if the app was backgrounded and
   // only catches up once the user actually opens the thread.
+  // Combo is the exception: its call is still to come, so the schedule must
+  // survive the messages finishing — useFakeCall deletes it once the call is
+  // handled (or read-time expiry drops it if the call never is).
   useEffect(() => {
     if (!schedule?.messages) return;
+    if (schedule.kind === 'combo') return;
     if (visibleMessages.length >= schedule.messages.length) {
       removeActiveSchedule(scheduleId);
     }
