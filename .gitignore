@@ -130,3 +130,7 @@ frontend/.env.example
 # Sensitive Firebase config files
 frontend/google-services.json
 frontend/GoogleService-Info.plist
+
+# Personal notes and Claude Code instructions
+CLAUDE.local.md
+/doc/
